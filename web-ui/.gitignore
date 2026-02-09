@@ -1,0 +1,7 @@
+web-ui/.gitignore
+node_modules
+.DS_Store
+vite.config.ts.timestamp-* 
+*.log
+dist
+.tmp
