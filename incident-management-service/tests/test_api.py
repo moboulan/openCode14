@@ -122,28 +122,49 @@ async def test_create_incident_bad_severity(client):
 
 # ── GET /api/v1/incidents (list) ─────────────────────────────
 
+def _list_connection(total: int, rows: list):
+    """Return a get_db_connection CM whose cursor serves COUNT then SELECT."""
+    @contextmanager
+    def _ctx(autocommit=False):
+        fetch_one_results = iter([{"cnt": total}])
+        fetch_all_results = iter([rows])
+
+        cur = MagicMock()
+        cur.fetchone = MagicMock(side_effect=lambda: next(fetch_one_results))
+        cur.fetchall = MagicMock(side_effect=lambda: next(fetch_all_results))
+
+        conn = MagicMock()
+        conn.cursor.return_value.__enter__ = MagicMock(return_value=cur)
+        conn.cursor.return_value.__exit__ = MagicMock(return_value=False)
+        yield conn
+    return _ctx
+
+
 @pytest.mark.asyncio
 async def test_list_incidents(client):
     rows = [_make_incident_row()]
 
     with patch("app.routers.api.get_db_connection", side_effect=[
-        _fake_connection([rows])(),
+        _list_connection(total=1, rows=rows)(),
     ]):
         resp = await client.get("/api/v1/incidents")
 
     assert resp.status_code == 200
     body = resp.json()
     assert "incidents" in body
-    assert "total" in body
+    assert body["total"] == 1
+    assert "limit" in body
+    assert "offset" in body
 
 
 @pytest.mark.asyncio
 async def test_list_incidents_with_filters(client):
     with patch("app.routers.api.get_db_connection", side_effect=[
-        _fake_connection([[]])(),
+        _list_connection(total=0, rows=[])(),
     ]):
         resp = await client.get("/api/v1/incidents?status=open&severity=high&service=web")
     assert resp.status_code == 200
+    assert resp.json()["total"] == 0
 
 
 # ── GET /api/v1/incidents/{incident_id} ──────────────────────
@@ -153,12 +174,15 @@ async def test_get_incident_found(client):
     row = _make_incident_row(incident_id="inc-found")
 
     with patch("app.routers.api.get_db_connection", side_effect=[
-        _fake_connection([row])(),
+        _fake_connection([row])(),          # incident row
+        _fake_connection([[]])(),            # linked alerts (empty)
     ]):
         resp = await client.get("/api/v1/incidents/inc-found")
 
     assert resp.status_code == 200
-    assert resp.json()["incident_id"] == "inc-found"
+    body = resp.json()
+    assert body["incident_id"] == "inc-found"
+    assert "alerts" in body
 
 
 @pytest.mark.asyncio

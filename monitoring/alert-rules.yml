@@ -23,7 +23,7 @@ groups:
       - alert: AlertCorrelationFailureRate
         expr: >
           rate(alerts_correlated_total{result="new_incident"}[5m])
-          / (rate(alerts_correlated_total{result="new_incident"}[5m]) + rate(alerts_correlated_total{result="existing_incident"}[5m]))
+          / on() (rate(alerts_correlated_total{result="new_incident"}[5m]) + rate(alerts_correlated_total{result="existing_incident"}[5m]))
           > 0.9
         for: 5m
         labels:

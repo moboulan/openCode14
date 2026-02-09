@@ -138,6 +138,7 @@ async def list_incidents(
     severity: Optional[SeverityLevel] = None,
     service: Optional[str] = None,
     limit: int = Query(default=100, ge=1, le=1000),
+    offset: int = Query(default=0, ge=0),
 ):
     """List incidents with optional filters, ordered by created_at DESC."""
     conditions = []
@@ -154,10 +155,18 @@ async def list_incidents(
         params.append(service)
 
     where = ("WHERE " + " AND ".join(conditions)) if conditions else ""
-    params.append(limit)
 
     with get_db_connection() as conn:
         with conn.cursor() as cur:
+            # Total count for pagination
+            cur.execute(
+                f"SELECT COUNT(*) AS cnt FROM incidents.incidents {where}",
+                params[:],
+            )
+            total = cur.fetchone()["cnt"]
+
+            # Fetch page
+            page_params = params + [limit, offset]
             cur.execute(
                 f"""
                 SELECT id, incident_id, title, description, service, severity,
@@ -166,9 +175,9 @@ async def list_incidents(
                 FROM incidents.incidents
                 {where}
                 ORDER BY created_at DESC
-                LIMIT %s
+                LIMIT %s OFFSET %s
                 """,
-                params,
+                page_params,
             )
             rows = cur.fetchall()
 
@@ -180,7 +189,7 @@ async def list_incidents(
         if r["assigned_to"]:
             r["assigned_to"] = str(r["assigned_to"])
 
-    return {"incidents": rows, "total": len(rows)}
+    return {"incidents": rows, "total": total, "limit": limit, "offset": offset}
 
 
 # ---------------------------------------------------------------------------
@@ -255,6 +264,25 @@ async def get_incident(incident_id: str):
     if not row:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Incident not found")
 
+    # Fetch linked alerts
+    linked_alerts: list = []
+    try:
+        with get_db_connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    SELECT a.alert_id, a.service, a.severity, a.message, a.timestamp
+                    FROM alerts.alerts a
+                    JOIN incidents.incident_alerts ia ON ia.alert_id = a.id
+                    WHERE ia.incident_id = %s
+                    ORDER BY a.timestamp DESC
+                    """,
+                    (row["id"],),
+                )
+                linked_alerts = cur.fetchall()
+    except Exception as e:
+        logger.warning(f"Could not fetch linked alerts for {incident_id}: {e}")
+
     notes = row["notes"] if isinstance(row["notes"], list) else json.loads(row["notes"] or "[]")
 
     return IncidentResponse(
@@ -267,6 +295,7 @@ async def get_incident(incident_id: str):
         status=row["status"],
         assigned_to=str(row["assigned_to"]) if row["assigned_to"] else None,
         notes=notes,
+        alerts=linked_alerts,
         created_at=row["created_at"],
         acknowledged_at=row["acknowledged_at"],
         resolved_at=row["resolved_at"],

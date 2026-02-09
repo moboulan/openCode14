@@ -61,6 +61,7 @@ class IncidentResponse(BaseModel):
     status: IncidentStatus
     assigned_to: Optional[str] = None
     notes: List[str] = Field(default_factory=list)
+    alerts: List[Dict] = Field(default_factory=list)
     created_at: datetime
     acknowledged_at: Optional[datetime] = None
     resolved_at: Optional[datetime] = None

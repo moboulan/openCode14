@@ -145,11 +145,18 @@ async def create_alert(alert: Alert):
     # ── 3. Update correlation metric ──────────────────────────
     alerts_correlated_total.labels(result=action).inc()
 
+    # Map internal metric label → user-facing action string
+    display_action = (
+        "attached_to_existing_incident" if action == "existing_incident"
+        else "created_new_incident"
+    )
+    resp_status = "correlated" if incident_id else "created"
+
     return AlertResponse(
         alert_id=alert_id,
         incident_id=incident_id,
-        status="processed",
-        action=action,
+        status=resp_status,
+        action=display_action,
         timestamp=datetime.now(timezone.utc),
     )
 
@@ -212,6 +219,7 @@ async def list_alerts(
     service: Optional[str] = None,
     severity: Optional[SeverityLevel] = None,
     limit: int = Query(default=100, ge=1, le=1000),
+    offset: int = Query(default=0, ge=0),
 ):
     """List alerts with optional filters, ordered by created_at DESC"""
     conditions = []
@@ -225,10 +233,18 @@ async def list_alerts(
         params.append(severity.value)
 
     where = ("WHERE " + " AND ".join(conditions)) if conditions else ""
-    params.append(limit)
 
     with get_db_connection() as conn:
         with conn.cursor() as cur:
+            # Total count for pagination
+            cur.execute(
+                f"SELECT COUNT(*) AS cnt FROM alerts.alerts {where}",
+                params[:],  # copy — don't mutate
+            )
+            total = cur.fetchone()["cnt"]
+
+            # Fetch page
+            page_params = params + [limit, offset]
             cur.execute(
                 f"""
                 SELECT alert_id, service, severity, message, labels,
@@ -236,13 +252,15 @@ async def list_alerts(
                 FROM alerts.alerts
                 {where}
                 ORDER BY created_at DESC
-                LIMIT %s
+                LIMIT %s OFFSET %s
                 """,
-                params,
+                page_params,
             )
             rows = cur.fetchall()
 
     return {
         "alerts": rows,
-        "total": len(rows),
+        "total": total,
+        "limit": limit,
+        "offset": offset,
     }

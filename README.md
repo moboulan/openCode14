@@ -215,7 +215,14 @@ All services are configured via environment variables. See [`.env.example`](.env
 
 ## Team
 
-Built for **OpenCode Hackathon 2026** by Team ExpertMind.
+Built for **OpenCode Hackathon 2026** by **Team ExpertMind**.
+
+| Member | Role |
+|--------|------|
+| **Samati** | Team Lead / Backend — Alert Ingestion & Incident Management |
+| **Member 2** | Backend — On-Call & Escalation Service |
+| **Member 3** | Frontend — React Web UI & Dashboards |
+| **Member 4** | DevOps — CI/CD Pipeline, Docker, Monitoring |
 
 ---
 

@@ -3,93 +3,21 @@
 Validates the 5-minute-window deduplication algorithm:
 - Same service + severity within window → existing incident
 - Same service + different severity → new incident
-- Same service + severity outside window → new incident
+- Correlation window value used in SQL query
 - Graceful degradation when incident service is down
 - Correlation metric counters
 """
 
 import uuid
-from contextlib import contextmanager
-from datetime import datetime, timezone
 from unittest.mock import MagicMock, patch
 
 import pytest
 
-
-# ---------------------------------------------------------------------------
-# Helper — reusable mock get_db_connection factory
-# ---------------------------------------------------------------------------
-
-def _fake_connection(cursor_sides: list[dict | None]):
-    """Return a patched get_db_connection that yields a mock with preset cursor results."""
-    call_idx = {"i": 0}
-
-    @contextmanager
-    def _ctx(autocommit=False):
-        conn = MagicMock()
-
-        @contextmanager
-        def _cur_ctx():
-            cur = MagicMock()
-            idx = call_idx["i"]
-            if idx < len(cursor_sides):
-                val = cursor_sides[idx]
-                cur.fetchone.return_value = val
-                cur.fetchall.return_value = val if isinstance(val, list) else [val] if val else []
-            else:
-                cur.fetchone.return_value = None
-                cur.fetchall.return_value = []
-            call_idx["i"] += 1
-            yield cur
-
-        conn.cursor = _cur_ctx
-        yield conn
-
-    return _ctx
-
-
-class _FakeIncidentResponse:
-    """Simulate a successful incident-management POST response."""
-    status_code = 201
-
-    def __init__(self, incident_id="inc-new-111", db_id=None):
-        self._incident_id = incident_id
-        self._db_id = db_id or str(uuid.uuid4())
-
-    def raise_for_status(self):
-        pass
-
-    def json(self):
-        return {"incident_id": self._incident_id, "id": self._db_id}
-
-
-class _FakeAsyncClient:
-    def __init__(self, **kw):
-        pass
-
-    async def __aenter__(self):
-        return self
-
-    async def __aexit__(self, *a):
-        pass
-
-    async def post(self, *a, **kw):
-        return _FakeIncidentResponse()
-
-
-class _FakeAsyncClientDown:
-    """Simulate incident service being unreachable."""
-    def __init__(self, **kw):
-        pass
-
-    async def __aenter__(self):
-        return self
-
-    async def __aexit__(self, *a):
-        pass
-
-    async def post(self, *a, **kw):
-        raise Exception("connection refused")
+from helpers import (
+    fake_connection,
+    FakeAsyncClient,
+    FakeAsyncClientDown,
+)
 
 
 # ── Correlation: match found → attach to existing incident ───
@@ -103,18 +31,16 @@ async def test_correlation_matches_existing_incident(client, sample_alert_payloa
     incident_id = "inc-existing-001"
 
     with patch("app.routers.api.get_db_connection", side_effect=[
-        # 1. INSERT alert
-        _fake_connection([{"id": alert_db_id}])(autocommit=True),
-        # 2. Correlation SELECT → match found
-        _fake_connection([{"incident_id": incident_id, "id": incident_db_id}])(),
-        # 3. Link alert ↔ incident
-        _fake_connection([None])(autocommit=True),
+        fake_connection([{"id": alert_db_id}])(autocommit=True),
+        fake_connection([{"incident_id": incident_id, "id": incident_db_id}])(),
+        fake_connection([None])(autocommit=True),
     ]):
         resp = await client.post("/api/v1/alerts", json=sample_alert_payload)
 
     assert resp.status_code == 201
     body = resp.json()
-    assert body["action"] == "existing_incident"
+    assert body["action"] == "attached_to_existing_incident"
+    assert body["status"] == "correlated"
     assert body["incident_id"] == incident_id
 
 
@@ -127,16 +53,16 @@ async def test_correlation_no_match_creates_new_incident(client, sample_alert_pa
     alert_db_id = uuid.uuid4()
 
     with patch("app.routers.api.get_db_connection", side_effect=[
-        _fake_connection([{"id": alert_db_id}])(autocommit=True),
-        _fake_connection([None])(),  # no match
-        _fake_connection([None])(autocommit=True),  # link step
+        fake_connection([{"id": alert_db_id}])(autocommit=True),
+        fake_connection([None])(),
+        fake_connection([None])(autocommit=True),
     ]):
-        with patch("httpx.AsyncClient", _FakeAsyncClient):
+        with patch("httpx.AsyncClient", FakeAsyncClient):
             resp = await client.post("/api/v1/alerts", json=sample_alert_payload)
 
     assert resp.status_code == 201
     body = resp.json()
-    assert body["action"] == "new_incident"
+    assert body["action"] == "created_new_incident"
     assert body["incident_id"] is not None
 
 
@@ -154,15 +80,15 @@ async def test_correlation_different_severity_no_match(client):
     }
 
     with patch("app.routers.api.get_db_connection", side_effect=[
-        _fake_connection([{"id": alert_db_id}])(autocommit=True),
-        _fake_connection([None])(),  # no match (different severity)
-        _fake_connection([None])(autocommit=True),
+        fake_connection([{"id": alert_db_id}])(autocommit=True),
+        fake_connection([None])(),
+        fake_connection([None])(autocommit=True),
     ]):
-        with patch("httpx.AsyncClient", _FakeAsyncClient):
+        with patch("httpx.AsyncClient", FakeAsyncClient):
             resp = await client.post("/api/v1/alerts", json=payload)
 
     assert resp.status_code == 201
-    assert resp.json()["action"] == "new_incident"
+    assert resp.json()["action"] == "created_new_incident"
 
 
 # ── Graceful degradation: incident service down ──────────────
@@ -173,17 +99,66 @@ async def test_correlation_graceful_degradation(client, sample_alert_payload):
     alert_db_id = uuid.uuid4()
 
     with patch("app.routers.api.get_db_connection", side_effect=[
-        _fake_connection([{"id": alert_db_id}])(autocommit=True),
-        _fake_connection([None])(),
+        fake_connection([{"id": alert_db_id}])(autocommit=True),
+        fake_connection([None])(),
     ]):
-        with patch("httpx.AsyncClient", _FakeAsyncClientDown):
+        with patch("httpx.AsyncClient", FakeAsyncClientDown):
             resp = await client.post("/api/v1/alerts", json=sample_alert_payload)
 
     assert resp.status_code == 201
     body = resp.json()
     assert body["incident_id"] is None
-    assert body["action"] == "new_incident"
-    assert body["status"] == "processed"
+    assert body["action"] == "created_new_incident"
+    assert body["status"] == "created"
+
+
+# ── Correlation window boundary test ─────────────────────────
+
+@pytest.mark.asyncio
+async def test_correlation_query_uses_window_setting(client, sample_alert_payload):
+    """Verify that the correlation SQL passes the CORRELATION_WINDOW_MINUTES
+    config value to the query, so alerts outside the window won't match."""
+    from contextlib import contextmanager
+    from app.config import settings
+
+    alert_db_id = uuid.uuid4()
+    captured_sql = {}
+
+    @contextmanager
+    def _capture_conn(autocommit=False):
+        conn = MagicMock()
+
+        @contextmanager
+        def _cur_ctx():
+            cur = MagicMock()
+            cur.fetchone.return_value = None
+            cur.fetchall.return_value = []
+
+            def _capture_execute(sql, params=None):
+                if "incidents.incidents" in str(sql):
+                    captured_sql["sql"] = sql
+                    captured_sql["params"] = params
+
+            cur.execute = _capture_execute
+            yield cur
+
+        conn.cursor = _cur_ctx
+        yield conn
+
+    with patch("app.routers.api.get_db_connection", side_effect=[
+        fake_connection([{"id": alert_db_id}])(autocommit=True),
+        _capture_conn(),
+        fake_connection([None])(autocommit=True),
+    ]):
+        with patch("httpx.AsyncClient", FakeAsyncClient):
+            resp = await client.post("/api/v1/alerts", json=sample_alert_payload)
+
+    assert resp.status_code == 201
+    assert "sql" in captured_sql, "Correlation query was not captured"
+    sql = captured_sql["sql"]
+    params = captured_sql["params"]
+    assert "interval" in sql.lower(), "SQL should use interval for time window"
+    assert params[2] == settings.CORRELATION_WINDOW_MINUTES
 
 
 # ── Correlation metric counters ──────────────────────────────
@@ -194,11 +169,11 @@ async def test_correlation_metric_new_incident(client, sample_alert_payload):
     alert_db_id = uuid.uuid4()
 
     with patch("app.routers.api.get_db_connection", side_effect=[
-        _fake_connection([{"id": alert_db_id}])(autocommit=True),
-        _fake_connection([None])(),
-        _fake_connection([None])(autocommit=True),
+        fake_connection([{"id": alert_db_id}])(autocommit=True),
+        fake_connection([None])(),
+        fake_connection([None])(autocommit=True),
     ]):
-        with patch("httpx.AsyncClient", _FakeAsyncClient):
+        with patch("httpx.AsyncClient", FakeAsyncClient):
             with patch("app.routers.api.alerts_correlated_total") as mock_counter:
                 resp = await client.post("/api/v1/alerts", json=sample_alert_payload)
                 mock_counter.labels.assert_called_with(result="new_incident")
@@ -214,9 +189,9 @@ async def test_correlation_metric_existing_incident(client, sample_alert_payload
     incident_db_id = uuid.uuid4()
 
     with patch("app.routers.api.get_db_connection", side_effect=[
-        _fake_connection([{"id": alert_db_id}])(autocommit=True),
-        _fake_connection([{"incident_id": "inc-333", "id": incident_db_id}])(),
-        _fake_connection([None])(autocommit=True),
+        fake_connection([{"id": alert_db_id}])(autocommit=True),
+        fake_connection([{"incident_id": "inc-333", "id": incident_db_id}])(),
+        fake_connection([None])(autocommit=True),
     ]):
         with patch("app.routers.api.alerts_correlated_total") as mock_counter:
             resp = await client.post("/api/v1/alerts", json=sample_alert_payload)
@@ -231,11 +206,11 @@ async def test_alerts_received_metric_incremented(client, sample_alert_payload):
     alert_db_id = uuid.uuid4()
 
     with patch("app.routers.api.get_db_connection", side_effect=[
-        _fake_connection([{"id": alert_db_id}])(autocommit=True),
-        _fake_connection([None])(),
-        _fake_connection([None])(autocommit=True),
+        fake_connection([{"id": alert_db_id}])(autocommit=True),
+        fake_connection([None])(),
+        fake_connection([None])(autocommit=True),
     ]):
-        with patch("httpx.AsyncClient", _FakeAsyncClient):
+        with patch("httpx.AsyncClient", FakeAsyncClient):
             with patch("app.routers.api.alerts_received_total") as mock_recv:
                 resp = await client.post("/api/v1/alerts", json=sample_alert_payload)
                 mock_recv.labels.assert_called_with(
@@ -264,24 +239,24 @@ async def test_two_alerts_same_service_severity_deduplicate(client):
 
     # First alert — no match → new incident
     with patch("app.routers.api.get_db_connection", side_effect=[
-        _fake_connection([{"id": alert_db_id_1}])(autocommit=True),
-        _fake_connection([None])(),
-        _fake_connection([None])(autocommit=True),
+        fake_connection([{"id": alert_db_id_1}])(autocommit=True),
+        fake_connection([None])(),
+        fake_connection([None])(autocommit=True),
     ]):
-        with patch("httpx.AsyncClient", _FakeAsyncClient):
+        with patch("httpx.AsyncClient", FakeAsyncClient):
             resp1 = await client.post("/api/v1/alerts", json=payload)
 
     assert resp1.status_code == 201
-    assert resp1.json()["action"] == "new_incident"
+    assert resp1.json()["action"] == "created_new_incident"
 
     # Second alert — match found → existing incident
     with patch("app.routers.api.get_db_connection", side_effect=[
-        _fake_connection([{"id": alert_db_id_2}])(autocommit=True),
-        _fake_connection([{"incident_id": incident_id, "id": incident_db_id}])(),
-        _fake_connection([None])(autocommit=True),
+        fake_connection([{"id": alert_db_id_2}])(autocommit=True),
+        fake_connection([{"incident_id": incident_id, "id": incident_db_id}])(),
+        fake_connection([None])(autocommit=True),
     ]):
         resp2 = await client.post("/api/v1/alerts", json=payload)
 
     assert resp2.status_code == 201
-    assert resp2.json()["action"] == "existing_incident"
+    assert resp2.json()["action"] == "attached_to_existing_incident"
     assert resp2.json()["incident_id"] == incident_id

@@ -11,6 +11,14 @@ import pytest
 from unittest.mock import patch, MagicMock
 from httpx import AsyncClient, ASGITransport
 
+# Re-export helpers so they stay accessible from conftest if needed
+from helpers import (  # noqa: F401
+    fake_connection,
+    FakeIncidentResponse,
+    FakeAsyncClient,
+    FakeAsyncClientDown,
+)
+
 # ---------------------------------------------------------------------------
 # Ensure the app never tries to connect to a real DB during unit tests
 # ---------------------------------------------------------------------------
@@ -31,18 +39,6 @@ def _patch_db_pool(request):
         yield
 
 
-@pytest.fixture()
-def mock_db_connection():
-    """Provide a mock get_db_connection context manager."""
-    mock_conn = MagicMock()
-    mock_cursor = MagicMock()
-    mock_conn.__enter__ = MagicMock(return_value=mock_conn)
-    mock_conn.__exit__ = MagicMock(return_value=False)
-    mock_conn.cursor.return_value.__enter__ = MagicMock(return_value=mock_cursor)
-    mock_conn.cursor.return_value.__exit__ = MagicMock(return_value=False)
-    return mock_conn, mock_cursor
-
-
 # ---------------------------------------------------------------------------
 # Async client fixture (talks directly to the ASGI app)
 # ---------------------------------------------------------------------------
@@ -55,10 +51,6 @@ async def client():
     async with AsyncClient(transport=transport, base_url="http://test") as ac:
         yield ac
 
-
-# ---------------------------------------------------------------------------
-# Helpers
-# ---------------------------------------------------------------------------
 
 @pytest.fixture()
 def sample_alert_payload():
