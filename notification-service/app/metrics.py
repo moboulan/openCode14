@@ -15,13 +15,6 @@ oncall_notifications_sent_total = Counter(
     ["channel", "status"],
 )
 
-# Escalations triggered
-escalations_total = Counter(
-    "escalations_total",
-    "Total escalations triggered",
-    ["team"],
-)
-
 # ---------------------------------------------------------------------------
 # Histograms
 # ---------------------------------------------------------------------------
@@ -42,6 +35,5 @@ def setup_custom_metrics():
 
 __all__ = [
     "oncall_notifications_sent_total",
-    "escalations_total",
     "notification_delivery_seconds",
 ]

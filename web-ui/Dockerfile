@@ -30,6 +30,15 @@ COPY --from=builder /app/dist /usr/share/nginx/html
 # Security: remove setuid/setgid binaries
 RUN find / -perm /6000 -type f -exec chmod a-s {} + 2>/dev/null || true
 
+# Non-root: grant nginx user write access to runtime directories
+RUN chown -R nginx:nginx /usr/share/nginx/html \
+	&& chown -R nginx:nginx /var/cache/nginx \
+	&& chown -R nginx:nginx /var/log/nginx \
+	&& touch /var/run/nginx.pid \
+	&& chown nginx:nginx /var/run/nginx.pid
+
+USER nginx
+
 EXPOSE 8080
 
 HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
