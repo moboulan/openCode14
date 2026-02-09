@@ -9,7 +9,6 @@ from app.models import (
     AlertResponse,
     HealthCheck,
     SeverityLevel,
-    IncidentStatus,
 )
 
 
@@ -29,14 +28,6 @@ class TestSeverityLevel:
         assert SeverityLevel.HIGH.value == "high"
         assert SeverityLevel.MEDIUM.value == "medium"
         assert SeverityLevel.LOW.value == "low"
-
-
-# ── IncidentStatus enum ─────────────────────────────────────
-
-class TestIncidentStatus:
-    def test_values(self):
-        expected = {"open", "acknowledged", "in_progress", "resolved"}
-        assert {s.value for s in IncidentStatus} == expected
 
 
 # ── Alert model ──────────────────────────────────────────────

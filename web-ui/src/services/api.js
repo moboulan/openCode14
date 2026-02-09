@@ -9,36 +9,8 @@ const apiClient = axios.create({
 	timeout: Number(import.meta.env.VITE_API_TIMEOUT || 10000),
 });
 
-const alertIngestionBase = '/api/alert-ingestion/api/v1';
 const incidentBase = '/api/incident-management/api/v1';
 const oncallBase = '/api/oncall-service/api/v1';
-const notificationBase = '/api/notification-service/api/v1';
-
-// ── Alerts ──
-export async function listAlerts(params = {}) {
-	if (USE_MOCK) return mock.listAlerts(params);
-	const { data } = await apiClient.get(`${alertIngestionBase}/alerts`, { params });
-	return data;
-}
-
-export async function createAlert(payload) {
-	if (USE_MOCK) return mock.createAlert(payload);
-	const { data } = await apiClient.post(`${alertIngestionBase}/alerts`, payload);
-	return data;
-}
-
-export async function getAlert(alertId) {
-	if (USE_MOCK) return mock.getAlert(alertId);
-	const { data } = await apiClient.get(`${alertIngestionBase}/alerts/${alertId}`);
-	return data;
-}
-
-// ── Incidents ──
-export async function createIncident(payload) {
-	if (USE_MOCK) return mock.createIncident(payload);
-	const { data } = await apiClient.post(`${incidentBase}/incidents`, payload);
-	return data;
-}
 
 export async function listIncidents(params = {}) {
 	if (USE_MOCK) return mock.listIncidents(params);
@@ -89,25 +61,6 @@ export async function getCurrentOncall(params = {}) {
 	return data;
 }
 
-export async function escalateIncident(payload) {
-	if (USE_MOCK) return mock.escalateIncident(payload);
-	const { data } = await apiClient.post(`${oncallBase}/escalate`, payload);
-	return data;
-}
-
-// ── Notifications ──
-export async function listNotifications(params = {}) {
-	if (USE_MOCK) return mock.listNotifications(params);
-	const { data } = await apiClient.get(`${notificationBase}/notifications`, { params });
-	return data;
-}
-
-export async function sendNotification(payload) {
-	if (USE_MOCK) return mock.sendNotification(payload);
-	const { data } = await apiClient.post(`${notificationBase}/notify`, payload);
-	return data;
-}
-
 // ── Metrics Trends ──
 export async function getMetricsTrends() {
 	if (USE_MOCK) return mock.getMetricsTrends();
@@ -115,4 +68,3 @@ export async function getMetricsTrends() {
 	return data;
 }
 
-export { apiClient };

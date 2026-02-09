@@ -17,7 +17,6 @@ os.environ.setdefault("DATABASE_URL", "postgresql://test:test@localhost:5432/tes
 # Re-export helpers so they stay accessible from conftest if needed
 from helpers import (  # noqa: F401
     fake_connection,
-    FakeIncidentResponse,
     FakeAsyncClient,
     FakeAsyncClientDown,
 )

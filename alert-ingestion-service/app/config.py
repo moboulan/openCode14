@@ -38,24 +38,12 @@ class Settings(BaseSettings):
     ALERT_SERVICE_URL: Optional[str] = "http://alert-ingestion:8001"
     NOTIFICATION_SERVICE_URL: Optional[str] = "http://notification-service:8004"
 
-    # Prometheus histogram buckets (comma-separated)
-    MTTA_BUCKETS: str = "30,60,120,300,600,1800,3600"
-    MTTR_BUCKETS: str = "300,600,1800,3600,7200,14400,28800"
-
     # Logging
     LOG_LEVEL: str = "INFO"
 
     @property
     def cors_origin_list(self) -> List[str]:
         return [o.strip() for o in self.CORS_ORIGINS.split(",") if o.strip()]
-
-    @property
-    def mtta_bucket_list(self) -> list[float]:
-        return [float(b) for b in self.MTTA_BUCKETS.split(",")]
-
-    @property
-    def mttr_bucket_list(self) -> list[float]:
-        return [float(b) for b in self.MTTR_BUCKETS.split(",")]
 
     class Config:
         env_file = ".env"

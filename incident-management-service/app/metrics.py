@@ -16,9 +16,6 @@ incidents_total = Counter("incidents_total", "Total number of incidents", ["stat
 # Notifications sent (used when this service triggers a notification)
 notifications_sent_total = Counter("oncall_notifications_sent_total", "Total notifications sent", ["channel", "status"])
 
-# Escalations
-escalations_total = Counter("escalations_total", "Total number of escalations", ["team", "reason"])
-
 # ---------------------------------------------------------------------------
 # Histograms
 # ---------------------------------------------------------------------------
@@ -56,7 +53,6 @@ def setup_custom_metrics():
 __all__ = [
     "incidents_total",
     "notifications_sent_total",
-    "escalations_total",
     "incident_mtta_seconds",
     "incident_mttr_seconds",
     "open_incidents",

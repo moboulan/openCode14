@@ -9,7 +9,7 @@ from contextlib import contextmanager
 from datetime import datetime, timezone
 import uuid
 
-from helpers import fake_connection, FakeAsyncClient, FakeAsyncClientDown
+from helpers import fake_connection, FakeAsyncClientDown
 
 
 # ── POST /api/v1/alerts ─────────────────────────────────────

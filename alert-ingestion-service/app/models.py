@@ -12,13 +12,6 @@ class SeverityLevel(str, Enum):
     LOW = "low"
 
 
-class IncidentStatus(str, Enum):
-    OPEN = "open"
-    ACKNOWLEDGED = "acknowledged"
-    IN_PROGRESS = "in_progress"
-    RESOLVED = "resolved"
-
-
 class Alert(BaseModel):
     """Alert model"""
 
@@ -39,21 +32,6 @@ class AlertResponse(BaseModel):
     status: str
     action: str
     timestamp: datetime
-
-
-class Incident(BaseModel):
-    """Incident model"""
-
-    incident_id: str
-    title: str
-    service: str
-    severity: SeverityLevel
-    status: IncidentStatus
-    assigned_to: Optional[str] = None
-    created_at: datetime
-    acknowledged_at: Optional[datetime] = None
-    resolved_at: Optional[datetime] = None
-    notes: List[str] = Field(default_factory=list)
 
 
 class HealthCheck(BaseModel):

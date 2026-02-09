@@ -9,9 +9,8 @@ Validates:
 """
 
 import uuid
-from contextlib import contextmanager
 from datetime import datetime, timedelta, timezone
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import pytest
 
