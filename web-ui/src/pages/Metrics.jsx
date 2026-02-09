@@ -1,31 +1,21 @@
 import { useEffect, useCallback, useState } from 'react';
 import {
-  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
+  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   BarChart, Bar,
 } from 'recharts';
 import IncidentAnalytics from '../components/IncidentAnalytics.jsx';
 import { getIncidentAnalytics, getMetricsTrends } from '../services/api.js';
-import { formatDuration } from '../utils/formatters.js';
 
-const COLORS = ['#111827', '#dc2626', '#ea580c', '#0891b2', '#16a34a', '#ca8a04'];
-
-function CustomTooltip({ active, payload, label, valueFormatter }) {
+function ChartTooltip({ active, payload, label, valueFormatter }) {
   if (!active || !payload?.length) return null;
   return (
-    <div style={{
-      background: '#fff',
-      border: '1px solid #e5e7eb',
-      borderRadius: 8,
-      padding: '10px 14px',
-      boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
-      fontSize: 13,
-    }}>
-      <div style={{ fontWeight: 600, marginBottom: 6, color: '#111827' }}>{label}</div>
+    <div className="chart-tooltip">
+      <div className="chart-tooltip__label">{label}</div>
       {payload.map((entry, idx) => (
-        <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: 8, color: '#6b7280', marginBottom: 2 }}>
-          <span style={{ width: 8, height: 8, borderRadius: '50%', background: entry.color, flexShrink: 0 }} />
+        <div key={idx} className="chart-tooltip__row">
+          <span className="chart-tooltip__dot" style={{ background: entry.color }} />
           <span>{entry.name}:</span>
-          <span style={{ fontWeight: 600, color: '#111827', fontFamily: 'var(--font-mono)' }}>
+          <span className="chart-tooltip__val">
             {valueFormatter ? valueFormatter(entry.value) : entry.value}
           </span>
         </div>
@@ -66,76 +56,85 @@ function Metrics() {
   const mttrData = trends?.trends?.map(d => ({ date: d.date, 'MTTR (min)': Math.round(d.mttr / 60 * 10) / 10 })) ?? [];
   const incidentVolume = trends?.trends?.map(d => ({ date: d.date, Incidents: d.incidents })) ?? [];
 
+  // Merge MTTA + MTTR into one dataset for the combined chart
+  const combinedData = mttaData.map((d, i) => ({
+    date: d.date,
+    'MTTA (min)': d['MTTA (min)'],
+    'MTTR (min)': mttrData[i]?.['MTTR (min)'] ?? 0,
+  }));
+
+  const mttaTrend = trends?.trends?.map(d => d.mtta) ?? [];
+  const mttrTrend = trends?.trends?.map(d => d.mttr) ?? [];
+
+  // Chart axis/grid colors that work in both themes via CSS vars
+  const gridStroke = 'var(--border)';
+  const tickFill = 'var(--text-muted)';
+
   return (
     <div className="page">
-      {/* Summary Stats */}
-      <IncidentAnalytics summary={data.summary} byService={data.by_service} />
+      {/* Summary status bar */}
+      <IncidentAnalytics
+        summary={data.summary}
+        byService={data.by_service}
+        mttaTrend={mttaTrend}
+        mttrTrend={mttrTrend}
+      />
 
-      {/* MTTA Trend Chart */}
-      <div className="chart-card">
-        <h3>MTTA Trend (Mean Time to Acknowledge)</h3>
-        <ResponsiveContainer width="100%" height={280}>
-          <LineChart data={mttaData}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" />
-            <XAxis dataKey="date" tick={{ fontSize: 12, fill: '#9ca3af' }} tickLine={false} axisLine={{ stroke: '#e5e7eb' }} />
-            <YAxis tick={{ fontSize: 12, fill: '#9ca3af' }} tickLine={false} axisLine={false} unit=" min" />
-            <Tooltip content={<CustomTooltip valueFormatter={(v) => `${v} min`} />} />
-            <Line type="monotone" dataKey="MTTA (min)" stroke="#0891b2" strokeWidth={2.5} dot={{ fill: '#0891b2', r: 3 }} activeDot={{ r: 5 }} />
-          </LineChart>
-        </ResponsiveContainer>
+      {/* Split-pane: MTTA/MTTR line chart + Incident Volume bar chart */}
+      <div className="split-pane">
+        <div className="chart-card">
+          <h3>MTTA / MTTR Trend</h3>
+          <ResponsiveContainer width="100%" height={220}>
+            <LineChart data={combinedData} margin={{ top: 4, right: 8, bottom: 0, left: -10 }}>
+              <CartesianGrid strokeDasharray="2 4" stroke={gridStroke} />
+              <XAxis dataKey="date" tick={{ fontSize: 10, fill: tickFill }} tickLine={false} axisLine={false} />
+              <YAxis tick={{ fontSize: 10, fill: tickFill }} tickLine={false} axisLine={false} unit=" min" />
+              <Tooltip content={<ChartTooltip valueFormatter={(v) => `${v} min`} />} />
+              <Line type="monotone" dataKey="MTTA (min)" stroke="var(--cyan)" strokeWidth={1.5} dot={false} />
+              <Line type="monotone" dataKey="MTTR (min)" stroke="var(--yellow)" strokeWidth={1.5} dot={false} />
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
+
+        <div className="chart-card">
+          <h3>Daily Incident Volume</h3>
+          <ResponsiveContainer width="100%" height={220}>
+            <BarChart data={incidentVolume} margin={{ top: 4, right: 8, bottom: 0, left: -10 }}>
+              <CartesianGrid strokeDasharray="2 4" stroke={gridStroke} vertical={false} />
+              <XAxis dataKey="date" tick={{ fontSize: 10, fill: tickFill }} tickLine={false} axisLine={false} />
+              <YAxis tick={{ fontSize: 10, fill: tickFill }} tickLine={false} axisLine={false} allowDecimals={false} />
+              <Tooltip content={<ChartTooltip />} />
+              <Bar dataKey="Incidents" fill="var(--accent)" radius={[2, 2, 0, 0]} barSize={18} />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
       </div>
 
-      {/* MTTR Trend Chart */}
-      <div className="chart-card">
-        <h3>MTTR Trend (Mean Time to Resolve)</h3>
-        <ResponsiveContainer width="100%" height={280}>
-          <LineChart data={mttrData}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" />
-            <XAxis dataKey="date" tick={{ fontSize: 12, fill: '#9ca3af' }} tickLine={false} axisLine={{ stroke: '#e5e7eb' }} />
-            <YAxis tick={{ fontSize: 12, fill: '#9ca3af' }} tickLine={false} axisLine={false} unit=" min" />
-            <Tooltip content={<CustomTooltip valueFormatter={(v) => `${v} min`} />} />
-            <Line type="monotone" dataKey="MTTR (min)" stroke="#ca8a04" strokeWidth={2.5} dot={{ fill: '#ca8a04', r: 3 }} activeDot={{ r: 5 }} />
-          </LineChart>
-        </ResponsiveContainer>
-      </div>
-
-      {/* Incident Volume */}
-      <div className="chart-card">
-        <h3>Daily Incident Volume</h3>
-        <ResponsiveContainer width="100%" height={240}>
-          <BarChart data={incidentVolume}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" />
-            <XAxis dataKey="date" tick={{ fontSize: 12, fill: '#9ca3af' }} tickLine={false} axisLine={{ stroke: '#e5e7eb' }} />
-            <YAxis tick={{ fontSize: 12, fill: '#9ca3af' }} tickLine={false} axisLine={false} allowDecimals={false} />
-            <Tooltip content={<CustomTooltip />} />
-            <Bar dataKey="Incidents" fill="#111827" radius={[4, 4, 0, 0]} barSize={28} />
-          </BarChart>
-        </ResponsiveContainer>
-      </div>
-
-      {/* Per-Service MTTA/MTTR Trend */}
+      {/* Per-Service MTTA/MTTR line chart */}
       {trends?.by_service?.length > 0 && (
         <div className="chart-card">
-          <h3>MTTA by Service (14-day trend)</h3>
-          <ResponsiveContainer width="100%" height={300}>
-            <LineChart>
-              <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" />
-              <XAxis dataKey="date" tick={{ fontSize: 12, fill: '#9ca3af' }} tickLine={false} axisLine={{ stroke: '#e5e7eb' }} type="category" allowDuplicatedCategory={false} />
-              <YAxis tick={{ fontSize: 12, fill: '#9ca3af' }} tickLine={false} axisLine={false} unit=" min" />
-              <Tooltip content={<CustomTooltip valueFormatter={(v) => `${v} min`} />} />
-              <Legend wrapperStyle={{ fontSize: 12 }} />
-              {trends.by_service.map((svc, idx) => (
-                <Line
-                  key={svc.service}
-                  data={svc.data.map(d => ({ date: d.date, [svc.service]: Math.round(d.mtta / 60 * 10) / 10 }))}
-                  dataKey={svc.service}
-                  name={svc.service}
-                  type="monotone"
-                  stroke={COLORS[idx % COLORS.length]}
-                  strokeWidth={2}
-                  dot={false}
-                />
-              ))}
+          <h3>MTTA by Service (14-day)</h3>
+          <ResponsiveContainer width="100%" height={200}>
+            <LineChart margin={{ top: 4, right: 8, bottom: 0, left: -10 }}>
+              <CartesianGrid strokeDasharray="2 4" stroke={gridStroke} />
+              <XAxis dataKey="date" tick={{ fontSize: 10, fill: tickFill }} tickLine={false} axisLine={false} type="category" allowDuplicatedCategory={false} />
+              <YAxis tick={{ fontSize: 10, fill: tickFill }} tickLine={false} axisLine={false} unit=" min" />
+              <Tooltip content={<ChartTooltip valueFormatter={(v) => `${v} min`} />} />
+              {trends.by_service.map((svc, idx) => {
+                const colors = ['var(--red)', 'var(--orange)', 'var(--cyan)', 'var(--green)', 'var(--yellow)', 'var(--text-muted)'];
+                return (
+                  <Line
+                    key={svc.service}
+                    data={svc.data.map(d => ({ date: d.date, [svc.service]: Math.round(d.mtta / 60 * 10) / 10 }))}
+                    dataKey={svc.service}
+                    name={svc.service}
+                    type="monotone"
+                    stroke={colors[idx % colors.length]}
+                    strokeWidth={1.5}
+                    dot={false}
+                  />
+                );
+              })}
             </LineChart>
           </ResponsiveContainer>
         </div>
