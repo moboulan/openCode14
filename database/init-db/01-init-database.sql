@@ -118,7 +118,7 @@ CREATE INDEX IF NOT EXISTS idx_incidents_service  ON incidents.incidents(service
 CREATE INDEX IF NOT EXISTS idx_incidents_severity ON incidents.incidents(severity);
 CREATE INDEX IF NOT EXISTS idx_incidents_created  ON incidents.incidents(created_at);
 
--- ── Incident ↔ Alerts (many-to-many) ────────────────────────
+-- ── Incident <-> Alerts (many-to-many) ────────────────────────
 CREATE TABLE IF NOT EXISTS incidents.incident_alerts (
     incident_id UUID NOT NULL REFERENCES incidents.incidents(id) ON DELETE CASCADE,
     alert_id    UUID NOT NULL REFERENCES alerts.alerts(id)       ON DELETE CASCADE,

@@ -32,7 +32,7 @@ make health                   # verify everything is healthy
 │                     React + Nginx Proxy                             │
 └────────┬──────────────────┬──────────────────┬──────────────────────┘
          │                  │                  │
-         ▼                  ▼                  ▼
+         |                  |                  |
 ┌────────────────┐ ┌────────────────┐ ┌────────────────┐
 │ Alert Ingestion│ │   Incident     │ │   On-Call &    │
 │   :8001        │→│  Management    │→│  Escalation    │
@@ -44,7 +44,7 @@ make health                   # verify everything is healthy
         │          │   :8004        │
         │          └───────┬────────┘
         │                  │
-        ▼                  ▼
+        |                  |
 ┌──────────────────────────────────────┐
 │         PostgreSQL (:5432)           │
 │  schemas: alerts │ incidents │ oncall│
@@ -88,12 +88,12 @@ make health                   # verify everything is healthy
 
 Each service auto-generates interactive API docs via FastAPI:
 
-| Service | Swagger UI | ReDoc |
-|---------|-----------|-------|
-| Alert Ingestion | <http://localhost:8001/docs> | <http://localhost:8001/redoc> |
-| Incident Management | <http://localhost:8002/docs> | <http://localhost:8002/redoc> |
-| On-Call Service | <http://localhost:8003/docs> | <http://localhost:8003/redoc> |
-| Notification Service | <http://localhost:8004/docs> | <http://localhost:8004/redoc> |
+| Service | Swagger UI |
+|---------|-----------|
+| Alert Ingestion | <http://localhost:8001/docs> |
+| Incident Management | <http://localhost:8002/docs> |
+| On-Call Service | <http://localhost:8003/docs> |
+| Notification Service | <http://localhost:8004/docs> |
 
 ### Key Endpoints
 
@@ -210,19 +210,6 @@ All services are configured via environment variables. See [`.env.example`](.env
 - **Credential scanning** — GitLeaks + TruffleHog in CI pipeline
 - **Vulnerability scanning** — Trivy scans all container images
 - **SARIF reports** — Scan results uploaded as CI artifacts
-
----
-
-## Team
-
-Built for **OpenCode Hackathon 2026** by **Team ExpertMind**.
-
-| Member | Role |
-|--------|------|
-| **Samati** | Team Lead / Backend — Alert Ingestion & Incident Management |
-| **Member 2** | Backend — On-Call & Escalation Service |
-| **Member 3** | Frontend — React Web UI & Dashboards |
-| **Member 4** | DevOps — CI/CD Pipeline, Docker, Monitoring |
 
 ---
 

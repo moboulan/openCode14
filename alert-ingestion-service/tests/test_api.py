@@ -264,7 +264,7 @@ async def test_create_alert_incident_service_failure(client, sample_alert_payloa
 
 @pytest.mark.asyncio
 async def test_create_alert_new_incident_with_link(client, sample_alert_payload):
-    """New incident is created AND the alert↔incident link is written."""
+    """New incident is created AND the alert<->incident link is written."""
     fake_alert_db_id = uuid.uuid4()
     fake_incident_db_id = str(uuid.uuid4())
     fake_incident_id = "inc-linked"

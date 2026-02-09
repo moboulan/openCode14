@@ -1,20 +1,20 @@
-name: Notification Service CI/CD
+name: On-Call Service CI/CD
 
 on:
   push:
     branches: [master]
     paths:
-      - 'notification-service/**'
-      - '.github/workflows/notification-service-ci.yml'
+      - 'oncall-service/**'
+      - '.github/workflows/oncall-service-ci.yml'
   pull_request:
     paths:
-      - 'notification-service/**'
-      - '.github/workflows/notification-service-ci.yml'
+      - 'oncall-service/**'
+      - '.github/workflows/oncall-service-ci.yml'
   workflow_dispatch:
 
 env:
-  SERVICE_DIR: notification-service
-  IMAGE_NAME: expertmind-notification-service
+  SERVICE_DIR: oncall-service
+  IMAGE_NAME: expertmind-oncall-service
 
 jobs:
   # ──────────────────────────────────────────
@@ -224,6 +224,7 @@ jobs:
           INCIDENT_SERVICE_URL: http://localhost:8002
           ONCALL_SERVICE_URL: http://localhost:8003
           ALERT_SERVICE_URL: http://localhost:8001
+          NOTIFICATION_SERVICE_URL: http://localhost:8004
         run: |
           cd ${{ env.SERVICE_DIR }}
           python -m pytest tests/ -v \
@@ -238,7 +239,7 @@ jobs:
         uses: actions/upload-artifact@v4
         continue-on-error: true
         with:
-          name: coverage-notification-service
+          name: coverage-oncall-service
           path: ${{ env.SERVICE_DIR }}/htmlcov/
           retention-days: 7
 
@@ -251,7 +252,7 @@ jobs:
     needs: [build, test, scan]
     if: github.event_name == 'push' && github.ref == 'refs/heads/master'
     env:
-      IMAGE_NAME: expertmind-notification-service
+      IMAGE_NAME: expertmind-oncall-service
     steps:
       - uses: actions/checkout@v4
 
@@ -278,47 +279,57 @@ jobs:
           done
           echo "Database is healthy"
 
-      - name: Wait for Notification Service to be healthy
+      - name: Wait for On-Call Service to be healthy
         run: |
           TIMEOUT=90; ELAPSED=0
-          until curl -sf http://localhost:8004/health > /dev/null 2>&1; do
+          until curl -sf http://localhost:8003/health > /dev/null 2>&1; do
             if [ $ELAPSED -ge $TIMEOUT ]; then
-              echo "Notification Service health check failed after ${TIMEOUT}s"
-              docker compose logs notification-service
+              echo "On-Call Service health check failed after ${TIMEOUT}s"
+              docker compose logs oncall-service
               exit 1
             fi
             echo "Waiting... (${ELAPSED}/${TIMEOUT}s)"
             sleep 5; ELAPSED=$((ELAPSED + 5))
           done
-          echo "Notification Service is healthy"
+          echo "On-Call Service is healthy"
 
       - name: Verify health endpoints
         run: |
           echo "--- /health ---"
-          curl -sf http://localhost:8004/health | jq .
+          curl -sf http://localhost:8003/health | jq .
           echo "--- /health/ready ---"
-          curl -sf http://localhost:8004/health/ready | jq .
+          curl -sf http://localhost:8003/health/ready | jq .
           echo "--- /health/live ---"
-          curl -sf http://localhost:8004/health/live | jq .
+          curl -sf http://localhost:8003/health/live | jq .
 
-      - name: Smoke test — POST notification
+      - name: Smoke test — GET schedules
+        run: |
+          HTTP_CODE=$(curl -sf -o /tmp/resp.json -w "%{http_code}" \
+            http://localhost:8003/api/v1/schedules)
+          [ "$HTTP_CODE" = "200" ] && echo "200 OK" || (echo "Got $HTTP_CODE" && exit 1)
+          cat /tmp/resp.json | jq .
+
+      - name: Smoke test — POST schedule
         run: |
           HTTP_CODE=$(curl -sf -o /tmp/resp.json -w "%{http_code}" -X POST \
-            http://localhost:8004/api/v1/notify \
+            http://localhost:8003/api/v1/schedules \
             -H "Content-Type: application/json" \
-            -d '{"engineer":"ci@test.com","message":"smoke test","channel":"mock"}')
+            -d '{"team":"ci-test","rotation_type":"weekly","start_date":"2026-01-01","engineers":[{"name":"CI Bot","email":"ci@test.com","primary":true},{"name":"CD Bot","email":"cd@test.com","primary":false}],"escalation_minutes":5}')
           [ "$HTTP_CODE" = "201" ] && echo "201 Created" || (echo "Got $HTTP_CODE" && exit 1)
           cat /tmp/resp.json | jq .
 
-      - name: Smoke test — GET notifications
+      - name: Smoke test — GET current on-call
         run: |
-          TOTAL=$(curl -sf "http://localhost:8004/api/v1/notifications?engineer=ci@test.com" | jq '.total')
-          [ "$TOTAL" -ge 1 ] && echo "Found $TOTAL notifications" || (echo "No notifications" && exit 1)
+          HTTP_CODE=$(curl -sf -o /tmp/resp.json -w "%{http_code}" \
+            "http://localhost:8003/api/v1/oncall/current?team=ci-test")
+          [ "$HTTP_CODE" = "200" ] && echo "200 OK" || (echo "Got $HTTP_CODE" && exit 1)
+          cat /tmp/resp.json | jq .
 
       - name: Verify Prometheus metrics
         run: |
-          METRICS=$(curl -sf http://localhost:8004/metrics)
+          METRICS=$(curl -sf http://localhost:8003/metrics)
           echo "$METRICS" | grep -q "http_requests_total" && echo "http_requests_total present"
+          echo "$METRICS" | grep -q "escalations_total" && echo "escalations_total present"
 
       - name: Rollback on failure
         if: failure()
@@ -328,7 +339,7 @@ jobs:
           docker compose down -v --remove-orphans 2>/dev/null || true
           docker compose up -d
           sleep 20
-          curl -sf http://localhost:8004/health | jq . || echo "WARN Service not healthy after rollback"
+          curl -sf http://localhost:8003/health | jq . || echo "WARN Service not healthy after rollback"
 
       - name: Dump logs on failure
         if: failure()

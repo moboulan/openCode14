@@ -324,12 +324,12 @@ jobs:
       - name: Rollback on failure
         if: failure()
         run: |
-          echo "❌ Verification failed — attempting rollback to :prev"
+          echo "FAIL Verification failed -- attempting rollback to :prev"
           docker tag ${{ env.IMAGE_NAME }}:prev ${{ env.IMAGE_NAME }}:latest 2>/dev/null || echo "No :prev image found"
           docker compose down -v --remove-orphans 2>/dev/null || true
           docker compose up -d
           sleep 20
-          curl -sf http://localhost:8001/health | jq . || echo "⚠️ Service not healthy after rollback"
+          curl -sf http://localhost:8001/health | jq . || echo "WARN Service not healthy after rollback"
 
       - name: Dump logs on failure
         if: failure()

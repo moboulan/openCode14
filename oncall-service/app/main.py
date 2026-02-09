@@ -32,13 +32,13 @@ async def lifespan(app: FastAPI):
 
 # Create FastAPI app
 app = FastAPI(
-    title="Notification Service",
-    description="Notification microservice for Incident & On-Call Management Platform",
+    title="On-Call & Escalation Service",
+    description="On-call scheduling and escalation microservice for Incident & On-Call Management Platform",
     version=settings.APP_VERSION,
     lifespan=lifespan,
 )
 
-# CORS — restrict to configured origins
+# CORS -- restrict to configured origins
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origin_list,

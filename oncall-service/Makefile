@@ -1,5 +1,5 @@
 # ============================================================
-# Notification Service — Local CI/CD Makefile
+# On-Call Service — Local CI/CD Makefile
 # Mirrors the 7-stage GitHub Actions pipeline for local use.
 # ============================================================
 
@@ -8,7 +8,7 @@ PYTHON        := python
 PIP           := pip
 APP_MODULE    := app
 TESTS_DIR     := tests
-IMAGE_NAME    := expertmind-notification-service
+IMAGE_NAME    := expertmind-oncall-service
 COVERAGE_MIN  := 60
 
 .PHONY: all lint security build scan test deploy verify clean help
@@ -76,18 +76,18 @@ test:  ## Run unit tests with coverage
 
 deploy:  ## Deploy via docker compose
 	@echo "── deploying ──"
-	cd .. && docker compose up -d --build notification-service
+	cd .. && docker compose up -d --build oncall-service
 
 # ── Stage 7: Verify ─────────────────────────────────────────
 
 verify:  ## Health check
 	@echo "── verifying service health ──"
 	@for i in $$(seq 1 30); do \
-		curl -sf http://localhost:8004/health > /dev/null 2>&1 && \
-		echo "OK notification-service healthy" && exit 0; \
+		curl -sf http://localhost:8003/health > /dev/null 2>&1 && \
+		echo "OK oncall-service healthy" && exit 0; \
 		sleep 1; \
 	done; \
-	echo "FAIL notification-service unhealthy after 30s" && exit 1
+	echo "FAIL oncall-service unhealthy after 30s" && exit 1
 
 # ── Helpers ──────────────────────────────────────────────────
 

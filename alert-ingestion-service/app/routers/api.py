@@ -118,7 +118,7 @@ async def create_alert(alert: Alert):
                 incident_id = data.get("incident_id")
                 incident_db_id = data.get("id")  # UUID PK if returned
 
-                # Link alert ↔ incident
+                # Link alert <-> incident
                 if incident_db_id:
                     with get_db_connection(autocommit=True) as conn:
                         with conn.cursor() as cur:
