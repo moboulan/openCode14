@@ -4,9 +4,10 @@
 # ============================================================
 
 COMPOSE       := docker compose
-SERVICES      := alert-ingestion
+SERVICES      := alert-ingestion incident-management
 DB_CONTAINER  := incident-db
-IMAGE_NAME    := expertmind-alert-ingestion
+IMAGE_ALERT   := expertmind-alert-ingestion
+IMAGE_INCIDENT:= expertmind-incident-management
 PREV_TAG      := prev
 VERSION       := $(shell git rev-parse --short HEAD 2>/dev/null || echo "dev")
 
@@ -22,8 +23,9 @@ all: quality security build scan test deploy verify  ## Run full 7-stage CI/CD p
 # ── Stage 1: Code Quality ────────────────────────────────────
 
 quality: lint  ## Stage 1 — Lint all services
-lint:  ## Run linters for alert-ingestion-service
+lint:  ## Run linters for all services
 	$(MAKE) -C alert-ingestion-service lint
+	$(MAKE) -C incident-management-service lint
 
 # ── Stage 2: Security Scanning ───────────────────────────────
 
@@ -41,21 +43,25 @@ build:  ## Stage 3 — Build all Docker images
 # ── Stage 4: Vulnerability Scan ──────────────────────────────
 
 scan: build  ## Stage 4 — Trivy vulnerability scan on all images
-	@echo "── trivy scan: $(IMAGE_NAME) ──"
-	@trivy image --severity HIGH,CRITICAL --ignore-unfixed --exit-code 0 $(IMAGE_NAME):latest 2>/dev/null || \
-		docker run --rm -v /var/run/docker.sock:/var/run/docker.sock \
-			aquasec/trivy:latest image --severity HIGH,CRITICAL --ignore-unfixed --exit-code 0 $(IMAGE_NAME):latest
+	@for img in $(IMAGE_ALERT) $(IMAGE_INCIDENT); do \
+		echo "── trivy scan: $$img ──"; \
+		trivy image --severity HIGH,CRITICAL --ignore-unfixed --exit-code 0 $$img:latest 2>/dev/null || \
+			docker run --rm -v /var/run/docker.sock:/var/run/docker.sock \
+				aquasec/trivy:latest image --severity HIGH,CRITICAL --ignore-unfixed --exit-code 0 $$img:latest; \
+	done
 
 # ── Stage 5: Tests ────────────────────────────────────────────
 
 test:  ## Stage 5 — Run unit + integration tests with coverage
 	$(MAKE) -C alert-ingestion-service test
+	$(MAKE) -C incident-management-service test
 
 # ── Stage 6: Deploy ──────────────────────────────────────────
 
 deploy:  ## Stage 6 — Tag prev images for rollback, then deploy
 	@echo "── tagging current images as :prev for rollback ──"
-	@docker tag $(IMAGE_NAME):latest $(IMAGE_NAME):$(PREV_TAG) 2>/dev/null || true
+	@docker tag $(IMAGE_ALERT):latest $(IMAGE_ALERT):$(PREV_TAG) 2>/dev/null || true
+	@docker tag $(IMAGE_INCIDENT):latest $(IMAGE_INCIDENT):$(PREV_TAG) 2>/dev/null || true
 	@echo "── deploying ──"
 	$(COMPOSE) down -v --remove-orphans 2>/dev/null || true
 	$(COMPOSE) up -d --build
@@ -70,26 +76,43 @@ deploy:  ## Stage 6 — Tag prev images for rollback, then deploy
 		sleep 2; \
 	done
 	@curl -sf http://localhost:8001/health >/dev/null 2>&1 && echo "✅ Alert Ingestion is healthy" || echo "⚠️  Alert Ingestion not responding yet"
+	@echo "Waiting for incident-management to be healthy…"
+	@for i in 1 2 3 4 5 6 7 8 9 10; do \
+		curl -sf http://localhost:8002/health >/dev/null 2>&1 && break; \
+		sleep 2; \
+	done
+	@curl -sf http://localhost:8002/health >/dev/null 2>&1 && echo "✅ Incident Management is healthy" || echo "⚠️  Incident Management not responding yet"
 	@echo "Services:"
-	@echo "  Alert Ingestion  → http://localhost:8001"
-	@echo "  Database         → localhost:5432"
+	@echo "  Alert Ingestion       → http://localhost:8001"
+	@echo "  Incident Management   → http://localhost:8002"
+	@echo "  Database              → localhost:5432"
 
 # ── Stage 7: Verify & Smoke Test ─────────────────────────────
 
 verify:  ## Stage 7 — Health checks + smoke tests (auto-rollback on failure)
 	@echo "── health check ──"
 	@VERIFY_PASS=true; \
+	echo "── alert-ingestion health ──"; \
 	curl -sf http://localhost:8001/health | python3 -m json.tool || VERIFY_PASS=false; \
 	curl -sf http://localhost:8001/health/ready | python3 -m json.tool || VERIFY_PASS=false; \
 	curl -sf http://localhost:8001/health/live  | python3 -m json.tool || VERIFY_PASS=false; \
+	echo "── incident-management health ──"; \
+	curl -sf http://localhost:8002/health | python3 -m json.tool || VERIFY_PASS=false; \
+	curl -sf http://localhost:8002/health/ready | python3 -m json.tool || VERIFY_PASS=false; \
+	curl -sf http://localhost:8002/health/live  | python3 -m json.tool || VERIFY_PASS=false; \
 	echo "── smoke test: POST alert ──"; \
 	curl -sf -X POST http://localhost:8001/api/v1/alerts \
 		-H "Content-Type: application/json" \
 		-d '{"service":"make-smoke","severity":"low","message":"root Makefile smoke test"}' | python3 -m json.tool || VERIFY_PASS=false; \
-	echo "── smoke test: GET alerts ──"; \
-	curl -sf "http://localhost:8001/api/v1/alerts?service=make-smoke" | python3 -m json.tool || VERIFY_PASS=false; \
+	echo "── smoke test: POST incident ──"; \
+	curl -sf -X POST http://localhost:8002/api/v1/incidents \
+		-H "Content-Type: application/json" \
+		-d '{"title":"[LOW] smoke: verify","service":"make-smoke","severity":"low"}' | python3 -m json.tool || VERIFY_PASS=false; \
+	echo "── smoke test: GET incidents ──"; \
+	curl -sf "http://localhost:8002/api/v1/incidents?service=make-smoke" | python3 -m json.tool || VERIFY_PASS=false; \
 	echo "── verify metrics ──"; \
-	curl -sf http://localhost:8001/metrics | grep -q "alerts_received_total" && echo "metrics OK" || VERIFY_PASS=false; \
+	curl -sf http://localhost:8001/metrics | grep -q "alerts_received_total" && echo "alert metrics OK" || VERIFY_PASS=false; \
+	curl -sf http://localhost:8002/metrics | grep -q "incidents_total" && echo "incident metrics OK" || VERIFY_PASS=false; \
 	if [ "$$VERIFY_PASS" = "false" ]; then \
 		echo "❌ Verification FAILED — rolling back to :prev"; \
 		$(MAKE) rollback; \
@@ -101,7 +124,8 @@ verify:  ## Stage 7 — Health checks + smoke tests (auto-rollback on failure)
 
 rollback:  ## Rollback to :prev tagged images
 	@echo "── rolling back ──"
-	@docker tag $(IMAGE_NAME):$(PREV_TAG) $(IMAGE_NAME):latest 2>/dev/null || echo "No :prev image found"
+	@docker tag $(IMAGE_ALERT):$(PREV_TAG) $(IMAGE_ALERT):latest 2>/dev/null || echo "No :prev alert image found"
+	@docker tag $(IMAGE_INCIDENT):$(PREV_TAG) $(IMAGE_INCIDENT):latest 2>/dev/null || echo "No :prev incident image found"
 	$(COMPOSE) down -v --remove-orphans 2>/dev/null || true
 	$(COMPOSE) up -d
 	@echo "Rollback complete — waiting for health…"
@@ -148,14 +172,20 @@ ci: quality security test  ## Run non-Docker CI stages (1, 2, 5)
 
 coverage:  ## Run tests with coverage and open HTML report
 	$(MAKE) -C alert-ingestion-service test
+	$(MAKE) -C incident-management-service test
 	@echo "Opening coverage report…"
 	@xdg-open alert-ingestion-service/htmlcov/index.html 2>/dev/null || open alert-ingestion-service/htmlcov/index.html 2>/dev/null || echo "Report at alert-ingestion-service/htmlcov/index.html"
+	@xdg-open incident-management-service/htmlcov/index.html 2>/dev/null || open incident-management-service/htmlcov/index.html 2>/dev/null || echo "Report at incident-management-service/htmlcov/index.html"
 
 health:  ## Hit health endpoints
 	@echo "── Alert Ingestion ──"
 	@curl -sf http://localhost:8001/health | python3 -m json.tool
 	@curl -sf http://localhost:8001/health/ready | python3 -m json.tool
 	@curl -sf http://localhost:8001/health/live  | python3 -m json.tool
+	@echo "── Incident Management ──"
+	@curl -sf http://localhost:8002/health | python3 -m json.tool
+	@curl -sf http://localhost:8002/health/ready | python3 -m json.tool
+	@curl -sf http://localhost:8002/health/live  | python3 -m json.tool
 
 smoke:  ## Quick smoke test (POST + GET alert)
 	@echo "── POST alert ──"
@@ -169,6 +199,7 @@ smoke:  ## Quick smoke test (POST + GET alert)
 
 clean:  ## Remove build artifacts across all services
 	$(MAKE) -C alert-ingestion-service clean
+	$(MAKE) -C incident-management-service clean
 	docker image prune -f
 
 # ── Help ─────────────────────────────────────────────────────

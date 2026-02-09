@@ -48,25 +48,32 @@ services:
       start_period: 40s
     restart: unless-stopped
 
-  # ── Incident Management Service (placeholder) ─────────────
-  # Uncomment when incident-management-service has a Dockerfile:
-  #
-  # incident-management:
-  #   build:
-  #     context: ./incident-management-service
-  #     dockerfile: Dockerfile
-  #   container_name: incident-management
-  #   ports:
-  #     - "8002:8002"
-  #   environment:
-  #     - DATABASE_URL=postgresql://postgres:hackathon2026@database:5432/incident_platform
-  #     - SERVICE_PORT=8002
-  #   networks:
-  #     - incident-platform
-  #   depends_on:
-  #     database:
-  #       condition: service_healthy
-  #   restart: unless-stopped
+  # ── Incident Management Service ──────────────────────────
+  incident-management:
+    build:
+      context: ./incident-management-service
+      dockerfile: Dockerfile
+    container_name: incident-management
+    ports:
+      - "8002:8002"
+    environment:
+      - DATABASE_URL=postgresql://postgres:hackathon2026@database:5432/incident_platform
+      - SERVICE_PORT=8002
+      - ONCALL_SERVICE_URL=http://oncall-service:8003
+      - NOTIFICATION_SERVICE_URL=http://notification-service:8004
+      - ALERT_SERVICE_URL=http://alert-ingestion:8001
+    networks:
+      - incident-platform
+    depends_on:
+      database:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8002/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    restart: unless-stopped
 
   # ── Prometheus ───────────────────────────────────────────
   prometheus:
