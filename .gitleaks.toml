@@ -1,0 +1,25 @@
+# Gitleaks configuration for Incident Platform
+# https://github.com/gitleaks/gitleaks
+
+title = "Incident Platform — Gitleaks Config"
+
+[extend]
+useDefault = true
+
+# Allowed patterns (test fixtures, example configs, etc.)
+[allowlist]
+description = "Global allowlist"
+paths = [
+    '''(^|/)\.venv/''',
+    '''(^|/)node_modules/''',
+    '''(^|/)\.git/''',
+    '''(^|/)htmlcov/''',
+    '''\.pyc$''',
+]
+regexTarget = "match"
+regexes = [
+    # Default postgres password used only in CI test containers
+    '''hackathon2026''',
+    # Placeholder / example tokens in docs
+    '''EXAMPLE_[A-Z_]+''',
+]
