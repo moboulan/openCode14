@@ -1,8 +1,9 @@
-import psycopg2
+import logging
+from contextlib import contextmanager
+
 from psycopg2 import pool
 from psycopg2.extras import RealDictCursor
-from contextlib import contextmanager
-import logging
+
 from app.config import settings
 
 logger = logging.getLogger(__name__)

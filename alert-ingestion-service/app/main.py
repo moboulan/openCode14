@@ -1,21 +1,20 @@
+import logging
+import time
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 from prometheus_fastapi_instrumentator import Instrumentator
-import time
-import logging
-from contextlib import asynccontextmanager
 
-from app.routers import health, api
 from app.config import settings
-from app.metrics import setup_custom_metrics
 from app.database import close_pool
+from app.metrics import setup_custom_metrics
+from app.routers import api, health
 
 # Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
+logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -29,12 +28,13 @@ async def lifespan(app: FastAPI):
     close_pool()
     logger.info(f"Shutting down {settings.SERVICE_NAME}")
 
+
 # Create FastAPI app
 app = FastAPI(
     title="Incident Platform Service",
     description="Microservice for Incident & On-Call Management Platform",
     version="1.0.0",
-    lifespan=lifespan
+    lifespan=lifespan,
 )
 
 # Setup Prometheus metrics
@@ -54,6 +54,7 @@ instrumentator.instrument(app).expose(app, include_in_schema=False, endpoint="/m
 # Setup custom metrics
 setup_custom_metrics()
 
+
 # Middleware for request timing
 @app.middleware("http")
 async def add_process_time_header(request: Request, call_next):
@@ -63,30 +64,23 @@ async def add_process_time_header(request: Request, call_next):
     response.headers["X-Process-Time"] = str(process_time)
     return response
 
+
 # Exception handler
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
     logger.error(f"Global exception handler caught: {exc}", exc_info=True)
     return JSONResponse(
         status_code=500,
-        content={
-            "error": {
-                "message": "Internal server error",
-                "type": type(exc).__name__,
-                "timestamp": time.time()
-            }
-        }
+        content={"error": {"message": "Internal server error", "type": type(exc).__name__, "timestamp": time.time()}},
     )
+
 
 # Include routers
 app.include_router(health.router, tags=["health"])
 app.include_router(api.router, prefix="/api/v1", tags=["api"])
 
+
 # Root endpoint
 @app.get("/")
 async def root():
-    return {
-        "service": settings.SERVICE_NAME,
-        "version": "1.0.0",
-        "status": "running"
-    }
+    return {"service": settings.SERVICE_NAME, "version": "1.0.0", "status": "running"}

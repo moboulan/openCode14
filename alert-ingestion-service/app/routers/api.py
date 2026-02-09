@@ -1,16 +1,16 @@
-from fastapi import APIRouter, HTTPException, Query, status
-from datetime import datetime, timezone
-import uuid
 import json
 import logging
+import uuid
+from datetime import datetime, timezone
 from typing import Optional
 
 import httpx
+from fastapi import APIRouter, HTTPException, Query, status
 
-from app.models import Alert, AlertResponse, SeverityLevel
-from app.metrics import alerts_received_total, alerts_correlated_total
-from app.database import get_db_connection
 from app.config import settings
+from app.database import get_db_connection
+from app.metrics import alerts_correlated_total, alerts_received_total
+from app.models import Alert, AlertResponse, SeverityLevel
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -48,8 +48,7 @@ async def create_alert(alert: Alert):
                 VALUES (%s, %s, %s::severity_level, %s, %s::jsonb, %s)
                 RETURNING id
                 """,
-                (alert_id, alert.service, alert.severity.value,
-                 alert.message, labels_json, ts),
+                (alert_id, alert.service, alert.severity.value, alert.message, labels_json, ts),
             )
             row = cur.fetchone()
             alert_db_id = row["id"]  # UUID PK for FK references
@@ -73,8 +72,7 @@ async def create_alert(alert: Alert):
                 ORDER BY created_at DESC
                 LIMIT 1
                 """,
-                (alert.service, alert.severity.value,
-                 settings.CORRELATION_WINDOW_MINUTES),
+                (alert.service, alert.severity.value, settings.CORRELATION_WINDOW_MINUTES),
             )
             match = cur.fetchone()
 
