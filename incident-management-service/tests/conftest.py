@@ -6,9 +6,16 @@ Database-hitting tests are marked with @pytest.mark.db and skipped
 when no database is available (CI stage 5 supplies one).
 """
 
+import os
 import pytest
 from unittest.mock import patch, MagicMock
 from httpx import AsyncClient, ASGITransport
+
+# Provide a dummy DATABASE_URL for unit tests (DB is always mocked)
+os.environ.setdefault("DATABASE_URL", "postgresql://test:test@localhost:5432/test")
+
+# Re-export helpers so tests can import from conftest or helpers
+from helpers import fake_connection  # noqa: F401
 
 # ---------------------------------------------------------------------------
 # Ensure the app never tries to connect to a real DB during unit tests
@@ -28,18 +35,6 @@ def _patch_db_pool(request):
     with patch("app.database._connection_pool", _mock_pool), \
          patch("app.database.get_pool", return_value=_mock_pool):
         yield
-
-
-@pytest.fixture()
-def mock_db_connection():
-    """Provide a mock get_db_connection context manager."""
-    mock_conn = MagicMock()
-    mock_cursor = MagicMock()
-    mock_conn.__enter__ = MagicMock(return_value=mock_conn)
-    mock_conn.__exit__ = MagicMock(return_value=False)
-    mock_conn.cursor.return_value.__enter__ = MagicMock(return_value=mock_cursor)
-    mock_conn.cursor.return_value.__exit__ = MagicMock(return_value=False)
-    return mock_conn, mock_cursor
 
 
 # ---------------------------------------------------------------------------

@@ -103,7 +103,7 @@ async def create_alert(alert: Alert):
     else:
         # ── 2b. Create new incident via Incident Management ───
         try:
-            async with httpx.AsyncClient(timeout=10.0) as client:
+            async with httpx.AsyncClient(timeout=settings.HTTP_CLIENT_TIMEOUT) as client:
                 resp = await client.post(
                     f"{settings.INCIDENT_SERVICE_URL}/api/v1/incidents",
                     json={

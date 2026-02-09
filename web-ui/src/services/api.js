@@ -7,7 +7,7 @@ import * as mock from './mockData.js';
 
 const apiClient = axios.create({
 	baseURL: '/',
-	timeout: 10000,
+	timeout: Number(import.meta.env.VITE_API_TIMEOUT || 10000),
 });
 
 const alertIngestionBase = '/api/alert-ingestion/api/v1';

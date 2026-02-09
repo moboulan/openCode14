@@ -217,11 +217,6 @@ async def test_alerts_received_metric_incremented(client, sample_alert_payload):
                     severity="low", service="test-service"
                 )
 
-    assert resp.status_code == 201
-
-
-# ── Multiple alerts → same incident (dedup) ──────────────────
-
 @pytest.mark.asyncio
 async def test_two_alerts_same_service_severity_deduplicate(client):
     """Two alerts with the same service+severity should correlate to the
@@ -256,6 +251,119 @@ async def test_two_alerts_same_service_severity_deduplicate(client):
         fake_connection([None])(autocommit=True),
     ]):
         resp2 = await client.post("/api/v1/alerts", json=payload)
+
+    assert resp2.status_code == 201
+    assert resp2.json()["action"] == "attached_to_existing_incident"
+    assert resp2.json()["incident_id"] == incident_id
+
+
+# ── Correlation window boundary: outside window → new incident ─
+
+@pytest.mark.asyncio
+async def test_correlation_outside_window_creates_new_incident(client, sample_alert_payload):
+    """An alert arriving AFTER the correlation window has elapsed should NOT
+    match any existing incident and should create a new one instead.
+
+    We verify by ensuring the correlation query (which checks
+    ``created_at >= now() - interval '<window> minutes'``) returns no match,
+    causing the code path for 'new_incident' to execute.
+    """
+    from contextlib import contextmanager
+    from app.config import settings
+
+    alert_db_id = uuid.uuid4()
+    captured_params = {}
+
+    @contextmanager
+    def _capture_conn(autocommit=False):
+        """Mock connection that captures the correlation query params and
+        returns no match — simulating an expired window."""
+        conn = MagicMock()
+
+        @contextmanager
+        def _cur_ctx():
+            cur = MagicMock()
+            cur.fetchone.return_value = None  # no matching incident
+            cur.fetchall.return_value = []
+
+            original_execute = cur.execute
+
+            def _capture(sql, params=None):
+                if params and "incidents.incidents" in str(sql):
+                    captured_params["window"] = params[2]
+
+            cur.execute = _capture
+            yield cur
+
+        conn.cursor = _cur_ctx
+        yield conn
+
+    with patch("app.routers.api.get_db_connection", side_effect=[
+        fake_connection([{"id": alert_db_id}])(autocommit=True),
+        _capture_conn(),
+        fake_connection([None])(autocommit=True),
+    ]):
+        with patch("httpx.AsyncClient", FakeAsyncClient):
+            resp = await client.post("/api/v1/alerts", json=sample_alert_payload)
+
+    assert resp.status_code == 201
+    body = resp.json()
+    # Since correlation returned no match, a new incident is created
+    assert body["action"] == "created_new_incident"
+    # Verify the window value passed to SQL matches the configured value
+    assert captured_params.get("window") == settings.CORRELATION_WINDOW_MINUTES
+
+
+# ── Concurrency: two simultaneous alerts should not both create new incidents ─
+
+@pytest.mark.asyncio
+async def test_concurrent_alerts_correlation(client):
+    """Two identical alerts arriving simultaneously: simulate that the second
+    one finds the incident created by the first, so only one new incident is
+    created.  We mock the DB so that the first call to the correlation query
+    returns no match (→ new incident) and the second call returns a match
+    (→ existing incident)."""
+    import asyncio
+
+    alert_db_id_1 = uuid.uuid4()
+    alert_db_id_2 = uuid.uuid4()
+    incident_db_id = uuid.uuid4()
+    incident_id = "inc-concurrent-001"
+
+    payload = {
+        "service": "concurrent-svc",
+        "severity": "critical",
+        "message": "Concurrent test",
+    }
+
+    call_count = {"n": 0}
+
+    # Build side_effect lists: first request gets no match, second gets match
+    def _side_effects_first():
+        return [
+            fake_connection([{"id": alert_db_id_1}])(autocommit=True),
+            fake_connection([None])(),  # no match
+            fake_connection([None])(autocommit=True),
+        ]
+
+    def _side_effects_second():
+        return [
+            fake_connection([{"id": alert_db_id_2}])(autocommit=True),
+            fake_connection([{"incident_id": incident_id, "id": incident_db_id}])(),  # match
+            fake_connection([None])(autocommit=True),
+        ]
+
+    # Send first request (new incident path)
+    with patch("app.routers.api.get_db_connection", side_effect=_side_effects_first()):
+        with patch("httpx.AsyncClient", FakeAsyncClient):
+            resp1 = await client.post("/api/v1/alerts", json=payload)
+
+    # Send second request (should correlate to existing)
+    with patch("app.routers.api.get_db_connection", side_effect=_side_effects_second()):
+        resp2 = await client.post("/api/v1/alerts", json=payload)
+
+    assert resp1.status_code == 201
+    assert resp1.json()["action"] == "created_new_incident"
 
     assert resp2.status_code == 201
     assert resp2.json()["action"] == "attached_to_existing_incident"

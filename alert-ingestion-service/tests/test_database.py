@@ -136,3 +136,22 @@ class TestCheckDatabaseHealth:
             from app.database import check_database_health
 
             assert check_database_health() is False
+
+
+class TestPoolExhaustion:
+    """Verify the service handles pool exhaustion (getconn failure) gracefully."""
+
+    def test_getconn_failure_raises(self):
+        """When the pool cannot provide a connection, get_db_connection
+        should propagate the error so callers can handle it."""
+        from psycopg2.pool import PoolError
+
+        mock_pool = MagicMock()
+        mock_pool.getconn.side_effect = PoolError("connection pool exhausted")
+
+        with patch("app.database.get_pool", return_value=mock_pool):
+            from app.database import get_db_connection
+
+            with pytest.raises(PoolError, match="connection pool exhausted"):
+                with get_db_connection() as _conn:
+                    pass  # should never reach here

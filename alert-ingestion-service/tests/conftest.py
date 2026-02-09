@@ -11,6 +11,9 @@ import pytest
 from unittest.mock import patch, MagicMock
 from httpx import AsyncClient, ASGITransport
 
+# Provide a dummy DATABASE_URL for unit tests (DB is always mocked)
+os.environ.setdefault("DATABASE_URL", "postgresql://test:test@localhost:5432/test")
+
 # Re-export helpers so they stay accessible from conftest if needed
 from helpers import (  # noqa: F401
     fake_connection,

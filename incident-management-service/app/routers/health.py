@@ -32,13 +32,13 @@ def health_check(response: Response):
 
     # Check memory usage
     memory_percent = psutil.virtual_memory().percent
-    if memory_percent > 90:
+    if memory_percent > settings.HEALTH_MEMORY_THRESHOLD:
         checks["memory"] = "warning"
         health_status = "degraded"
 
     # Check disk usage
     disk_percent = psutil.disk_usage("/").percent
-    if disk_percent > 90:
+    if disk_percent > settings.HEALTH_DISK_THRESHOLD:
         checks["disk"] = "warning"
         health_status = "degraded"
 
@@ -50,7 +50,7 @@ def health_check(response: Response):
         status=health_status,
         timestamp=datetime.now(timezone.utc),
         service=settings.SERVICE_NAME,
-        version="1.0.0",
+        version=settings.APP_VERSION,
         uptime=uptime,
         checks=checks,
     )

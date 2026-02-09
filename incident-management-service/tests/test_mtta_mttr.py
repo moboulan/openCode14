@@ -15,36 +15,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-
-# ---------------------------------------------------------------------------
-# Helper
-# ---------------------------------------------------------------------------
-
-def _fake_connection(cursor_sides: list[dict | None]):
-    call_idx = {"i": 0}
-
-    @contextmanager
-    def _ctx(autocommit=False):
-        conn = MagicMock()
-
-        @contextmanager
-        def _cur_ctx():
-            cur = MagicMock()
-            idx = call_idx["i"]
-            if idx < len(cursor_sides):
-                val = cursor_sides[idx]
-                cur.fetchone.return_value = val
-                cur.fetchall.return_value = val if isinstance(val, list) else [val] if val else []
-            else:
-                cur.fetchone.return_value = None
-                cur.fetchall.return_value = []
-            call_idx["i"] += 1
-            yield cur
-
-        conn.cursor = _cur_ctx
-        yield conn
-
-    return _ctx
+from helpers import fake_connection as _fake_connection
 
 
 def _incident_row(

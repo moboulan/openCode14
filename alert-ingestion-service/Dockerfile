@@ -41,9 +41,11 @@ RUN rm -rf tests/ htmlcov/ Makefile setup.cfg .flake8 .coverage __pycache__
 # Switch to non-root user
 USER appuser
 
-EXPOSE 8001
+ARG SERVICE_PORT=8001
+ENV SERVICE_PORT=${SERVICE_PORT}
+EXPOSE ${SERVICE_PORT}
 
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
-	CMD curl -f http://localhost:8001/health || exit 1
+	CMD curl -f http://localhost:${SERVICE_PORT}/health || exit 1
 
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8001"]
+CMD ["sh", "-c", "uvicorn app.main:app --host 0.0.0.0 --port ${SERVICE_PORT}"]

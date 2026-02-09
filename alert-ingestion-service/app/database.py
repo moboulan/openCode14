@@ -17,8 +17,8 @@ def get_pool() -> pool.ThreadedConnectionPool:
     global _connection_pool
     if _connection_pool is None or _connection_pool.closed:
         _connection_pool = pool.ThreadedConnectionPool(
-            minconn=1,
-            maxconn=10,
+            minconn=settings.DB_POOL_MIN,
+            maxconn=settings.DB_POOL_MAX,
             dsn=settings.DATABASE_URL,
             cursor_factory=RealDictCursor,
         )

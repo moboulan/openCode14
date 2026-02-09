@@ -2,6 +2,8 @@ import logging
 
 from prometheus_client import Counter, Gauge, Histogram
 
+from app.config import settings
+
 logger = logging.getLogger(__name__)
 
 # Custom metrics for incident platform
@@ -22,7 +24,7 @@ incident_mtta_seconds = Histogram(
     "incident_mtta_seconds",
     "Time to acknowledge incidents in seconds",
     ["severity"],
-    buckets=[30, 60, 120, 300, 600, 1800, 3600],  # 30s to 1 hour
+    buckets=settings.mtta_bucket_list,
 )
 
 # Histogram: Mean Time To Resolve (MTTR)
@@ -30,7 +32,7 @@ incident_mttr_seconds = Histogram(
     "incident_mttr_seconds",
     "Time to resolve incidents in seconds",
     ["severity"],
-    buckets=[300, 600, 1800, 3600, 7200, 14400, 28800],  # 5 min to 8 hours
+    buckets=settings.mttr_bucket_list,
 )
 
 # Gauge: Open incidents count

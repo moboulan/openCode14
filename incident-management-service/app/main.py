@@ -34,14 +34,14 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title="Incident Management Service",
     description="Microservice for incident lifecycle management — create, acknowledge, resolve, analytics",
-    version="1.0.0",
+    version=settings.APP_VERSION,
     lifespan=lifespan,
 )
 
-# CORS — allow web-ui and local development origins
+# CORS — restrict to configured origins
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=settings.cors_origin_list,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -92,4 +92,4 @@ app.include_router(api.router, prefix="/api/v1", tags=["api"])
 # Root endpoint
 @app.get("/")
 async def root():
-    return {"service": settings.SERVICE_NAME, "version": "1.0.0", "status": "running"}
+    return {"service": settings.SERVICE_NAME, "version": settings.APP_VERSION, "status": "running"}

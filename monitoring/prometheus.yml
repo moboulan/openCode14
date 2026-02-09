@@ -9,6 +9,12 @@ rule_files:
   - '/etc/prometheus/alert-rules.yml'
 
 scrape_configs:
+  # NOTE: Scrape targets below use Docker-compose service names and fixed
+  # ports.  If you change service names or ports in docker-compose.yml you
+  # must update the corresponding targets here as well.  For dynamic
+  # environments consider using file-based service discovery
+  # (file_sd_configs) or DNS-based discovery instead of static_configs.
+
   # Prometheus itself
   - job_name: 'prometheus'
     static_configs:

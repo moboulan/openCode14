@@ -70,6 +70,34 @@ class TestAlertModel:
         with pytest.raises(ValidationError):
             Alert(service="x")  # missing severity, message
 
+    def test_empty_service_string(self):
+        """Empty service string should still be accepted by the model
+        (validation is at the API level if needed)."""
+        alert = Alert(service="", severity="low", message="test")
+        assert alert.service == ""
+
+    def test_empty_message_string(self):
+        alert = Alert(service="svc", severity="low", message="")
+        assert alert.message == ""
+
+    def test_very_long_strings(self):
+        long_svc = "a" * 10_000
+        long_msg = "b" * 50_000
+        alert = Alert(service=long_svc, severity="high", message=long_msg)
+        assert len(alert.service) == 10_000
+        assert len(alert.message) == 50_000
+
+    def test_special_characters_in_labels(self):
+        labels = {
+            "env": "prod/eu-west-1",
+            "tag": 'value with "quotes"',
+            "unicode": "\u00e9\u00e0\u00fc\u2603\u2601",
+            "empty": "",
+        }
+        alert = Alert(service="svc", severity="medium", message="ok", labels=labels)
+        assert alert.labels["unicode"] == "\u00e9\u00e0\u00fc\u2603\u2601"
+        assert alert.labels["empty"] == ""
+
 
 # ── AlertResponse model ──────────────────────────────────────
 

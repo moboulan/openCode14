@@ -69,7 +69,7 @@ async def create_incident(payload: IncidentCreate):
     # ── 2. Call On-Call Service for assignment ─────────────────
     assigned_to: Optional[str] = None
     try:
-        async with httpx.AsyncClient(timeout=10.0) as client:
+        async with httpx.AsyncClient(timeout=settings.HTTP_CLIENT_TIMEOUT) as client:
             resp = await client.get(
                 f"{settings.ONCALL_SERVICE_URL}/api/v1/oncall/current",
                 params={"team": payload.service},
@@ -94,7 +94,7 @@ async def create_incident(payload: IncidentCreate):
 
     # ── 3. Call Notification Service ──────────────────────────
     try:
-        async with httpx.AsyncClient(timeout=10.0) as client:
+        async with httpx.AsyncClient(timeout=settings.HTTP_CLIENT_TIMEOUT) as client:
             await client.post(
                 f"{settings.NOTIFICATION_SERVICE_URL}/api/v1/notify",
                 json={
