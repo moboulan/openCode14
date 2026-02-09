@@ -2,12 +2,13 @@ import { useEffect, useCallback, useState } from 'react';
 import IncidentList from '../components/IncidentList.jsx';
 import IncidentAnalytics from '../components/IncidentAnalytics.jsx';
 import { useIncidentSocket } from '../hooks/useIncidentSocket.js';
-import { getIncidentAnalytics, listIncidents } from '../services/api.js';
+import { getIncidentAnalytics, listIncidents, getMetricsTrends } from '../services/api.js';
 
 function Dashboard() {
   const [incidents, setIncidents] = useState([]);
   const [total, setTotal] = useState(0);
   const [analytics, setAnalytics] = useState(null);
+  const [trends, setTrends] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -24,8 +25,12 @@ function Dashboard() {
 
   const loadAnalytics = useCallback(async () => {
     try {
-      const data = await getIncidentAnalytics();
+      const [data, trendData] = await Promise.all([
+        getIncidentAnalytics(),
+        getMetricsTrends(),
+      ]);
       setAnalytics(data);
+      setTrends(trendData);
     } catch {
       setError('Failed to load analytics');
     }
@@ -45,17 +50,25 @@ function Dashboard() {
 
   useIncidentSocket(loadAll);
 
+  const mttaTrend = trends?.trends?.map(d => d.mtta) ?? [];
+  const mttrTrend = trends?.trends?.map(d => d.mttr) ?? [];
+
   return (
     <div className="page">
       {error && <div className="error-banner">{error}</div>}
 
-      {/* Incidents first */}
-      <IncidentList incidents={incidents} total={total} />
-
-      {/* Analytics below */}
+      {/* Metrics status bar */}
       {analytics && (
-        <IncidentAnalytics summary={analytics.summary} byService={analytics.by_service} />
+        <IncidentAnalytics
+          summary={analytics.summary}
+          byService={analytics.by_service}
+          mttaTrend={mttaTrend}
+          mttrTrend={mttrTrend}
+        />
       )}
+
+      {/* Incidents table */}
+      <IncidentList incidents={incidents} total={total} />
 
       {loading && <span className="loading-text">Refreshing…</span>}
     </div>

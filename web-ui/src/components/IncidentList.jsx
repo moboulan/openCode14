@@ -66,15 +66,15 @@ function IncidentList({ incidents = [], total }) {
   }, [incidents]);
 
   const SortArrow = ({ col }) => {
-    if (sortKey !== col) return <span style={{ opacity: 0.2, marginLeft: 3 }}>↕</span>;
-    return <span style={{ marginLeft: 3 }}>{sortDir === 'asc' ? '↑' : '↓'}</span>;
+    if (sortKey !== col) return <span style={{ opacity: 0.25, marginLeft: 2, fontSize: 10 }}>↕</span>;
+    return <span style={{ marginLeft: 2, fontSize: 10 }}>{sortDir === 'asc' ? '↑' : '↓'}</span>;
   };
 
   return (
     <>
       <div className="section-bar">
         <span className="icon">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
         </span>
         <h2>Incidents</h2>
         <span className="sev-dots">
@@ -84,14 +84,14 @@ function IncidentList({ incidents = [], total }) {
           {sevCounts.low > 0 && <span className="sev-dot" style={{ color: 'var(--green)' }}>● {sevCounts.low}</span>}
         </span>
         <div className="section-right">
-          <span style={{ fontSize: 12, color: 'var(--text-muted)', fontWeight: 500 }}>
+          <span style={{ fontSize: 11, color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', fontWeight: 500 }}>
             {filtered.length}/{total ?? incidents.length}
           </span>
         </div>
       </div>
 
-      <div className="card">
-        <div style={{ display: 'flex', gap: 16, alignItems: 'center', flexWrap: 'wrap', marginBottom: 14 }}>
+      <div className="card" style={{ padding: '6px 0' }}>
+        <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap', padding: '4px 10px 8px' }}>
           <div className="filter-bar">
             <span className="filter-label">Status</span>
             {STATUSES.map(s => (
@@ -105,7 +105,7 @@ function IncidentList({ incidents = [], total }) {
               </button>
             ))}
           </div>
-          <div style={{ width: 1, height: 20, background: 'var(--border)' }} />
+          <div style={{ width: 1, height: 16, background: 'var(--border)' }} />
           <div className="filter-bar">
             <span className="filter-label">Severity</span>
             {SEVERITIES.map(s => (
@@ -146,10 +146,10 @@ function IncidentList({ incidents = [], total }) {
                   <td>
                     <Link to={`/incidents/${incident.incident_id}`}>{incident.title}</Link>
                   </td>
-                  <td>{incident.service}</td>
+                  <td><span className="mono">{incident.service}</span></td>
                   <td><SeverityBadge severity={incident.severity} /></td>
                   <td><StatusChip status={incident.status} /></td>
-                  <td>{incident.assigned_to || '—'}</td>
+                  <td style={{ color: 'var(--text-muted)' }}>{incident.assigned_to || '—'}</td>
                   <td style={{ whiteSpace: 'nowrap' }}><span className="mono">{formatDateTime(incident.created_at)}</span></td>
                 </tr>
               ))}

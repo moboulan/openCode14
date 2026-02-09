@@ -23,10 +23,10 @@ function AlertList({ alerts = [] }) {
     <ul className="list">
       {alerts.map((alert) => (
         <li key={alert.alert_id}>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-            <span style={{ color: 'var(--text-primary)', fontWeight: 600, fontSize: 13 }}>{alert.message}</span>
-            <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
-              {alert.service} · <span className={`badge ${alert.severity}`} style={{ fontSize: 10, padding: '1px 6px' }}>{alert.severity}</span> · {formatDateTime(alert.timestamp)}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+            <span style={{ color: 'var(--text-primary)', fontWeight: 600, fontSize: 12 }}>{alert.message}</span>
+            <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+              {alert.service} · <span className={`badge ${alert.severity}`} style={{ fontSize: 10, padding: '0px 5px' }}>{alert.severity}</span> · {formatDateTime(alert.timestamp)}
             </span>
           </div>
         </li>
@@ -41,9 +41,9 @@ function NotesList({ notes = [] }) {
     <ul className="list">
       {notes.map((note, idx) => (
         <li key={idx}>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-            <span style={{ color: 'var(--text-primary)', fontSize: 13 }}>{note.content}</span>
-            <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+            <span style={{ color: 'var(--text-primary)', fontSize: 12 }}>{note.content}</span>
+            <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
               {note.author} · {formatDateTime(note.created_at)}
             </span>
           </div>
@@ -130,17 +130,17 @@ function IncidentDetail() {
 
       {/* Header */}
       <div className="card">
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, flexWrap: 'wrap' }}>
-          <div style={{ flex: 1, minWidth: 260 }}>
-            <h2 style={{ margin: 0, fontSize: 20, fontWeight: 700, color: 'var(--text-primary)' }}>{incident.title}</h2>
-            <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: 8, flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 10, flexWrap: 'wrap' }}>
+          <div style={{ flex: 1, minWidth: 220 }}>
+            <h2 style={{ margin: 0, fontSize: 15, fontWeight: 700, color: 'var(--text-primary)' }}>{incident.title}</h2>
+            <div style={{ display: 'flex', gap: 6, alignItems: 'center', marginTop: 6, flexWrap: 'wrap' }}>
               <span className={`badge ${incident.severity}`}>{incident.severity}</span>
               <span className={`status-chip ${incident.status}`}>{incident.status}</span>
-              <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>·</span>
-              <span style={{ fontSize: 13, color: 'var(--text-secondary)', fontWeight: 600 }}>{incident.service}</span>
+              <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>·</span>
+              <span style={{ fontSize: 12, color: 'var(--text-secondary)', fontWeight: 600, fontFamily: 'var(--font-mono)' }}>{incident.service}</span>
             </div>
           </div>
-          <div style={{ display: 'flex', gap: 6 }}>
+          <div style={{ display: 'flex', gap: 4 }}>
             <button
               onClick={() => handleUpdate('acknowledged')}
               disabled={incident.status === 'acknowledged' || incident.status === 'resolved'}
@@ -157,7 +157,7 @@ function IncidentDetail() {
           </div>
         </div>
 
-        <div className="metric-grid" style={{ marginTop: 16 }}>
+        <div className="metric-grid" style={{ marginTop: 10 }}>
           <div className="metric-item">
             <span className="meta-label">Assigned To</span>
             <span className="meta-value">{incident.assigned_to || 'Unassigned'}</span>
@@ -175,7 +175,7 @@ function IncidentDetail() {
             <span className="meta-value">{formatDateTime(incident.resolved_at)}</span>
           </div>
         </div>
-        {actionStatus && <p style={{ marginTop: 8, fontSize: 11, color: 'var(--text-muted)' }}>{actionStatus}</p>}
+        {actionStatus && <p style={{ marginTop: 6, fontSize: 11, color: 'var(--text-muted)' }}>{actionStatus}</p>}
       </div>
 
       {/* Response Metrics */}
@@ -191,11 +191,11 @@ function IncidentDetail() {
           </div>
           <div className="stat-card">
             <span className="stat-label">Created</span>
-            <span className="stat-value" style={{ fontSize: 13 }}>{formatDateTime(metrics.created_at)}</span>
+            <span className="stat-value" style={{ fontSize: 11 }}>{formatDateTime(metrics.created_at)}</span>
           </div>
           <div className="stat-card">
             <span className="stat-label">Resolved</span>
-            <span className="stat-value" style={{ fontSize: 13 }}>{formatDateTime(metrics.resolved_at)}</span>
+            <span className="stat-value" style={{ fontSize: 11 }}>{formatDateTime(metrics.resolved_at)}</span>
           </div>
         </div>
       )}
@@ -209,18 +209,18 @@ function IncidentDetail() {
               className={`tab${activeTab === t.key ? ' active' : ''}`}
               onClick={() => setActiveTab(t.key)}
             >
-              {t.label} {t.count != null && <span style={{ opacity: 0.5 }}>({t.count})</span>}
+              {t.label} {t.count != null && <span style={{ opacity: 0.5, fontFamily: 'var(--font-mono)' }}>({t.count})</span>}
             </button>
           ))}
         </div>
 
-        <div style={{ padding: 20 }}>
+        <div style={{ padding: '10px 12px' }}>
           {activeTab === 'timeline' && <Timeline events={incident.timeline} />}
           {activeTab === 'alerts' && <AlertList alerts={incident.alerts} />}
           {activeTab === 'notes' && (
             <div>
               <NotesList notes={incident.notes} />
-              <div style={{ display: 'flex', gap: 6, marginTop: 10 }}>
+              <div style={{ display: 'flex', gap: 4, marginTop: 8 }}>
                 <input
                   type="text"
                   value={noteText}
@@ -231,10 +231,10 @@ function IncidentDetail() {
                     flex: 1,
                     background: 'var(--bg-input)',
                     border: '1px solid var(--border)',
-                    borderRadius: '6px',
+                    borderRadius: 'var(--radius-sm)',
                     color: 'var(--text-primary)',
-                    padding: '8px 12px',
-                    fontSize: 13,
+                    padding: '5px 8px',
+                    fontSize: 12,
                     fontFamily: 'var(--font)',
                   }}
                 />

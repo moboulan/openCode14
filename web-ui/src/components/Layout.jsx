@@ -1,6 +1,6 @@
 import { Link, useLocation } from 'react-router-dom';
 import { useIncidentSocket } from '../hooks/useIncidentSocket.js';
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 
 /* ── SVG Icons (inline, no deps) ──────────────────── */
 const icons = {
@@ -34,6 +34,8 @@ const pageNames = {
   '/oncall': 'On-Call',
 };
 
+const THEME_STORAGE_KEY = 'incident-ops-theme';
+
 function SidebarLink({ to, icon, label }) {
   const location = useLocation();
   const isActive = location.pathname === to || (to !== '/' && location.pathname.startsWith(to));
@@ -50,11 +52,41 @@ function SidebarLink({ to, icon, label }) {
 function Layout({ children }) {
   const [wsConnected, setWsConnected] = useState(false);
   const location = useLocation();
+  const [theme, setTheme] = useState('light');
 
   const handleWsEvent = useCallback(() => {}, []);
 
   const { connected } = useIncidentSocket(handleWsEvent);
   if (connected !== wsConnected) setWsConnected(connected);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    try {
+      const stored = window.localStorage.getItem(THEME_STORAGE_KEY);
+      if (stored === 'light' || stored === 'dark') {
+        setTheme(stored);
+        return;
+      }
+    } catch (error) {
+      // ignore
+    }
+    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    setTheme(prefersDark ? 'dark' : 'light');
+  }, []);
+
+  useEffect(() => {
+    if (typeof document === 'undefined') return;
+    document.documentElement.dataset.theme = theme;
+    try {
+      window.localStorage.setItem(THEME_STORAGE_KEY, theme);
+    } catch (error) {
+      // best effort
+    }
+  }, [theme]);
+
+  const toggleTheme = useCallback(() => {
+    setTheme((prev) => (prev === 'light' ? 'dark' : 'light'));
+  }, []);
 
   const currentPage = pageNames[location.pathname] || 'Incident Response';
 
@@ -62,11 +94,11 @@ function Layout({ children }) {
     <div className="app-shell">
       <aside className="sidebar">
         <div className="sidebar-logo">
-          <svg width="28" height="28" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <rect width="100" height="100" rx="20" fill="#111827"/>
-            <path d="M20 55 H35 L45 25 L55 85 L65 55 H80" stroke="#ffffff" strokeWidth="6" strokeLinecap="round" strokeLinejoin="round"/>
+          <svg width="22" height="22" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <rect width="100" height="100" rx="20" fill="currentColor" style={{ color: 'var(--accent)' }}/>
+            <path d="M20 55 H35 L45 25 L55 85 L65 55 H80" stroke="var(--bg-body)" strokeWidth="7" strokeLinecap="round" strokeLinejoin="round"/>
           </svg>
-          <span className="sidebar-logo-text">Incident Ops</span>
+          <span className="sidebar-logo-text">ExpertMind</span>
         </div>
         <nav className="sidebar-nav">
           <SidebarLink to="/" icon={icons.dashboard} label="Dashboard" />
@@ -79,6 +111,15 @@ function Layout({ children }) {
         <header className="topbar">
           <span className="topbar-title">{currentPage}</span>
           <div className="topbar-spacer" />
+          <button
+            type="button"
+            className="theme-toggle"
+            onClick={toggleTheme}
+            aria-label={theme === 'light' ? 'Switch to dark mode' : 'Switch to light mode'}
+            title={theme === 'light' ? 'Switch to dark mode' : 'Switch to light mode'}
+          >
+            <span aria-hidden="true">{theme === 'light' ? '🌙' : '☀️'}</span>
+          </button>
           <span className="topbar-badge">
             <span className={`dot${wsConnected ? '' : ' off'}`} />
             {wsConnected ? 'Live' : 'Offline'}
