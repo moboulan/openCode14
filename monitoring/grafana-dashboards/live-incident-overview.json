@@ -1,0 +1,793 @@
+{
+	"annotations": {
+		"list": [
+			{
+				"builtIn": 1,
+				"datasource": {
+					"type": "grafana",
+					"uid": "-- Grafana --"
+				},
+				"enable": true,
+				"hide": true,
+				"iconColor": "rgba(0, 211, 255, 1)",
+				"name": "Annotations & Alerts",
+				"type": "dashboard"
+			}
+		]
+	},
+	"editable": true,
+	"fiscalYearStartMonth": 0,
+	"graphTooltip": 1,
+	"id": null,
+	"links": [],
+	"panels": [
+		{
+			"title": "Critical Incidents",
+			"type": "stat",
+			"gridPos": {
+				"h": 4,
+				"w": 6,
+				"x": 0,
+				"y": 0
+			},
+			"datasource": {
+				"type": "prometheus",
+				"uid": "${DS_PROMETHEUS}"
+			},
+			"fieldConfig": {
+				"defaults": {
+					"thresholds": {
+						"mode": "absolute",
+						"steps": [
+							{
+								"color": "green",
+								"value": null
+							},
+							{
+								"color": "red",
+								"value": 1
+							}
+						]
+					},
+					"color": {
+						"mode": "thresholds"
+					},
+					"mappings": [],
+					"unit": "short"
+				},
+				"overrides": []
+			},
+			"options": {
+				"reduceOptions": {
+					"calcs": [
+						"lastNotNull"
+					],
+					"fields": "",
+					"values": false
+				},
+				"orientation": "auto",
+				"textMode": "auto",
+				"colorMode": "background",
+				"graphMode": "none",
+				"justifyMode": "auto"
+			},
+			"targets": [
+				{
+					"expr": "open_incidents{severity=\"critical\"}",
+					"legendFormat": "Critical",
+					"refId": "A"
+				}
+			]
+		},
+		{
+			"title": "High Incidents",
+			"type": "stat",
+			"gridPos": {
+				"h": 4,
+				"w": 6,
+				"x": 6,
+				"y": 0
+			},
+			"datasource": {
+				"type": "prometheus",
+				"uid": "${DS_PROMETHEUS}"
+			},
+			"fieldConfig": {
+				"defaults": {
+					"thresholds": {
+						"mode": "absolute",
+						"steps": [
+							{
+								"color": "green",
+								"value": null
+							},
+							{
+								"color": "orange",
+								"value": 1
+							}
+						]
+					},
+					"color": {
+						"mode": "thresholds"
+					},
+					"mappings": [],
+					"unit": "short"
+				},
+				"overrides": []
+			},
+			"options": {
+				"reduceOptions": {
+					"calcs": [
+						"lastNotNull"
+					],
+					"fields": "",
+					"values": false
+				},
+				"orientation": "auto",
+				"textMode": "auto",
+				"colorMode": "background",
+				"graphMode": "none",
+				"justifyMode": "auto"
+			},
+			"targets": [
+				{
+					"expr": "open_incidents{severity=\"high\"}",
+					"legendFormat": "High",
+					"refId": "A"
+				}
+			]
+		},
+		{
+			"title": "Medium Incidents",
+			"type": "stat",
+			"gridPos": {
+				"h": 4,
+				"w": 6,
+				"x": 12,
+				"y": 0
+			},
+			"datasource": {
+				"type": "prometheus",
+				"uid": "${DS_PROMETHEUS}"
+			},
+			"fieldConfig": {
+				"defaults": {
+					"thresholds": {
+						"mode": "absolute",
+						"steps": [
+							{
+								"color": "green",
+								"value": null
+							},
+							{
+								"color": "yellow",
+								"value": 1
+							}
+						]
+					},
+					"color": {
+						"mode": "thresholds"
+					},
+					"mappings": [],
+					"unit": "short"
+				},
+				"overrides": []
+			},
+			"options": {
+				"reduceOptions": {
+					"calcs": [
+						"lastNotNull"
+					],
+					"fields": "",
+					"values": false
+				},
+				"orientation": "auto",
+				"textMode": "auto",
+				"colorMode": "background",
+				"graphMode": "none",
+				"justifyMode": "auto"
+			},
+			"targets": [
+				{
+					"expr": "open_incidents{severity=\"medium\"}",
+					"legendFormat": "Medium",
+					"refId": "A"
+				}
+			]
+		},
+		{
+			"title": "Low Incidents",
+			"type": "stat",
+			"gridPos": {
+				"h": 4,
+				"w": 6,
+				"x": 18,
+				"y": 0
+			},
+			"datasource": {
+				"type": "prometheus",
+				"uid": "${DS_PROMETHEUS}"
+			},
+			"fieldConfig": {
+				"defaults": {
+					"thresholds": {
+						"mode": "absolute",
+						"steps": [
+							{
+								"color": "green",
+								"value": null
+							},
+							{
+								"color": "blue",
+								"value": 1
+							}
+						]
+					},
+					"color": {
+						"mode": "thresholds"
+					},
+					"mappings": [],
+					"unit": "short"
+				},
+				"overrides": []
+			},
+			"options": {
+				"reduceOptions": {
+					"calcs": [
+						"lastNotNull"
+					],
+					"fields": "",
+					"values": false
+				},
+				"orientation": "auto",
+				"textMode": "auto",
+				"colorMode": "background",
+				"graphMode": "none",
+				"justifyMode": "auto"
+			},
+			"targets": [
+				{
+					"expr": "open_incidents{severity=\"low\"}",
+					"legendFormat": "Low",
+					"refId": "A"
+				}
+			]
+		},
+		{
+			"title": "MTTA (Mean Time To Acknowledge)",
+			"type": "gauge",
+			"gridPos": {
+				"h": 6,
+				"w": 12,
+				"x": 0,
+				"y": 4
+			},
+			"datasource": {
+				"type": "prometheus",
+				"uid": "${DS_PROMETHEUS}"
+			},
+			"fieldConfig": {
+				"defaults": {
+					"thresholds": {
+						"mode": "absolute",
+						"steps": [
+							{
+								"color": "green",
+								"value": null
+							},
+							{
+								"color": "yellow",
+								"value": 120
+							},
+							{
+								"color": "orange",
+								"value": 300
+							},
+							{
+								"color": "red",
+								"value": 600
+							}
+						]
+					},
+					"color": {
+						"mode": "thresholds"
+					},
+					"min": 0,
+					"max": 900,
+					"unit": "s",
+					"mappings": []
+				},
+				"overrides": []
+			},
+			"options": {
+				"reduceOptions": {
+					"calcs": [
+						"lastNotNull"
+					],
+					"fields": "",
+					"values": false
+				},
+				"showThresholdLabels": false,
+				"showThresholdMarkers": true
+			},
+			"targets": [
+				{
+					"expr": "histogram_quantile(0.5, rate(incident_mtta_seconds_bucket[1h]))",
+					"legendFormat": "MTTA p50",
+					"refId": "A"
+				}
+			]
+		},
+		{
+			"title": "MTTR (Mean Time To Resolve)",
+			"type": "gauge",
+			"gridPos": {
+				"h": 6,
+				"w": 12,
+				"x": 12,
+				"y": 4
+			},
+			"datasource": {
+				"type": "prometheus",
+				"uid": "${DS_PROMETHEUS}"
+			},
+			"fieldConfig": {
+				"defaults": {
+					"thresholds": {
+						"mode": "absolute",
+						"steps": [
+							{
+								"color": "green",
+								"value": null
+							},
+							{
+								"color": "yellow",
+								"value": 1800
+							},
+							{
+								"color": "orange",
+								"value": 3600
+							},
+							{
+								"color": "red",
+								"value": 7200
+							}
+						]
+					},
+					"color": {
+						"mode": "thresholds"
+					},
+					"min": 0,
+					"max": 14400,
+					"unit": "s",
+					"mappings": []
+				},
+				"overrides": []
+			},
+			"options": {
+				"reduceOptions": {
+					"calcs": [
+						"lastNotNull"
+					],
+					"fields": "",
+					"values": false
+				},
+				"showThresholdLabels": false,
+				"showThresholdMarkers": true
+			},
+			"targets": [
+				{
+					"expr": "histogram_quantile(0.5, rate(incident_mttr_seconds_bucket[1h]))",
+					"legendFormat": "MTTR p50",
+					"refId": "A"
+				}
+			]
+		},
+		{
+			"title": "Incidents Created Over Time",
+			"type": "timeseries",
+			"gridPos": {
+				"h": 8,
+				"w": 24,
+				"x": 0,
+				"y": 10
+			},
+			"datasource": {
+				"type": "prometheus",
+				"uid": "${DS_PROMETHEUS}"
+			},
+			"fieldConfig": {
+				"defaults": {
+					"custom": {
+						"drawStyle": "line",
+						"lineInterpolation": "smooth",
+						"fillOpacity": 30,
+						"stacking": {
+							"mode": "normal",
+							"group": "A"
+						},
+						"pointSize": 5,
+						"lineWidth": 2,
+						"showPoints": "auto"
+					},
+					"color": {
+						"mode": "palette-classic"
+					},
+					"unit": "short"
+				},
+				"overrides": [
+					{
+						"matcher": {
+							"id": "byName",
+							"options": "critical"
+						},
+						"properties": [
+							{
+								"id": "color",
+								"value": {
+									"fixedColor": "red",
+									"mode": "fixed"
+								}
+							}
+						]
+					},
+					{
+						"matcher": {
+							"id": "byName",
+							"options": "high"
+						},
+						"properties": [
+							{
+								"id": "color",
+								"value": {
+									"fixedColor": "orange",
+									"mode": "fixed"
+								}
+							}
+						]
+					},
+					{
+						"matcher": {
+							"id": "byName",
+							"options": "medium"
+						},
+						"properties": [
+							{
+								"id": "color",
+								"value": {
+									"fixedColor": "yellow",
+									"mode": "fixed"
+								}
+							}
+						]
+					},
+					{
+						"matcher": {
+							"id": "byName",
+							"options": "low"
+						},
+						"properties": [
+							{
+								"id": "color",
+								"value": {
+									"fixedColor": "blue",
+									"mode": "fixed"
+								}
+							}
+						]
+					}
+				]
+			},
+			"options": {
+				"legend": {
+					"displayMode": "list",
+					"placement": "bottom",
+					"calcs": [
+						"sum"
+					]
+				},
+				"tooltip": {
+					"mode": "multi",
+					"sort": "desc"
+				}
+			},
+			"targets": [
+				{
+					"expr": "increase(incidents_total{severity=\"critical\"}[5m])",
+					"legendFormat": "critical",
+					"refId": "A"
+				},
+				{
+					"expr": "increase(incidents_total{severity=\"high\"}[5m])",
+					"legendFormat": "high",
+					"refId": "B"
+				},
+				{
+					"expr": "increase(incidents_total{severity=\"medium\"}[5m])",
+					"legendFormat": "medium",
+					"refId": "C"
+				},
+				{
+					"expr": "increase(incidents_total{severity=\"low\"}[5m])",
+					"legendFormat": "low",
+					"refId": "D"
+				}
+			]
+		},
+		{
+			"title": "Alerts Received Over Time",
+			"type": "timeseries",
+			"gridPos": {
+				"h": 8,
+				"w": 12,
+				"x": 0,
+				"y": 18
+			},
+			"datasource": {
+				"type": "prometheus",
+				"uid": "${DS_PROMETHEUS}"
+			},
+			"fieldConfig": {
+				"defaults": {
+					"custom": {
+						"drawStyle": "line",
+						"lineInterpolation": "smooth",
+						"fillOpacity": 20,
+						"lineWidth": 2,
+						"showPoints": "auto"
+					},
+					"color": {
+						"mode": "palette-classic"
+					},
+					"unit": "ops"
+				},
+				"overrides": []
+			},
+			"options": {
+				"legend": {
+					"displayMode": "list",
+					"placement": "bottom"
+				},
+				"tooltip": {
+					"mode": "multi",
+					"sort": "desc"
+				}
+			},
+			"targets": [
+				{
+					"expr": "rate(alerts_received_total[5m])",
+					"legendFormat": "{{ service }} ({{ severity }})",
+					"refId": "A"
+				}
+			]
+		},
+		{
+			"title": "Top Noisy Services",
+			"type": "barchart",
+			"gridPos": {
+				"h": 8,
+				"w": 12,
+				"x": 12,
+				"y": 18
+			},
+			"datasource": {
+				"type": "prometheus",
+				"uid": "${DS_PROMETHEUS}"
+			},
+			"fieldConfig": {
+				"defaults": {
+					"color": {
+						"mode": "palette-classic"
+					},
+					"unit": "short"
+				},
+				"overrides": []
+			},
+			"options": {
+				"orientation": "horizontal",
+				"legend": {
+					"displayMode": "list",
+					"placement": "bottom"
+				},
+				"tooltip": {
+					"mode": "single"
+				},
+				"xTickLabelRotation": 0,
+				"showValue": "auto",
+				"barWidth": 0.8,
+				"groupWidth": 0.7
+			},
+			"targets": [
+				{
+					"expr": "topk(5, sum by(service)(alerts_received_total))",
+					"legendFormat": "{{ service }}",
+					"refId": "A",
+					"instant": true,
+					"format": "table"
+				}
+			],
+			"transformations": [
+				{
+					"id": "organize",
+					"options": {
+						"excludeByName": {
+							"Time": true
+						},
+						"renameByName": {
+							"Value": "Alerts",
+							"service": "Service"
+						}
+					}
+				}
+			]
+		},
+		{
+			"title": "Alert Correlation Breakdown",
+			"type": "piechart",
+			"gridPos": {
+				"h": 8,
+				"w": 12,
+				"x": 0,
+				"y": 26
+			},
+			"datasource": {
+				"type": "prometheus",
+				"uid": "${DS_PROMETHEUS}"
+			},
+			"fieldConfig": {
+				"defaults": {
+					"color": {
+						"mode": "palette-classic"
+					}
+				},
+				"overrides": [
+					{
+						"matcher": {
+							"id": "byName",
+							"options": "existing_incident"
+						},
+						"properties": [
+							{
+								"id": "color",
+								"value": {
+									"fixedColor": "green",
+									"mode": "fixed"
+								}
+							}
+						]
+					},
+					{
+						"matcher": {
+							"id": "byName",
+							"options": "new_incident"
+						},
+						"properties": [
+							{
+								"id": "color",
+								"value": {
+									"fixedColor": "orange",
+									"mode": "fixed"
+								}
+							}
+						]
+					}
+				]
+			},
+			"options": {
+				"reduceOptions": {
+					"calcs": [
+						"lastNotNull"
+					],
+					"fields": "",
+					"values": false
+				},
+				"legend": {
+					"displayMode": "list",
+					"placement": "right",
+					"values": [
+						"percent"
+					]
+				},
+				"tooltip": {
+					"mode": "single"
+				},
+				"pieType": "donut"
+			},
+			"targets": [
+				{
+					"expr": "alerts_correlated_total",
+					"legendFormat": "{{ result }}",
+					"refId": "A",
+					"instant": true
+				}
+			]
+		},
+		{
+			"title": "Notifications Sent",
+			"type": "timeseries",
+			"gridPos": {
+				"h": 8,
+				"w": 12,
+				"x": 12,
+				"y": 26
+			},
+			"datasource": {
+				"type": "prometheus",
+				"uid": "${DS_PROMETHEUS}"
+			},
+			"fieldConfig": {
+				"defaults": {
+					"custom": {
+						"drawStyle": "bars",
+						"fillOpacity": 50,
+						"lineWidth": 1,
+						"stacking": {
+							"mode": "normal",
+							"group": "A"
+						}
+					},
+					"color": {
+						"mode": "palette-classic"
+					},
+					"unit": "short"
+				},
+				"overrides": []
+			},
+			"options": {
+				"legend": {
+					"displayMode": "list",
+					"placement": "bottom"
+				},
+				"tooltip": {
+					"mode": "multi",
+					"sort": "desc"
+				}
+			},
+			"targets": [
+				{
+					"expr": "increase(oncall_notifications_sent_total[5m])",
+					"legendFormat": "{{ channel }} ({{ status }})",
+					"refId": "A"
+				}
+			]
+		}
+	],
+	"refresh": "10s",
+	"schemaVersion": 39,
+	"tags": [
+		"incident-platform",
+		"live",
+		"overview"
+	],
+	"templating": {
+		"list": [
+			{
+				"current": {
+					"selected": false,
+					"text": "Prometheus",
+					"value": "Prometheus"
+				},
+				"hide": 0,
+				"includeAll": false,
+				"label": "Datasource",
+				"multi": false,
+				"name": "DS_PROMETHEUS",
+				"options": [],
+				"query": "prometheus",
+				"refresh": 1,
+				"regex": "",
+				"skipUrlSync": false,
+				"type": "datasource"
+			}
+		]
+	},
+	"time": {
+		"from": "now-1h",
+		"to": "now"
+	},
+	"timepicker": {},
+	"timezone": "browser",
+	"title": "Live Incident Overview",
+	"uid": "live-incident-overview",
+	"version": 1
+}

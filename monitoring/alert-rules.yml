@@ -1,0 +1,123 @@
+groups:
+  # ── Alert Ingestion Service Rules ─────────────────────────
+  - name: alert_ingestion
+    rules:
+      - alert: AlertIngestionDown
+        expr: up{job="alert-ingestion"} == 0
+        for: 30s
+        labels:
+          severity: critical
+        annotations:
+          summary: "Alert Ingestion service is down"
+          description: "The alert-ingestion service has been unreachable for more than 30 seconds."
+
+      - alert: HighAlertRate
+        expr: rate(alerts_received_total[5m]) > 10
+        for: 2m
+        labels:
+          severity: high
+        annotations:
+          summary: "High alert ingestion rate"
+          description: "Alert ingestion rate exceeds 10 alerts/sec over the last 5 minutes (current: {{ $value | printf \"%.2f\" }}/s)."
+
+      - alert: AlertCorrelationFailureRate
+        expr: >
+          rate(alerts_correlated_total{result="new_incident"}[5m])
+          / (rate(alerts_correlated_total{result="new_incident"}[5m]) + rate(alerts_correlated_total{result="existing_incident"}[5m]))
+          > 0.9
+        for: 5m
+        labels:
+          severity: medium
+        annotations:
+          summary: "Low alert correlation rate"
+          description: "More than 90% of alerts are creating new incidents instead of correlating to existing ones. Possible alert storm."
+
+      - alert: HighErrorRate
+        expr: >
+          rate(http_requests_total{job="alert-ingestion", status=~"5.."}[5m])
+          / rate(http_requests_total{job="alert-ingestion"}[5m])
+          > 0.05
+        for: 2m
+        labels:
+          severity: high
+        annotations:
+          summary: "High HTTP error rate on Alert Ingestion"
+          description: "More than 5% of requests to alert-ingestion are returning 5xx errors (current: {{ $value | printf \"%.1f\" }}%)."
+
+      - alert: SlowAlertProcessing
+        expr: histogram_quantile(0.95, rate(http_request_duration_seconds_bucket{job="alert-ingestion", handler="/api/v1/alerts"}[5m])) > 2
+        for: 5m
+        labels:
+          severity: medium
+        annotations:
+          summary: "Slow alert processing"
+          description: "95th percentile latency for alert ingestion exceeds 2 seconds (current: {{ $value | printf \"%.2f\" }}s)."
+
+  # ── Incident Management Rules ─────────────────────────────
+  - name: incident_management
+    rules:
+      - alert: HighOpenIncidents
+        expr: sum(open_incidents) > 20
+        for: 5m
+        labels:
+          severity: high
+        annotations:
+          summary: "High number of open incidents"
+          description: "There are more than 20 open incidents across all severities (current: {{ $value }})."
+
+      - alert: CriticalIncidentsOpen
+        expr: open_incidents{severity="critical"} > 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Critical incidents are open"
+          description: "There are {{ $value }} critical incidents currently open."
+
+      - alert: HighMTTA
+        expr: histogram_quantile(0.5, rate(incident_mtta_seconds_bucket[1h])) > 300
+        for: 10m
+        labels:
+          severity: high
+        annotations:
+          summary: "High Mean Time To Acknowledge"
+          description: "Median MTTA exceeds 5 minutes (current: {{ $value | printf \"%.0f\" }}s). Incidents are not being acknowledged quickly enough."
+
+      - alert: HighMTTR
+        expr: histogram_quantile(0.5, rate(incident_mttr_seconds_bucket[1h])) > 3600
+        for: 10m
+        labels:
+          severity: high
+        annotations:
+          summary: "High Mean Time To Resolve"
+          description: "Median MTTR exceeds 1 hour (current: {{ $value | printf \"%.0f\" }}s). Incidents are taking too long to resolve."
+
+  # ── Platform-Wide Health Rules ────────────────────────────
+  - name: platform_health
+    rules:
+      - alert: ServiceDown
+        expr: up == 0
+        for: 30s
+        labels:
+          severity: critical
+        annotations:
+          summary: "Service {{ $labels.job }} is down"
+          description: "{{ $labels.job }} has been unreachable for more than 30 seconds."
+
+      - alert: HighRequestLatency
+        expr: histogram_quantile(0.95, rate(http_request_duration_seconds_bucket[5m])) > 5
+        for: 5m
+        labels:
+          severity: medium
+        annotations:
+          summary: "High request latency on {{ $labels.job }}"
+          description: "95th percentile latency on {{ $labels.job }} exceeds 5 seconds (current: {{ $value | printf \"%.2f\" }}s)."
+
+      - alert: EscalationsSpike
+        expr: rate(escalations_total[5m]) > 1
+        for: 5m
+        labels:
+          severity: high
+        annotations:
+          summary: "Escalation rate is high"
+          description: "Escalation rate exceeds 1/s over the last 5 minutes for team {{ $labels.team }}."

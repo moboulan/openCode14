@@ -20,8 +20,9 @@ _mock_pool = MagicMock()
 
 @pytest.fixture(autouse=True)
 def _patch_db_pool(request):
-    """Patch the database pool for every test unless marked with @pytest.mark.db."""
-    if "db" in {m.name for m in request.node.iter_markers()}:
+    """Patch the database pool for every test unless marked with @pytest.mark.db or @pytest.mark.integration."""
+    markers = {m.name for m in request.node.iter_markers()}
+    if "db" in markers or "integration" in markers:
         yield  # real DB
         return
 

@@ -5,6 +5,9 @@ global:
     cluster: 'incident-platform-local'
     environment: 'hackathon'
 
+rule_files:
+  - '/etc/prometheus/alert-rules.yml'
+
 scrape_configs:
   # Prometheus itself
   - job_name: 'prometheus'
