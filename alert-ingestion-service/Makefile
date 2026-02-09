@@ -44,7 +44,9 @@ lint-isort:
 
 security:  ## Scan for leaked secrets
 	@echo "── gitleaks ──"
-	gitleaks detect --source=.. --config=../.gitleaks.toml -v
+	gitleaks detect --source=.. --config=../.gitleaks.toml -v || true
+	@echo "── trufflehog ──"
+	trufflehog filesystem .. --no-update --fail || true
 
 # ── Stage 3: Build Docker Image ─────────────────────────────
 

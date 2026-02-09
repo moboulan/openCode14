@@ -3,6 +3,7 @@ import time
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from prometheus_fastapi_instrumentator import Instrumentator
 
@@ -37,14 +38,22 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+# CORS — allow web-ui and local development origins
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 # Setup Prometheus metrics
 instrumentator = Instrumentator(
     should_group_status_codes=False,
     should_ignore_untemplated=True,
-    should_respect_env_var=True,
+    should_respect_env_var=False,
     should_instrument_requests_inprogress=True,
     excluded_handlers=["/metrics", "/health", "/health/ready", "/health/live"],
-    env_var_name="ENABLE_METRICS",
     inprogress_name="http_requests_inprogress",
     inprogress_labels=True,
 )

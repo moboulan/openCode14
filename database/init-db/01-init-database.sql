@@ -193,6 +193,54 @@ CREATE TRIGGER trg_incidents_updated_at
     FOR EACH ROW EXECUTE FUNCTION update_updated_at();
 
 -- ── Seed data ───────────────────────────────────────────────
-INSERT INTO users (name, email, role)
-VALUES ('Admin User', 'admin@example.com', 'admin')
+
+-- Users for on-call rotations
+INSERT INTO users (name, email, phone, role)
+VALUES 
+    ('Admin User', 'admin@example.com', '+1-555-0100', 'admin'),
+    ('Alice Engineer', 'alice@example.com', '+1-555-0101', 'responder'),
+    ('Bob Developer', 'bob@example.com', '+1-555-0102', 'responder'),
+    ('Charlie SRE', 'charlie@example.com', '+1-555-0103', 'responder'),
+    ('Diana Ops', 'diana@example.com', '+1-555-0104', 'responder'),
+    ('Eve Backend', 'eve@example.com', '+1-555-0105', 'responder'),
+    ('Frank Frontend', 'frank@example.com', '+1-555-0106', 'responder'),
+    ('Grace DevOps', 'grace@example.com', '+1-555-0107', 'responder'),
+    ('Henry Platform', 'henry@example.com', '+1-555-0108', 'responder')
 ON CONFLICT (email) DO NOTHING;
+
+-- On-call schedules for 3 teams (platform, backend, frontend)
+INSERT INTO oncall.schedules (team, rotation_type, start_date, engineers, escalation_minutes)
+VALUES 
+    (
+        'platform',
+        'weekly',
+        '2026-01-01',
+        '[
+            {"name": "Alice Engineer", "email": "alice@example.com", "primary": true},
+            {"name": "Bob Developer", "email": "bob@example.com", "primary": false},
+            {"name": "Charlie SRE", "email": "charlie@example.com", "primary": false}
+        ]'::jsonb,
+        5
+    ),
+    (
+        'backend',
+        'weekly',
+        '2026-01-01',
+        '[
+            {"name": "Diana Ops", "email": "diana@example.com", "primary": true},
+            {"name": "Eve Backend", "email": "eve@example.com", "primary": false}
+        ]'::jsonb,
+        10
+    ),
+    (
+        'frontend',
+        'daily',
+        '2026-01-01',
+        '[
+            {"name": "Frank Frontend", "email": "frank@example.com", "primary": true},
+            {"name": "Grace DevOps", "email": "grace@example.com", "primary": false},
+            {"name": "Henry Platform", "email": "henry@example.com", "primary": false}
+        ]'::jsonb,
+        5
+    )
+ON CONFLICT DO NOTHING;
