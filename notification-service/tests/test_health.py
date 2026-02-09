@@ -1,6 +1,6 @@
 """Tests for notification service health endpoints."""
 
-from unittest.mock import patch
+from unittest.mock import patch, MagicMock
 
 import pytest
 
@@ -57,3 +57,45 @@ async def test_liveness(client):
     resp = await client.get("/health/live")
     assert resp.status_code == 200
     assert resp.json()["status"] == "alive"
+
+
+@pytest.mark.asyncio
+async def test_health_high_memory(client):
+    """Health endpoint reports memory warning when usage exceeds threshold."""
+    mock_vm = MagicMock()
+    mock_vm.percent = 95.0  # Above 90% threshold
+
+    with patch("app.routers.health.check_database_health", return_value=True), \
+         patch("app.routers.health.psutil") as mock_psutil:
+        mock_psutil.virtual_memory.return_value = mock_vm
+        mock_disk = MagicMock()
+        mock_disk.percent = 50.0
+        mock_psutil.disk_usage.return_value = mock_disk
+
+        resp = await client.get("/health")
+
+    assert resp.status_code == 503
+    body = resp.json()
+    assert body["status"] == "degraded"
+    assert body["checks"]["memory"] == "warning"
+
+
+@pytest.mark.asyncio
+async def test_health_high_disk(client):
+    """Health endpoint reports disk warning when usage exceeds threshold."""
+    mock_vm = MagicMock()
+    mock_vm.percent = 50.0
+
+    with patch("app.routers.health.check_database_health", return_value=True), \
+         patch("app.routers.health.psutil") as mock_psutil:
+        mock_psutil.virtual_memory.return_value = mock_vm
+        mock_disk = MagicMock()
+        mock_disk.percent = 95.0  # Above 90% threshold
+        mock_psutil.disk_usage.return_value = mock_disk
+
+        resp = await client.get("/health")
+
+    assert resp.status_code == 503
+    body = resp.json()
+    assert body["status"] == "degraded"
+    assert body["checks"]["disk"] == "warning"

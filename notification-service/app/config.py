@@ -1,6 +1,7 @@
 from typing import List, Optional
 
 from pydantic_settings import BaseSettings
+from pydantic import ConfigDict
 
 
 class Settings(BaseSettings):
@@ -51,9 +52,7 @@ class Settings(BaseSettings):
     def webhook_url_list(self) -> List[str]:
         return [u.strip() for u in self.WEBHOOK_URLS.split(",") if u.strip()]
 
-    class Config:
-        env_file = ".env"
-        case_sensitive = True
+    model_config = ConfigDict(env_file=".env", case_sensitive=True)
 
 
 settings = Settings()

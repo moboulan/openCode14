@@ -1,6 +1,11 @@
 """Tests for the FastAPI application setup (main.py)."""
 
+import time
+from unittest.mock import patch, AsyncMock, MagicMock
+
 import pytest
+from fastapi import Request
+from fastapi.responses import JSONResponse
 
 
 @pytest.mark.asyncio
@@ -38,3 +43,40 @@ async def test_openapi_json(client):
     assert "paths" in body
     assert "/api/v1/notify" in body["paths"]
     assert "/api/v1/notifications" in body["paths"]
+
+
+@pytest.mark.asyncio
+async def test_process_time_header(client):
+    """Middleware adds X-Process-Time header."""
+    resp = await client.get("/")
+    assert "x-process-time" in resp.headers
+
+
+@pytest.mark.asyncio
+async def test_lifespan_startup_shutdown():
+    """Lifespan context manager runs startup and shutdown."""
+    from app.main import lifespan, app
+
+    with patch("app.main.close_pool") as mock_close:
+        async with lifespan(app):
+            pass  # startup happened
+        # shutdown happened
+        mock_close.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_global_exception_handler():
+    """Global exception handler returns 500 JSON response."""
+    from starlette.requests import Request
+    from app.main import global_exception_handler
+
+    scope = {"type": "http", "method": "GET", "path": "/test"}
+    mock_request = Request(scope)
+
+    resp = await global_exception_handler(mock_request, RuntimeError("boom"))
+    assert resp.status_code == 500
+    import json
+    body = json.loads(resp.body)
+    assert "error" in body
+    assert body["error"]["type"] == "RuntimeError"
+    assert "timestamp" in body["error"]

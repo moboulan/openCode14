@@ -272,3 +272,278 @@ async def test_get_notification_not_found(client):
         resp = await client.get("/api/v1/notifications/notif-nope")
 
     assert resp.status_code == 404
+
+
+# ── _send_email with SENDGRID_API_KEY set ─────────────────────
+
+
+@pytest.mark.asyncio
+async def test_send_email_with_api_key_success(client):
+    """Email with real API key — SendGrid returns 202 → delivered."""
+    row = _make_notification_row(channel="email", status="delivered")
+
+    mock_response = MagicMock()
+    mock_response.status_code = 202
+
+    with patch(
+        "app.routers.api.get_db_connection",
+        side_effect=[_fake_connection([row])(autocommit=True)],
+    ), patch("app.routers.api.settings") as mock_settings, \
+       patch("app.routers.api.httpx.AsyncClient") as MockClient:
+        mock_settings.SENDGRID_API_KEY = "SG.test-key"
+        mock_settings.HTTP_CLIENT_TIMEOUT = 10.0
+        mock_settings.SENDGRID_FROM_EMAIL = "noreply@test.local"
+        mock_settings.webhook_url_list = []
+
+        mock_client_instance = MagicMock()
+        mock_client_instance.__aenter__ = lambda self: _async_return(self)
+        mock_client_instance.__aexit__ = lambda self, *a: _async_return(None)
+        mock_client_instance.post = lambda *a, **kw: _async_return(mock_response)
+        MockClient.return_value = mock_client_instance
+
+        resp = await client.post(
+            "/api/v1/notify",
+            json={
+                "incident_id": "inc-email-key",
+                "engineer": "alice@example.com",
+                "channel": "email",
+                "message": "Email with key test",
+            },
+        )
+
+    assert resp.status_code == 201
+    assert resp.json()["status"] == "delivered"
+
+
+@pytest.mark.asyncio
+async def test_send_email_with_api_key_failure(client):
+    """Email with API key — SendGrid returns 500 → failed."""
+    row = _make_notification_row(channel="email", status="failed")
+
+    mock_response = MagicMock()
+    mock_response.status_code = 500
+    mock_response.text = "Internal Server Error"
+
+    with patch(
+        "app.routers.api.get_db_connection",
+        side_effect=[_fake_connection([row])(autocommit=True)],
+    ), patch("app.routers.api.settings") as mock_settings, \
+       patch("app.routers.api.httpx.AsyncClient") as MockClient:
+        mock_settings.SENDGRID_API_KEY = "SG.test-key"
+        mock_settings.HTTP_CLIENT_TIMEOUT = 10.0
+        mock_settings.SENDGRID_FROM_EMAIL = "noreply@test.local"
+        mock_settings.webhook_url_list = []
+
+        mock_client_instance = MagicMock()
+        mock_client_instance.__aenter__ = lambda self: _async_return(self)
+        mock_client_instance.__aexit__ = lambda self, *a: _async_return(None)
+        mock_client_instance.post = lambda *a, **kw: _async_return(mock_response)
+        MockClient.return_value = mock_client_instance
+
+        resp = await client.post(
+            "/api/v1/notify",
+            json={
+                "incident_id": "inc-email-fail",
+                "engineer": "alice@example.com",
+                "channel": "email",
+                "message": "Email fail test",
+            },
+        )
+
+    assert resp.status_code == 201
+    assert resp.json()["status"] == "failed"
+
+
+@pytest.mark.asyncio
+async def test_send_email_with_api_key_exception(client):
+    """Email with API key — httpx raises exception → failed."""
+    row = _make_notification_row(channel="email", status="failed")
+
+    with patch(
+        "app.routers.api.get_db_connection",
+        side_effect=[_fake_connection([row])(autocommit=True)],
+    ), patch("app.routers.api.settings") as mock_settings, \
+       patch("app.routers.api.httpx.AsyncClient") as MockClient:
+        mock_settings.SENDGRID_API_KEY = "SG.test-key"
+        mock_settings.HTTP_CLIENT_TIMEOUT = 10.0
+        mock_settings.SENDGRID_FROM_EMAIL = "noreply@test.local"
+        mock_settings.webhook_url_list = []
+
+        mock_client_instance = MagicMock()
+        mock_client_instance.__aenter__ = lambda self: _async_return(self)
+        mock_client_instance.__aexit__ = lambda self, *a: _async_return(None)
+
+        async def _raise(*a, **kw):
+            raise ConnectionError("network error")
+
+        mock_client_instance.post = _raise
+        MockClient.return_value = mock_client_instance
+
+        resp = await client.post(
+            "/api/v1/notify",
+            json={
+                "incident_id": "inc-email-exc",
+                "engineer": "alice@example.com",
+                "channel": "email",
+                "message": "Email exception test",
+            },
+        )
+
+    assert resp.status_code == 201
+    assert resp.json()["status"] == "failed"
+
+
+# ── _send_webhook with URLs ───────────────────────────────────
+
+
+@pytest.mark.asyncio
+async def test_send_webhook_with_urls_success(client):
+    """Webhook with URLs — all return 200 → delivered."""
+    row = _make_notification_row(channel="webhook", status="delivered")
+
+    mock_response = MagicMock()
+    mock_response.status_code = 200
+
+    with patch(
+        "app.routers.api.get_db_connection",
+        side_effect=[_fake_connection([row])(autocommit=True)],
+    ), patch("app.routers.api.settings") as mock_settings, \
+       patch("app.routers.api.httpx.AsyncClient") as MockClient:
+        mock_settings.webhook_url_list = ["http://hook1.test/hook"]
+        mock_settings.HTTP_CLIENT_TIMEOUT = 10.0
+
+        mock_client_instance = MagicMock()
+        mock_client_instance.__aenter__ = lambda self: _async_return(self)
+        mock_client_instance.__aexit__ = lambda self, *a: _async_return(None)
+        mock_client_instance.post = lambda *a, **kw: _async_return(mock_response)
+        MockClient.return_value = mock_client_instance
+
+        resp = await client.post(
+            "/api/v1/notify",
+            json={
+                "incident_id": "inc-webhook-ok",
+                "engineer": "bob@example.com",
+                "channel": "webhook",
+                "message": "Webhook success test",
+                "webhook_url": "http://hook0.test/hook",
+            },
+        )
+
+    assert resp.status_code == 201
+    assert resp.json()["status"] == "delivered"
+
+
+@pytest.mark.asyncio
+async def test_send_webhook_with_urls_failure(client):
+    """Webhook with URLs — all return 500 → failed."""
+    row = _make_notification_row(channel="webhook", status="failed")
+
+    mock_response = MagicMock()
+    mock_response.status_code = 500
+
+    with patch(
+        "app.routers.api.get_db_connection",
+        side_effect=[_fake_connection([row])(autocommit=True)],
+    ), patch("app.routers.api.settings") as mock_settings, \
+       patch("app.routers.api.httpx.AsyncClient") as MockClient:
+        mock_settings.webhook_url_list = ["http://hook1.test/hook"]
+        mock_settings.HTTP_CLIENT_TIMEOUT = 10.0
+
+        mock_client_instance = MagicMock()
+        mock_client_instance.__aenter__ = lambda self: _async_return(self)
+        mock_client_instance.__aexit__ = lambda self, *a: _async_return(None)
+        mock_client_instance.post = lambda *a, **kw: _async_return(mock_response)
+        MockClient.return_value = mock_client_instance
+
+        resp = await client.post(
+            "/api/v1/notify",
+            json={
+                "incident_id": "inc-webhook-fail",
+                "engineer": "bob@example.com",
+                "channel": "webhook",
+                "message": "Webhook failure test",
+            },
+        )
+
+    assert resp.status_code == 201
+    assert resp.json()["status"] == "failed"
+
+
+@pytest.mark.asyncio
+async def test_send_webhook_per_url_exception(client):
+    """Webhook — individual URL raises error but doesn't crash."""
+    row = _make_notification_row(channel="webhook", status="failed")
+
+    with patch(
+        "app.routers.api.get_db_connection",
+        side_effect=[_fake_connection([row])(autocommit=True)],
+    ), patch("app.routers.api.settings") as mock_settings, \
+       patch("app.routers.api.httpx.AsyncClient") as MockClient:
+        mock_settings.webhook_url_list = ["http://hook1.test/hook"]
+        mock_settings.HTTP_CLIENT_TIMEOUT = 10.0
+
+        mock_client_instance = MagicMock()
+        mock_client_instance.__aenter__ = lambda self: _async_return(self)
+        mock_client_instance.__aexit__ = lambda self, *a: _async_return(None)
+
+        async def _raise(*a, **kw):
+            raise ConnectionError("per-url error")
+
+        mock_client_instance.post = _raise
+        MockClient.return_value = mock_client_instance
+
+        resp = await client.post(
+            "/api/v1/notify",
+            json={
+                "incident_id": "inc-webhook-exc",
+                "engineer": "bob@example.com",
+                "channel": "webhook",
+                "message": "Webhook per-url exception",
+            },
+        )
+
+    assert resp.status_code == 201
+    assert resp.json()["status"] == "failed"
+
+
+@pytest.mark.asyncio
+async def test_send_webhook_client_exception(client):
+    """Webhook — httpx.AsyncClient itself raises → failed."""
+    row = _make_notification_row(channel="webhook", status="failed")
+
+    with patch(
+        "app.routers.api.get_db_connection",
+        side_effect=[_fake_connection([row])(autocommit=True)],
+    ), patch("app.routers.api.settings") as mock_settings, \
+       patch("app.routers.api.httpx.AsyncClient") as MockClient:
+        mock_settings.webhook_url_list = ["http://hook1.test/hook"]
+        mock_settings.HTTP_CLIENT_TIMEOUT = 10.0
+
+        mock_client_instance = MagicMock()
+
+        async def _raise_enter(self_):
+            raise ConnectionError("client creation error")
+
+        mock_client_instance.__aenter__ = _raise_enter
+        mock_client_instance.__aexit__ = lambda self, *a: _async_return(None)
+        MockClient.return_value = mock_client_instance
+
+        resp = await client.post(
+            "/api/v1/notify",
+            json={
+                "incident_id": "inc-webhook-client-exc",
+                "engineer": "bob@example.com",
+                "channel": "webhook",
+                "message": "Webhook client exception",
+            },
+        )
+
+    assert resp.status_code == 201
+    assert resp.json()["status"] == "failed"
+
+
+# ── async helper ──────────────────────────────────────────────
+
+async def _async_return(value):
+    """Helper to make a coroutine that returns a value."""
+    return value

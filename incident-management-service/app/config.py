@@ -1,6 +1,7 @@
 from typing import List, Optional
 
 from pydantic_settings import BaseSettings
+from pydantic import ConfigDict
 
 
 class Settings(BaseSettings):
@@ -57,9 +58,7 @@ class Settings(BaseSettings):
     def mttr_bucket_list(self) -> list[float]:
         return [float(b) for b in self.MTTR_BUCKETS.split(",")]
 
-    class Config:
-        env_file = ".env"
-        case_sensitive = True
+    model_config = ConfigDict(env_file=".env", case_sensitive=True)
 
 
 settings = Settings()
