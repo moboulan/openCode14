@@ -9,6 +9,7 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 CREATE SCHEMA IF NOT EXISTS alerts;
 CREATE SCHEMA IF NOT EXISTS incidents;
 CREATE SCHEMA IF NOT EXISTS oncall;
+CREATE SCHEMA IF NOT EXISTS notifications;
 
 -- ── ENUM types ──────────────────────────────────────────────
 DO $$ BEGIN
@@ -138,6 +139,23 @@ CREATE TABLE IF NOT EXISTS incidents.notification_log (
 
 CREATE INDEX IF NOT EXISTS idx_notif_alert    ON incidents.notification_log(alert_id);
 CREATE INDEX IF NOT EXISTS idx_notif_incident ON incidents.notification_log(incident_id);
+
+-- ── Notifications schema (notification-service) ─────────────
+CREATE TABLE IF NOT EXISTS notifications.notifications (
+    id               UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    notification_id  VARCHAR(255) UNIQUE NOT NULL,
+    incident_id      VARCHAR(255) NOT NULL,
+    engineer         VARCHAR(255) NOT NULL,
+    channel          VARCHAR(50)  NOT NULL DEFAULT 'mock',
+    status           VARCHAR(50)  NOT NULL DEFAULT 'sent',
+    message          TEXT         NOT NULL,
+    webhook_url      TEXT,
+    created_at       TIMESTAMPTZ  NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_notifications_incident  ON notifications.notifications(incident_id);
+CREATE INDEX IF NOT EXISTS idx_notifications_channel   ON notifications.notifications(channel);
+CREATE INDEX IF NOT EXISTS idx_notifications_created   ON notifications.notifications(created_at);
 
 -- ── On-call schema tables ───────────────────────────────────
 CREATE TABLE IF NOT EXISTS oncall.schedules (

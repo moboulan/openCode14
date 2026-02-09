@@ -1,0 +1,104 @@
+# ============================================================
+# Notification Service — Local CI/CD Makefile
+# Mirrors the 7-stage GitHub Actions pipeline for local use.
+# ============================================================
+
+SERVICE_DIR   := .
+PYTHON        := python
+PIP           := pip
+APP_MODULE    := app
+TESTS_DIR     := tests
+IMAGE_NAME    := expertmind-notification-service
+COVERAGE_MIN  := 60
+
+.PHONY: all lint security build scan test deploy verify clean help
+
+all: lint security test  ## Run non-Docker stages (1, 2, 5)
+
+# ── Stage 1: Code Quality ───────────────────────────────────
+
+lint: lint-flake8 lint-pylint lint-black lint-isort  ## Run all linters
+
+lint-flake8:
+	@echo "── flake8 ──"
+	cd $(SERVICE_DIR) && $(PYTHON) -m flake8 $(APP_MODULE)/ \
+		--max-line-length=120 \
+		--ignore=E501,W503,E402 \
+		--statistics
+
+lint-pylint:
+	@echo "── pylint ──"
+	cd $(SERVICE_DIR) && $(PYTHON) -m pylint $(APP_MODULE)/ \
+		--disable=C0114,C0115,C0116,C0301,R0903,R0914,E0401,W0603,W0621,W0613,W1203 \
+		--fail-under=7.0
+
+lint-black:
+	@echo "── black --check ──"
+	cd $(SERVICE_DIR) && $(PYTHON) -m black --check --line-length=120 $(APP_MODULE)/
+
+lint-isort:
+	@echo "── isort --check ──"
+	cd $(SERVICE_DIR) && $(PYTHON) -m isort --check --profile=black $(APP_MODULE)/
+
+# ── Stage 2: Security Scanning ──────────────────────────────
+
+security:  ## Scan for leaked secrets
+	@echo "── gitleaks ──"
+	gitleaks detect --source=.. --config=../.gitleaks.toml -v || true
+	@echo "── trufflehog ──"
+	trufflehog filesystem .. --no-update --fail || true
+
+# ── Stage 3: Build Docker Image ─────────────────────────────
+
+build:  ## Build Docker image
+	@echo "── docker build ──"
+	docker build -t $(IMAGE_NAME):latest $(SERVICE_DIR)
+	@docker images $(IMAGE_NAME) --format "{{.Repository}}:{{.Tag}} — {{.Size}}"
+
+# ── Stage 4: Vulnerability Scan ──────────────────────────────
+
+scan: build  ## Scan image with Trivy
+	@echo "── trivy ──"
+	trivy image --severity HIGH,CRITICAL --exit-code 0 $(IMAGE_NAME):latest
+
+# ── Stage 5: Testing ─────────────────────────────────────────
+
+test:  ## Run unit tests with coverage
+	@echo "── pytest ──"
+	cd $(SERVICE_DIR) && $(PYTHON) -m pytest $(TESTS_DIR)/ \
+		-v --tb=short \
+		--cov=$(APP_MODULE) \
+		--cov-report=term-missing \
+		--cov-report=html:htmlcov \
+		--cov-fail-under=$(COVERAGE_MIN)
+
+# ── Stage 6: Deploy (Docker Compose) ────────────────────────
+
+deploy:  ## Deploy via docker compose
+	@echo "── deploying ──"
+	cd .. && docker compose up -d --build notification-service
+
+# ── Stage 7: Verify ─────────────────────────────────────────
+
+verify:  ## Health check
+	@echo "── verifying service health ──"
+	@for i in $$(seq 1 30); do \
+		curl -sf http://localhost:8004/health > /dev/null 2>&1 && \
+		echo "✅ notification-service healthy" && exit 0; \
+		sleep 1; \
+	done; \
+	echo "❌ notification-service unhealthy after 30s" && exit 1
+
+# ── Helpers ──────────────────────────────────────────────────
+
+clean:  ## Remove build artifacts
+	rm -rf __pycache__ .pytest_cache htmlcov .coverage
+	find . -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true
+
+format:  ## Auto-format code
+	cd $(SERVICE_DIR) && $(PYTHON) -m black --line-length=120 $(APP_MODULE)/ $(TESTS_DIR)/
+	cd $(SERVICE_DIR) && $(PYTHON) -m isort --profile=black $(APP_MODULE)/ $(TESTS_DIR)/
+
+help:  ## Show this help
+	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | \
+		awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-15s\033[0m %s\n", $$1, $$2}'
