@@ -8,7 +8,7 @@ services:
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-incident_platform}
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_HOST_AUTH_METHOD: ${POSTGRES_HOST_AUTH_METHOD:-trust}
     volumes:
       - db-data:/var/lib/postgresql/data
     ports:
@@ -31,7 +31,7 @@ services:
     ports:
       - "8001:8001"
     environment:
-      - DATABASE_URL=postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD}@database:5432/${POSTGRES_DB:-incident_platform}
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-postgres}@database:5432/${POSTGRES_DB:-incident_platform}
       - SERVICE_PORT=8001
       - INCIDENT_SERVICE_URL=http://incident-management:8002
       - NOTIFICATION_SERVICE_URL=http://notification-service:8004
@@ -57,7 +57,7 @@ services:
     ports:
       - "8002:8002"
     environment:
-      - DATABASE_URL=postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD}@database:5432/${POSTGRES_DB:-incident_platform}
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-postgres}@database:5432/${POSTGRES_DB:-incident_platform}
       - SERVICE_PORT=8002
       - ONCALL_SERVICE_URL=http://oncall-service:8003
       - NOTIFICATION_SERVICE_URL=http://notification-service:8004
@@ -130,8 +130,8 @@ services:
     ports:
       - "3000:3000"
     environment:
-      - GF_SECURITY_ADMIN_USER=${GF_SECURITY_ADMIN_USER}
-      - GF_SECURITY_ADMIN_PASSWORD=${GF_SECURITY_ADMIN_PASSWORD}
+      - GF_SECURITY_ADMIN_USER=${GF_SECURITY_ADMIN_USER:-admin}
+      - GF_SECURITY_ADMIN_PASSWORD=${GF_SECURITY_ADMIN_PASSWORD:-admin}
       - GF_USERS_ALLOW_SIGN_UP=false
     volumes:
       - grafana-data:/var/lib/grafana
