@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Response, status
-from datetime import datetime
+from datetime import datetime, timezone
 import time
 import psutil
 
@@ -13,7 +13,7 @@ router = APIRouter()
 service_start_time = time.time()
 
 @router.get("/health", response_model=HealthCheck)
-async def health_check(response: Response):
+def health_check(response: Response):
     """
     Health check endpoint with dependency checks
     Returns 200 if healthy, 503 if degraded
@@ -50,7 +50,7 @@ async def health_check(response: Response):
     
     return HealthCheck(
         status=health_status,
-        timestamp=datetime.utcnow(),
+        timestamp=datetime.now(timezone.utc),
         service=settings.SERVICE_NAME,
         version="1.0.0",
         uptime=uptime,
@@ -58,7 +58,7 @@ async def health_check(response: Response):
     )
 
 @router.get("/health/ready")
-async def readiness_check(response: Response):
+def readiness_check(response: Response):
     """Readiness probe - can service accept traffic?"""
     if check_database_health():
         return {"status": "ready"}

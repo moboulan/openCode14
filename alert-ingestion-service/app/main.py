@@ -8,6 +8,7 @@ from contextlib import asynccontextmanager
 from app.routers import health, api
 from app.config import settings
 from app.metrics import setup_custom_metrics
+from app.database import close_pool
 
 # Configure logging
 logging.basicConfig(
@@ -25,6 +26,7 @@ async def lifespan(app: FastAPI):
     logger.info(f"❤️  Health check at http://localhost:{settings.SERVICE_PORT}/health")
     yield
     # Shutdown
+    close_pool()
     logger.info(f"Shutting down {settings.SERVICE_NAME}")
 
 # Create FastAPI app

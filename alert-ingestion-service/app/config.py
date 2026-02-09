@@ -9,7 +9,7 @@ class Settings(BaseSettings):
     SERVICE_PORT: int = 8001
     ENVIRONMENT: str = "development"
     
-    # Database configuration (change localhost to database)
+    # Database configuration
     DATABASE_URL: str = "postgresql://postgres:hackathon2026@localhost:5432/incident_platform"
     
     # External service URLs

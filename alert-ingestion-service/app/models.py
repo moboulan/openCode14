@@ -1,6 +1,6 @@
 from pydantic import BaseModel, Field
 from typing import Optional, Dict, List
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 
 class SeverityLevel(str, Enum):
@@ -21,7 +21,7 @@ class Alert(BaseModel):
     severity: SeverityLevel = Field(..., description="Alert severity level")
     message: str = Field(..., description="Alert message")
     labels: Optional[Dict[str, str]] = Field(default_factory=dict, description="Additional labels")
-    timestamp: Optional[datetime] = Field(default_factory=datetime.utcnow, description="Alert timestamp")
+    timestamp: Optional[datetime] = Field(default_factory=lambda: datetime.now(timezone.utc), description="Alert timestamp")
 
 class AlertResponse(BaseModel):
     """Alert response model"""
