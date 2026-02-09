@@ -88,10 +88,5 @@ async def root():
     return {
         "service": settings.SERVICE_NAME,
         "version": "1.0.0",
-        "status": "running",
-        "endpoints": {
-            "health": "/health",
-            "metrics": "/metrics",
-            "api": "/api/v1"
-        }
+        "status": "running"
     }
