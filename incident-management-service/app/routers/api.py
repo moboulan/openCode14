@@ -338,7 +338,6 @@ async def update_incident(incident_id: str, payload: IncidentUpdate):
 
     # ── Status transition ─────────────────────────────────────
     if payload.status:
-        old_status = row["status"]
         new_status = payload.status.value
         severity = row["severity"]
 

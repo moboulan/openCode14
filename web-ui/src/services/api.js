@@ -1,6 +1,5 @@
 // ─── API layer ──────────────────────────────────────
-// Toggle USE_MOCK to false when running against real backend services.
-const USE_MOCK = false;
+const USE_MOCK = import.meta.env.VITE_USE_MOCK === 'true';
 
 import axios from 'axios';
 import * as mock from './mockData.js';

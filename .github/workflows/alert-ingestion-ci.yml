@@ -31,10 +31,17 @@ jobs:
           python-version: "3.11"
 
       - name: Install linting tools
-        run: pip install flake8 pylint black isort
+        run: pip install flake8 pylint black isort autoflake
 
       - name: Install service dependencies
         run: pip install -r ${{ env.SERVICE_DIR }}/requirements.txt
+
+      - name: Auto-format code
+        run: |
+          cd ${{ env.SERVICE_DIR }}
+          autoflake --in-place --remove-all-unused-imports --remove-unused-variables -r app/
+          isort --profile=black app/
+          black --line-length=120 app/
 
       - name: Run flake8
         run: |
@@ -182,7 +189,7 @@ jobs:
         image: postgres:15-alpine
         env:
           POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: hackathon2026
+          POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
           POSTGRES_DB: incident_platform
         ports:
           - 5432:5432
@@ -214,14 +221,14 @@ jobs:
         env:
           PGHOST: localhost
           PGUSER: postgres
-          PGPASSWORD: hackathon2026
+          PGPASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
           PGDATABASE: incident_platform
         run: |
           psql -f database/init-db/01-init-database.sql
 
       - name: Run tests with coverage
         env:
-          DATABASE_URL: postgresql://postgres:hackathon2026@localhost:5432/incident_platform
+          DATABASE_URL: postgresql://postgres:${{ secrets.POSTGRES_PASSWORD }}@localhost:5432/incident_platform
           INCIDENT_SERVICE_URL: http://localhost:8002
           NOTIFICATION_SERVICE_URL: http://localhost:8004
         run: |
