@@ -146,10 +146,7 @@ async def create_alert(alert: Alert):
     alerts_correlated_total.labels(result=action).inc()
 
     # Map internal metric label → user-facing action string
-    display_action = (
-        "attached_to_existing_incident" if action == "existing_incident"
-        else "created_new_incident"
-    )
+    display_action = "attached_to_existing_incident" if action == "existing_incident" else "created_new_incident"
     resp_status = "correlated" if incident_id else "created"
 
     return AlertResponse(

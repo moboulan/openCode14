@@ -1,6 +1,10 @@
 # ============================================================
 # Incident Platform — Root Makefile
-# 7-stage CI/CD pipeline as per hackathon spec
+# 7-stage local CI/CD pipeline (no GitHub Actions needed)
+#
+#   Fresh clone:   make setup && make all
+#   Quick start:   make up
+#   Full pipeline: make all
 # ============================================================
 
 COMPOSE       := docker compose
@@ -10,22 +14,45 @@ IMAGE_ALERT   := expertmind-alert-ingestion
 IMAGE_INCIDENT:= expertmind-incident-management
 PREV_TAG      := prev
 VERSION       := $(shell git rev-parse --short HEAD 2>/dev/null || echo "dev")
+VENV          := .venv
+PYTHON        := $(VENV)/bin/python
+PIP           := $(VENV)/bin/pip
 
-.PHONY: all quality security build scan test deploy verify \
+.PHONY: all setup quality security build scan test deploy verify \
         up down down-v restart logs ps \
-        db-shell db-reset \
+        db-shell db-reset fmt \
         ci coverage clean help
+
+# ── Environment Bootstrap ─────────────────────────────────────
+
+.env:  ## Auto-create .env from .env.example on first run
+	@echo "── creating .env from .env.example ──"
+	cp .env.example .env
+	@echo "✅ .env created — edit it to change defaults"
+
+$(VENV)/bin/activate:
+	python3 -m venv $(VENV)
+
+$(VENV)/.installed: $(VENV)/bin/activate alert-ingestion-service/requirements.txt incident-management-service/requirements.txt
+	$(PIP) install --upgrade pip -q
+	$(PIP) install -r alert-ingestion-service/requirements.txt -q
+	$(PIP) install -r incident-management-service/requirements.txt -q
+	$(PIP) install flake8 pylint black isort autoflake pytest pytest-cov pytest-asyncio httpx -q
+	touch $(VENV)/.installed
+
+setup: .env $(VENV)/.installed  ## One-time setup: create .env + venv + install deps
+	@echo "✅ Setup complete — venv at $(VENV), .env ready"
 
 # ── Full 7-Stage Pipeline ────────────────────────────────────
 
-all: quality security build scan test deploy verify  ## Run full 7-stage CI/CD pipeline
+all: setup quality security build scan test deploy verify  ## Run full 7-stage CI/CD pipeline
 
 # ── Stage 1: Code Quality ────────────────────────────────────
 
-quality: lint  ## Stage 1 — Lint all services
+quality: $(VENV)/.installed lint  ## Stage 1 — Lint all services
 lint:  ## Run linters for all services
-	$(MAKE) -C alert-ingestion-service lint
-	$(MAKE) -C incident-management-service lint
+	$(MAKE) -C alert-ingestion-service lint PYTHON=$(CURDIR)/$(PYTHON)
+	$(MAKE) -C incident-management-service lint PYTHON=$(CURDIR)/$(PYTHON)
 
 # ── Stage 2: Security Scanning ───────────────────────────────
 
@@ -37,7 +64,7 @@ security:  ## Stage 2 — Scan for leaked secrets (gitleaks + trufflehog)
 
 # ── Stage 3: Build Docker Images ─────────────────────────────
 
-build:  ## Stage 3 — Build all Docker images
+build: .env  ## Stage 3 — Build all Docker images
 	$(COMPOSE) build --build-arg VERSION=$(VERSION)
 
 # ── Stage 4: Vulnerability Scan ──────────────────────────────
@@ -52,13 +79,17 @@ scan: build  ## Stage 4 — Trivy vulnerability scan on all images
 
 # ── Stage 5: Tests ────────────────────────────────────────────
 
-test:  ## Stage 5 — Run unit + integration tests with coverage
-	$(MAKE) -C alert-ingestion-service test
-	$(MAKE) -C incident-management-service test
+test: $(VENV)/.installed  ## Stage 5 — Run unit tests with coverage
+	$(MAKE) -C alert-ingestion-service test PYTHON=$(CURDIR)/$(PYTHON)
+	$(MAKE) -C incident-management-service test PYTHON=$(CURDIR)/$(PYTHON)
+
+test-integration: $(VENV)/.installed  ## Run integration tests (requires running services)
+	$(MAKE) -C alert-ingestion-service test-integration PYTHON=$(CURDIR)/$(PYTHON)
+	$(MAKE) -C incident-management-service test-integration PYTHON=$(CURDIR)/$(PYTHON)
 
 # ── Stage 6: Deploy ──────────────────────────────────────────
 
-deploy:  ## Stage 6 — Tag prev images for rollback, then deploy
+deploy: .env  ## Stage 6 — Tag prev images for rollback, then deploy
 	@echo "── tagging current images as :prev for rollback ──"
 	@docker tag $(IMAGE_ALERT):latest $(IMAGE_ALERT):$(PREV_TAG) 2>/dev/null || true
 	@docker tag $(IMAGE_INCIDENT):latest $(IMAGE_INCIDENT):$(PREV_TAG) 2>/dev/null || true
@@ -134,7 +165,7 @@ rollback:  ## Rollback to :prev tagged images
 
 # ── Docker Compose Helpers ────────────────────────────────────
 
-up:  ## Start all services (detached)
+up: .env  ## Start all services (detached)
 	$(COMPOSE) up -d
 	@echo "Waiting for database to be healthy…"
 	@until docker inspect --format='{{.State.Health.Status}}' $(DB_CONTAINER) 2>/dev/null | grep -q healthy; do \
@@ -168,11 +199,11 @@ db-reset: down-v up  ## Destroy DB volume and reinitialise from scratch
 
 # ── Convenience ──────────────────────────────────────────────
 
-ci: quality security test  ## Run non-Docker CI stages (1, 2, 5)
+ci: setup quality security test  ## Run non-Docker CI stages (1, 2, 5)
 
-coverage:  ## Run tests with coverage and open HTML report
-	$(MAKE) -C alert-ingestion-service test
-	$(MAKE) -C incident-management-service test
+coverage: $(VENV)/.installed  ## Run tests with coverage and open HTML report
+	$(MAKE) -C alert-ingestion-service test PYTHON=$(CURDIR)/$(PYTHON)
+	$(MAKE) -C incident-management-service test PYTHON=$(CURDIR)/$(PYTHON)
 	@echo "Opening coverage report…"
 	@xdg-open alert-ingestion-service/htmlcov/index.html 2>/dev/null || open alert-ingestion-service/htmlcov/index.html 2>/dev/null || echo "Report at alert-ingestion-service/htmlcov/index.html"
 	@xdg-open incident-management-service/htmlcov/index.html 2>/dev/null || open incident-management-service/htmlcov/index.html 2>/dev/null || echo "Report at incident-management-service/htmlcov/index.html"
@@ -195,12 +226,22 @@ smoke:  ## Quick smoke test (POST + GET alert)
 	@echo "── GET alerts ──"
 	@curl -sf "http://localhost:8001/api/v1/alerts?service=make-smoke" | python3 -m json.tool
 
+# ── Formatting ───────────────────────────────────────────────
+
+fmt: $(VENV)/.installed  ## Auto-format all service code
+	$(MAKE) -C alert-ingestion-service fmt PYTHON=$(CURDIR)/$(PYTHON)
+	$(MAKE) -C incident-management-service fmt PYTHON=$(CURDIR)/$(PYTHON)
+
 # ── Cleanup ──────────────────────────────────────────────────
 
 clean:  ## Remove build artifacts across all services
 	$(MAKE) -C alert-ingestion-service clean
 	$(MAKE) -C incident-management-service clean
 	docker image prune -f
+
+fclean: clean  ## Remove everything (venv, volumes, images)
+	rm -rf $(VENV)
+	$(COMPOSE) down -v --remove-orphans 2>/dev/null || true
 
 # ── Help ─────────────────────────────────────────────────────
 

@@ -42,6 +42,7 @@ def fake_connection(cursor_sides: list[dict | None]):
 
 class FakeIncidentResponse:
     """Simulate a successful incident-management POST response."""
+
     status_code = 201
 
     def __init__(self, incident_id="inc-new-111", db_id=None):
@@ -57,6 +58,7 @@ class FakeIncidentResponse:
 
 class FakeAsyncClient:
     """Simulate a healthy incident-management service."""
+
     def __init__(self, **kw):
         pass
 
@@ -72,6 +74,7 @@ class FakeAsyncClient:
 
 class FakeAsyncClientDown:
     """Simulate incident service being unreachable."""
+
     def __init__(self, **kw):
         pass
 

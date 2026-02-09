@@ -3,16 +3,16 @@
 All database calls are mocked so these run without PostgreSQL.
 """
 
-import pytest
-from unittest.mock import patch, MagicMock
+import uuid
 from contextlib import contextmanager
 from datetime import datetime, timezone
-import uuid
+from unittest.mock import MagicMock, patch
 
-from helpers import fake_connection, FakeAsyncClientDown
-
+import pytest
+from helpers import FakeAsyncClientDown, fake_connection
 
 # ── POST /api/v1/alerts ─────────────────────────────────────
+
 
 @pytest.mark.asyncio
 async def test_create_alert_new_incident(client, sample_alert_payload):
@@ -22,21 +22,34 @@ async def test_create_alert_new_incident(client, sample_alert_payload):
 
     class _Resp:
         status_code = 201
-        def raise_for_status(self): pass
+
+        def raise_for_status(self):
+            pass
+
         def json(self):
             return {"incident_id": fake_incident_id, "id": str(uuid.uuid4())}
 
     class _Client:
-        def __init__(self, **kw): pass
-        async def __aenter__(self): return self
-        async def __aexit__(self, *a): pass
-        async def post(self, *a, **kw): return _Resp()
+        def __init__(self, **kw):
+            pass
 
-    with patch("app.routers.api.get_db_connection", side_effect=[
-        fake_connection([{"id": fake_alert_db_id}])(autocommit=True),
-        fake_connection([None])(),
-        fake_connection([None])(autocommit=True),
-    ]):
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *a):
+            pass
+
+        async def post(self, *a, **kw):
+            return _Resp()
+
+    with patch(
+        "app.routers.api.get_db_connection",
+        side_effect=[
+            fake_connection([{"id": fake_alert_db_id}])(autocommit=True),
+            fake_connection([None])(),
+            fake_connection([None])(autocommit=True),
+        ],
+    ):
         with patch("httpx.AsyncClient", _Client):
             resp = await client.post("/api/v1/alerts", json=sample_alert_payload)
 
@@ -54,11 +67,14 @@ async def test_create_alert_correlated_to_existing(client, sample_alert_payload)
     fake_incident_db_id = uuid.uuid4()
     fake_incident_id = "inc-bbb222"
 
-    with patch("app.routers.api.get_db_connection", side_effect=[
-        fake_connection([{"id": fake_alert_db_id}])(autocommit=True),
-        fake_connection([{"incident_id": fake_incident_id, "id": fake_incident_db_id}])(),
-        fake_connection([None])(autocommit=True),
-    ]):
+    with patch(
+        "app.routers.api.get_db_connection",
+        side_effect=[
+            fake_connection([{"id": fake_alert_db_id}])(autocommit=True),
+            fake_connection([{"incident_id": fake_incident_id, "id": fake_incident_db_id}])(),
+            fake_connection([None])(autocommit=True),
+        ],
+    ):
         resp = await client.post("/api/v1/alerts", json=sample_alert_payload)
 
     assert resp.status_code == 201
@@ -69,6 +85,7 @@ async def test_create_alert_correlated_to_existing(client, sample_alert_payload)
 
 
 # ── POST /api/v1/alerts — validation ────────────────────────
+
 
 @pytest.mark.asyncio
 async def test_create_alert_missing_field(client):
@@ -98,6 +115,7 @@ async def test_create_alert_malformed_json(client):
 
 # ── GET /api/v1/alerts/{alert_id} ────────────────────────────
 
+
 @pytest.mark.asyncio
 async def test_get_alert_found(client):
     fake_row = {
@@ -111,9 +129,12 @@ async def test_get_alert_found(client):
         "created_at": datetime.now(timezone.utc).isoformat(),
     }
 
-    with patch("app.routers.api.get_db_connection", side_effect=[
-        fake_connection([fake_row])(),
-    ]):
+    with patch(
+        "app.routers.api.get_db_connection",
+        side_effect=[
+            fake_connection([fake_row])(),
+        ],
+    ):
         resp = await client.get("/api/v1/alerts/alert-abc123")
 
     assert resp.status_code == 200
@@ -122,14 +143,18 @@ async def test_get_alert_found(client):
 
 @pytest.mark.asyncio
 async def test_get_alert_not_found(client):
-    with patch("app.routers.api.get_db_connection", side_effect=[
-        fake_connection([None])(),
-    ]):
+    with patch(
+        "app.routers.api.get_db_connection",
+        side_effect=[
+            fake_connection([None])(),
+        ],
+    ):
         resp = await client.get("/api/v1/alerts/alert-nope")
     assert resp.status_code == 404
 
 
 # ── GET /api/v1/alerts (list) ────────────────────────────────
+
 
 @pytest.mark.asyncio
 async def test_list_alerts(client):
@@ -188,6 +213,7 @@ async def test_list_alerts_with_filter(client):
 @pytest.mark.asyncio
 async def test_list_alerts_with_offset(client):
     """Verify offset parameter is accepted and returned."""
+
     @contextmanager
     def _list_conn(autocommit=False):
         cur = MagicMock()
@@ -210,15 +236,19 @@ async def test_list_alerts_with_offset(client):
 
 # ── POST /api/v1/alerts — incident service failure (graceful degradation) ──
 
+
 @pytest.mark.asyncio
 async def test_create_alert_incident_service_failure(client, sample_alert_payload):
     """When incident-management is unreachable, the alert is still stored."""
     fake_alert_db_id = uuid.uuid4()
 
-    with patch("app.routers.api.get_db_connection", side_effect=[
-        fake_connection([{"id": fake_alert_db_id}])(autocommit=True),
-        fake_connection([None])(),
-    ]):
+    with patch(
+        "app.routers.api.get_db_connection",
+        side_effect=[
+            fake_connection([{"id": fake_alert_db_id}])(autocommit=True),
+            fake_connection([None])(),
+        ],
+    ):
         with patch("httpx.AsyncClient", FakeAsyncClientDown):
             resp = await client.post("/api/v1/alerts", json=sample_alert_payload)
 
@@ -231,6 +261,7 @@ async def test_create_alert_incident_service_failure(client, sample_alert_payloa
 
 # ── POST /api/v1/alerts — new incident WITH link step ───────
 
+
 @pytest.mark.asyncio
 async def test_create_alert_new_incident_with_link(client, sample_alert_payload):
     """New incident is created AND the alert↔incident link is written."""
@@ -240,21 +271,34 @@ async def test_create_alert_new_incident_with_link(client, sample_alert_payload)
 
     class _Resp:
         status_code = 201
-        def raise_for_status(self): pass
+
+        def raise_for_status(self):
+            pass
+
         def json(self):
             return {"incident_id": fake_incident_id, "id": fake_incident_db_id}
 
     class _Client:
-        def __init__(self, **kw): pass
-        async def __aenter__(self): return self
-        async def __aexit__(self, *a): pass
-        async def post(self, *a, **kw): return _Resp()
+        def __init__(self, **kw):
+            pass
 
-    with patch("app.routers.api.get_db_connection", side_effect=[
-        fake_connection([{"id": fake_alert_db_id}])(autocommit=True),
-        fake_connection([None])(),
-        fake_connection([None, None])(autocommit=True),
-    ]):
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *a):
+            pass
+
+        async def post(self, *a, **kw):
+            return _Resp()
+
+    with patch(
+        "app.routers.api.get_db_connection",
+        side_effect=[
+            fake_connection([{"id": fake_alert_db_id}])(autocommit=True),
+            fake_connection([None])(),
+            fake_connection([None, None])(autocommit=True),
+        ],
+    ):
         with patch("httpx.AsyncClient", _Client):
             resp = await client.post("/api/v1/alerts", json=sample_alert_payload)
 
@@ -265,6 +309,7 @@ async def test_create_alert_new_incident_with_link(client, sample_alert_payload)
 
 
 # ── GET /api/v1/alerts/{alert_id} — with incident_id present ─
+
 
 @pytest.mark.asyncio
 async def test_get_alert_with_incident_id(client):
@@ -282,10 +327,13 @@ async def test_get_alert_with_incident_id(client):
     }
     inc_row = {"incident_id": "inc-resolved"}
 
-    with patch("app.routers.api.get_db_connection", side_effect=[
-        fake_connection([fake_row])(),
-        fake_connection([inc_row])(),
-    ]):
+    with patch(
+        "app.routers.api.get_db_connection",
+        side_effect=[
+            fake_connection([fake_row])(),
+            fake_connection([inc_row])(),
+        ],
+    ):
         resp = await client.get("/api/v1/alerts/alert-withincident")
 
     assert resp.status_code == 200
@@ -293,6 +341,7 @@ async def test_get_alert_with_incident_id(client):
 
 
 # ── GET /metrics — Prometheus endpoint ───────────────────────
+
 
 @pytest.mark.asyncio
 async def test_metrics_endpoint(client):

@@ -201,8 +201,7 @@ async def get_analytics():
     with get_db_connection() as conn:
         with conn.cursor() as cur:
             # Total + status counts
-            cur.execute(
-                """
+            cur.execute("""
                 SELECT
                     COUNT(*)                                                    AS total,
                     COUNT(*) FILTER (WHERE status = 'open')                     AS open_count,
@@ -213,20 +212,15 @@ async def get_analytics():
                     AVG(EXTRACT(EPOCH FROM (resolved_at - created_at)))
                         FILTER (WHERE resolved_at IS NOT NULL)                  AS avg_mttr
                 FROM incidents.incidents
-                """
-            )
+                """)
             summary = cur.fetchone()
 
             # By severity
-            cur.execute(
-                "SELECT severity::text, COUNT(*) AS cnt FROM incidents.incidents GROUP BY severity"
-            )
+            cur.execute("SELECT severity::text, COUNT(*) AS cnt FROM incidents.incidents GROUP BY severity")
             sev_rows = cur.fetchall()
 
             # By service
-            cur.execute(
-                "SELECT service, COUNT(*) AS cnt FROM incidents.incidents GROUP BY service"
-            )
+            cur.execute("SELECT service, COUNT(*) AS cnt FROM incidents.incidents GROUP BY service")
             svc_rows = cur.fetchall()
 
     return IncidentAnalyticsResponse(

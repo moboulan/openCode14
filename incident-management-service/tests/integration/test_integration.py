@@ -29,6 +29,7 @@ pytestmark = [
 # Fixtures
 # ---------------------------------------------------------------------------
 
+
 @pytest.fixture(scope="module")
 def db_conn():
     """Raw psycopg2 connection for verification queries."""
@@ -51,6 +52,7 @@ async def live_client():
 # ---------------------------------------------------------------------------
 # Tests
 # ---------------------------------------------------------------------------
+
 
 @pytest.mark.asyncio
 async def test_create_incident(live_client, db_conn):
@@ -105,11 +107,14 @@ async def test_get_incident_by_id(live_client):
 @pytest.mark.asyncio
 async def test_list_incidents_filter_by_service(live_client):
     svc = f"integ-list-{uuid.uuid4().hex[:6]}"
-    await live_client.post("/api/v1/incidents", json={
-        "title": f"[LOW] {svc}: A",
-        "service": svc,
-        "severity": "low",
-    })
+    await live_client.post(
+        "/api/v1/incidents",
+        json={
+            "title": f"[LOW] {svc}: A",
+            "service": svc,
+            "severity": "low",
+        },
+    )
 
     resp = await live_client.get(f"/api/v1/incidents?service={svc}")
     assert resp.status_code == 200
@@ -122,11 +127,14 @@ async def test_list_incidents_filter_by_service(live_client):
 async def test_acknowledge_and_mtta(live_client):
     """Acknowledge an incident → check MTTA > 0."""
     svc = f"integ-ack-{uuid.uuid4().hex[:6]}"
-    post_resp = await live_client.post("/api/v1/incidents", json={
-        "title": f"[HIGH] {svc}: ACK test",
-        "service": svc,
-        "severity": "high",
-    })
+    post_resp = await live_client.post(
+        "/api/v1/incidents",
+        json={
+            "title": f"[HIGH] {svc}: ACK test",
+            "service": svc,
+            "severity": "high",
+        },
+    )
     incident_id = post_resp.json()["incident_id"]
 
     # Acknowledge
@@ -148,11 +156,14 @@ async def test_acknowledge_and_mtta(live_client):
 async def test_resolve_and_mttr(live_client):
     """Acknowledge then resolve → check MTTR > 0."""
     svc = f"integ-res-{uuid.uuid4().hex[:6]}"
-    post_resp = await live_client.post("/api/v1/incidents", json={
-        "title": f"[CRITICAL] {svc}: resolve test",
-        "service": svc,
-        "severity": "critical",
-    })
+    post_resp = await live_client.post(
+        "/api/v1/incidents",
+        json={
+            "title": f"[CRITICAL] {svc}: resolve test",
+            "service": svc,
+            "severity": "critical",
+        },
+    )
     incident_id = post_resp.json()["incident_id"]
 
     await live_client.patch(f"/api/v1/incidents/{incident_id}", json={"status": "acknowledged"})
@@ -167,11 +178,14 @@ async def test_resolve_and_mttr(live_client):
 @pytest.mark.asyncio
 async def test_add_note(live_client):
     svc = f"integ-note-{uuid.uuid4().hex[:6]}"
-    post_resp = await live_client.post("/api/v1/incidents", json={
-        "title": f"[LOW] {svc}: notes",
-        "service": svc,
-        "severity": "low",
-    })
+    post_resp = await live_client.post(
+        "/api/v1/incidents",
+        json={
+            "title": f"[LOW] {svc}: notes",
+            "service": svc,
+            "severity": "low",
+        },
+    )
     incident_id = post_resp.json()["incident_id"]
 
     patch_resp = await live_client.patch(

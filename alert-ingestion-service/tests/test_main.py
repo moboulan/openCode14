@@ -1,7 +1,8 @@
 """Tests for the root endpoint and general app behaviour."""
 
-import pytest
 from unittest.mock import patch
+
+import pytest
 
 
 @pytest.mark.asyncio
@@ -29,10 +30,11 @@ async def test_not_found_returns_404(client):
 
 # ── Lifespan (startup / shutdown) ────────────────────────────
 
+
 @pytest.mark.asyncio
 async def test_lifespan_startup_shutdown():
     """Lifespan context manager logs startup and calls close_pool on shutdown."""
-    from app.main import lifespan, app
+    from app.main import app, lifespan
 
     with patch("app.main.close_pool") as mock_close:
         async with lifespan(app):
@@ -42,11 +44,13 @@ async def test_lifespan_startup_shutdown():
 
 # ── Global exception handler ─────────────────────────────────
 
+
 @pytest.mark.asyncio
 async def test_global_exception_handler():
     """Unhandled exceptions should return 500 JSON via the global handler."""
-    from app.main import global_exception_handler
     from unittest.mock import MagicMock
+
+    from app.main import global_exception_handler
 
     mock_request = MagicMock()
     exc = RuntimeError("intentional test error")

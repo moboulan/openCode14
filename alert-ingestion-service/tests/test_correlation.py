@@ -12,15 +12,14 @@ import uuid
 from unittest.mock import MagicMock, patch
 
 import pytest
-
 from helpers import (
-    fake_connection,
     FakeAsyncClient,
     FakeAsyncClientDown,
+    fake_connection,
 )
 
-
 # ── Correlation: match found → attach to existing incident ───
+
 
 @pytest.mark.asyncio
 async def test_correlation_matches_existing_incident(client, sample_alert_payload):
@@ -30,11 +29,14 @@ async def test_correlation_matches_existing_incident(client, sample_alert_payloa
     incident_db_id = uuid.uuid4()
     incident_id = "inc-existing-001"
 
-    with patch("app.routers.api.get_db_connection", side_effect=[
-        fake_connection([{"id": alert_db_id}])(autocommit=True),
-        fake_connection([{"incident_id": incident_id, "id": incident_db_id}])(),
-        fake_connection([None])(autocommit=True),
-    ]):
+    with patch(
+        "app.routers.api.get_db_connection",
+        side_effect=[
+            fake_connection([{"id": alert_db_id}])(autocommit=True),
+            fake_connection([{"incident_id": incident_id, "id": incident_db_id}])(),
+            fake_connection([None])(autocommit=True),
+        ],
+    ):
         resp = await client.post("/api/v1/alerts", json=sample_alert_payload)
 
     assert resp.status_code == 201
@@ -46,17 +48,21 @@ async def test_correlation_matches_existing_incident(client, sample_alert_payloa
 
 # ── Correlation: no match → create new incident ──────────────
 
+
 @pytest.mark.asyncio
 async def test_correlation_no_match_creates_new_incident(client, sample_alert_payload):
     """When no open incident matches, a new one is created via the
     incident-management service."""
     alert_db_id = uuid.uuid4()
 
-    with patch("app.routers.api.get_db_connection", side_effect=[
-        fake_connection([{"id": alert_db_id}])(autocommit=True),
-        fake_connection([None])(),
-        fake_connection([None])(autocommit=True),
-    ]):
+    with patch(
+        "app.routers.api.get_db_connection",
+        side_effect=[
+            fake_connection([{"id": alert_db_id}])(autocommit=True),
+            fake_connection([None])(),
+            fake_connection([None])(autocommit=True),
+        ],
+    ):
         with patch("httpx.AsyncClient", FakeAsyncClient):
             resp = await client.post("/api/v1/alerts", json=sample_alert_payload)
 
@@ -67,6 +73,7 @@ async def test_correlation_no_match_creates_new_incident(client, sample_alert_pa
 
 
 # ── Correlation: different severity → no match ───────────────
+
 
 @pytest.mark.asyncio
 async def test_correlation_different_severity_no_match(client):
@@ -79,11 +86,14 @@ async def test_correlation_different_severity_no_match(client):
         "message": "Different severity test",
     }
 
-    with patch("app.routers.api.get_db_connection", side_effect=[
-        fake_connection([{"id": alert_db_id}])(autocommit=True),
-        fake_connection([None])(),
-        fake_connection([None])(autocommit=True),
-    ]):
+    with patch(
+        "app.routers.api.get_db_connection",
+        side_effect=[
+            fake_connection([{"id": alert_db_id}])(autocommit=True),
+            fake_connection([None])(),
+            fake_connection([None])(autocommit=True),
+        ],
+    ):
         with patch("httpx.AsyncClient", FakeAsyncClient):
             resp = await client.post("/api/v1/alerts", json=payload)
 
@@ -93,15 +103,19 @@ async def test_correlation_different_severity_no_match(client):
 
 # ── Graceful degradation: incident service down ──────────────
 
+
 @pytest.mark.asyncio
 async def test_correlation_graceful_degradation(client, sample_alert_payload):
     """When incident-management is unreachable, alert stored with null incident_id."""
     alert_db_id = uuid.uuid4()
 
-    with patch("app.routers.api.get_db_connection", side_effect=[
-        fake_connection([{"id": alert_db_id}])(autocommit=True),
-        fake_connection([None])(),
-    ]):
+    with patch(
+        "app.routers.api.get_db_connection",
+        side_effect=[
+            fake_connection([{"id": alert_db_id}])(autocommit=True),
+            fake_connection([None])(),
+        ],
+    ):
         with patch("httpx.AsyncClient", FakeAsyncClientDown):
             resp = await client.post("/api/v1/alerts", json=sample_alert_payload)
 
@@ -114,11 +128,13 @@ async def test_correlation_graceful_degradation(client, sample_alert_payload):
 
 # ── Correlation window boundary test ─────────────────────────
 
+
 @pytest.mark.asyncio
 async def test_correlation_query_uses_window_setting(client, sample_alert_payload):
     """Verify that the correlation SQL passes the CORRELATION_WINDOW_MINUTES
     config value to the query, so alerts outside the window won't match."""
     from contextlib import contextmanager
+
     from app.config import settings
 
     alert_db_id = uuid.uuid4()
@@ -145,11 +161,14 @@ async def test_correlation_query_uses_window_setting(client, sample_alert_payloa
         conn.cursor = _cur_ctx
         yield conn
 
-    with patch("app.routers.api.get_db_connection", side_effect=[
-        fake_connection([{"id": alert_db_id}])(autocommit=True),
-        _capture_conn(),
-        fake_connection([None])(autocommit=True),
-    ]):
+    with patch(
+        "app.routers.api.get_db_connection",
+        side_effect=[
+            fake_connection([{"id": alert_db_id}])(autocommit=True),
+            _capture_conn(),
+            fake_connection([None])(autocommit=True),
+        ],
+    ):
         with patch("httpx.AsyncClient", FakeAsyncClient):
             resp = await client.post("/api/v1/alerts", json=sample_alert_payload)
 
@@ -163,16 +182,20 @@ async def test_correlation_query_uses_window_setting(client, sample_alert_payloa
 
 # ── Correlation metric counters ──────────────────────────────
 
+
 @pytest.mark.asyncio
 async def test_correlation_metric_new_incident(client, sample_alert_payload):
     """alerts_correlated_total counter with result=new_incident is incremented."""
     alert_db_id = uuid.uuid4()
 
-    with patch("app.routers.api.get_db_connection", side_effect=[
-        fake_connection([{"id": alert_db_id}])(autocommit=True),
-        fake_connection([None])(),
-        fake_connection([None])(autocommit=True),
-    ]):
+    with patch(
+        "app.routers.api.get_db_connection",
+        side_effect=[
+            fake_connection([{"id": alert_db_id}])(autocommit=True),
+            fake_connection([None])(),
+            fake_connection([None])(autocommit=True),
+        ],
+    ):
         with patch("httpx.AsyncClient", FakeAsyncClient):
             with patch("app.routers.api.alerts_correlated_total") as mock_counter:
                 resp = await client.post("/api/v1/alerts", json=sample_alert_payload)
@@ -188,11 +211,14 @@ async def test_correlation_metric_existing_incident(client, sample_alert_payload
     alert_db_id = uuid.uuid4()
     incident_db_id = uuid.uuid4()
 
-    with patch("app.routers.api.get_db_connection", side_effect=[
-        fake_connection([{"id": alert_db_id}])(autocommit=True),
-        fake_connection([{"incident_id": "inc-333", "id": incident_db_id}])(),
-        fake_connection([None])(autocommit=True),
-    ]):
+    with patch(
+        "app.routers.api.get_db_connection",
+        side_effect=[
+            fake_connection([{"id": alert_db_id}])(autocommit=True),
+            fake_connection([{"incident_id": "inc-333", "id": incident_db_id}])(),
+            fake_connection([None])(autocommit=True),
+        ],
+    ):
         with patch("app.routers.api.alerts_correlated_total") as mock_counter:
             resp = await client.post("/api/v1/alerts", json=sample_alert_payload)
             mock_counter.labels.assert_called_with(result="existing_incident")
@@ -205,17 +231,19 @@ async def test_alerts_received_metric_incremented(client, sample_alert_payload):
     """alerts_received_total counter is incremented with correct labels."""
     alert_db_id = uuid.uuid4()
 
-    with patch("app.routers.api.get_db_connection", side_effect=[
-        fake_connection([{"id": alert_db_id}])(autocommit=True),
-        fake_connection([None])(),
-        fake_connection([None])(autocommit=True),
-    ]):
+    with patch(
+        "app.routers.api.get_db_connection",
+        side_effect=[
+            fake_connection([{"id": alert_db_id}])(autocommit=True),
+            fake_connection([None])(),
+            fake_connection([None])(autocommit=True),
+        ],
+    ):
         with patch("httpx.AsyncClient", FakeAsyncClient):
             with patch("app.routers.api.alerts_received_total") as mock_recv:
                 resp = await client.post("/api/v1/alerts", json=sample_alert_payload)
-                mock_recv.labels.assert_called_with(
-                    severity="low", service="test-service"
-                )
+                mock_recv.labels.assert_called_with(severity="low", service="test-service")
+
 
 @pytest.mark.asyncio
 async def test_two_alerts_same_service_severity_deduplicate(client):
@@ -233,11 +261,14 @@ async def test_two_alerts_same_service_severity_deduplicate(client):
     }
 
     # First alert — no match → new incident
-    with patch("app.routers.api.get_db_connection", side_effect=[
-        fake_connection([{"id": alert_db_id_1}])(autocommit=True),
-        fake_connection([None])(),
-        fake_connection([None])(autocommit=True),
-    ]):
+    with patch(
+        "app.routers.api.get_db_connection",
+        side_effect=[
+            fake_connection([{"id": alert_db_id_1}])(autocommit=True),
+            fake_connection([None])(),
+            fake_connection([None])(autocommit=True),
+        ],
+    ):
         with patch("httpx.AsyncClient", FakeAsyncClient):
             resp1 = await client.post("/api/v1/alerts", json=payload)
 
@@ -245,11 +276,14 @@ async def test_two_alerts_same_service_severity_deduplicate(client):
     assert resp1.json()["action"] == "created_new_incident"
 
     # Second alert — match found → existing incident
-    with patch("app.routers.api.get_db_connection", side_effect=[
-        fake_connection([{"id": alert_db_id_2}])(autocommit=True),
-        fake_connection([{"incident_id": incident_id, "id": incident_db_id}])(),
-        fake_connection([None])(autocommit=True),
-    ]):
+    with patch(
+        "app.routers.api.get_db_connection",
+        side_effect=[
+            fake_connection([{"id": alert_db_id_2}])(autocommit=True),
+            fake_connection([{"incident_id": incident_id, "id": incident_db_id}])(),
+            fake_connection([None])(autocommit=True),
+        ],
+    ):
         resp2 = await client.post("/api/v1/alerts", json=payload)
 
     assert resp2.status_code == 201
@@ -258,6 +292,7 @@ async def test_two_alerts_same_service_severity_deduplicate(client):
 
 
 # ── Correlation window boundary: outside window → new incident ─
+
 
 @pytest.mark.asyncio
 async def test_correlation_outside_window_creates_new_incident(client, sample_alert_payload):
@@ -269,6 +304,7 @@ async def test_correlation_outside_window_creates_new_incident(client, sample_al
     causing the code path for 'new_incident' to execute.
     """
     from contextlib import contextmanager
+
     from app.config import settings
 
     alert_db_id = uuid.uuid4()
@@ -298,11 +334,14 @@ async def test_correlation_outside_window_creates_new_incident(client, sample_al
         conn.cursor = _cur_ctx
         yield conn
 
-    with patch("app.routers.api.get_db_connection", side_effect=[
-        fake_connection([{"id": alert_db_id}])(autocommit=True),
-        _capture_conn(),
-        fake_connection([None])(autocommit=True),
-    ]):
+    with patch(
+        "app.routers.api.get_db_connection",
+        side_effect=[
+            fake_connection([{"id": alert_db_id}])(autocommit=True),
+            _capture_conn(),
+            fake_connection([None])(autocommit=True),
+        ],
+    ):
         with patch("httpx.AsyncClient", FakeAsyncClient):
             resp = await client.post("/api/v1/alerts", json=sample_alert_payload)
 
@@ -315,6 +354,7 @@ async def test_correlation_outside_window_creates_new_incident(client, sample_al
 
 
 # ── Concurrency: two simultaneous alerts should not both create new incidents ─
+
 
 @pytest.mark.asyncio
 async def test_concurrent_alerts_correlation(client):

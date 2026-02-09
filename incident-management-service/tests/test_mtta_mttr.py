@@ -13,7 +13,6 @@ from datetime import datetime, timedelta, timezone
 from unittest.mock import patch
 
 import pytest
-
 from helpers import fake_connection as _fake_connection
 
 
@@ -45,6 +44,7 @@ def _incident_row(
 
 # ── MTTA on acknowledge ─────────────────────────────────────
 
+
 @pytest.mark.asyncio
 async def test_mtta_calculated_on_acknowledge(client):
     """Acknowledging an open incident should observe MTTA in the histogram."""
@@ -53,10 +53,13 @@ async def test_mtta_calculated_on_acknowledge(client):
     row = _incident_row(status="open", created_at=created)
     updated = _incident_row(status="acknowledged", created_at=created, acknowledged_at=now)
 
-    with patch("app.routers.api.get_db_connection", side_effect=[
-        _fake_connection([row])(),
-        _fake_connection([updated])(autocommit=True),
-    ]):
+    with patch(
+        "app.routers.api.get_db_connection",
+        side_effect=[
+            _fake_connection([row])(),
+            _fake_connection([updated])(autocommit=True),
+        ],
+    ):
         with patch("app.routers.api.incident_mtta_seconds") as mock_mtta:
             resp = await client.patch(
                 "/api/v1/incidents/inc-mtta",
@@ -73,6 +76,7 @@ async def test_mtta_calculated_on_acknowledge(client):
 
 # ── MTTR on resolve ──────────────────────────────────────────
 
+
 @pytest.mark.asyncio
 async def test_mttr_calculated_on_resolve(client):
     """Resolving an incident should observe MTTR in the histogram."""
@@ -82,10 +86,13 @@ async def test_mttr_calculated_on_resolve(client):
     row = _incident_row(status="acknowledged", created_at=created, acknowledged_at=ack)
     updated = _incident_row(status="resolved", created_at=created, acknowledged_at=ack, resolved_at=now)
 
-    with patch("app.routers.api.get_db_connection", side_effect=[
-        _fake_connection([row])(),
-        _fake_connection([updated])(autocommit=True),
-    ]):
+    with patch(
+        "app.routers.api.get_db_connection",
+        side_effect=[
+            _fake_connection([row])(),
+            _fake_connection([updated])(autocommit=True),
+        ],
+    ):
         with patch("app.routers.api.incident_mttr_seconds") as mock_mttr:
             resp = await client.patch(
                 "/api/v1/incidents/inc-mtta",
@@ -101,6 +108,7 @@ async def test_mttr_calculated_on_resolve(client):
 
 # ── No MTTA when already acknowledged ────────────────────────
 
+
 @pytest.mark.asyncio
 async def test_no_duplicate_mtta(client):
     """Re-acknowledging should NOT re-observe MTTA."""
@@ -110,10 +118,13 @@ async def test_no_duplicate_mtta(client):
     row = _incident_row(status="acknowledged", created_at=created, acknowledged_at=ack)
     updated = _incident_row(status="acknowledged", created_at=created, acknowledged_at=ack)
 
-    with patch("app.routers.api.get_db_connection", side_effect=[
-        _fake_connection([row])(),
-        _fake_connection([updated])(autocommit=True),
-    ]):
+    with patch(
+        "app.routers.api.get_db_connection",
+        side_effect=[
+            _fake_connection([row])(),
+            _fake_connection([updated])(autocommit=True),
+        ],
+    ):
         with patch("app.routers.api.incident_mtta_seconds") as mock_mtta:
             resp = await client.patch(
                 "/api/v1/incidents/inc-mtta",
@@ -127,6 +138,7 @@ async def test_no_duplicate_mtta(client):
 
 # ── Metrics endpoint: not yet acknowledged ───────────────────
 
+
 @pytest.mark.asyncio
 async def test_metrics_endpoint_no_ack(client):
     row = {
@@ -136,9 +148,12 @@ async def test_metrics_endpoint_no_ack(client):
         "acknowledged_at": None,
         "resolved_at": None,
     }
-    with patch("app.routers.api.get_db_connection", side_effect=[
-        _fake_connection([row])(),
-    ]):
+    with patch(
+        "app.routers.api.get_db_connection",
+        side_effect=[
+            _fake_connection([row])(),
+        ],
+    ):
         resp = await client.get("/api/v1/incidents/inc-noack/metrics")
 
     assert resp.status_code == 200
@@ -147,6 +162,7 @@ async def test_metrics_endpoint_no_ack(client):
 
 
 # ── Metrics endpoint: acknowledged but not resolved ──────────
+
 
 @pytest.mark.asyncio
 async def test_metrics_endpoint_ack_no_resolve(client):
@@ -158,9 +174,12 @@ async def test_metrics_endpoint_ack_no_resolve(client):
         "acknowledged_at": now - timedelta(minutes=3),
         "resolved_at": None,
     }
-    with patch("app.routers.api.get_db_connection", side_effect=[
-        _fake_connection([row])(),
-    ]):
+    with patch(
+        "app.routers.api.get_db_connection",
+        side_effect=[
+            _fake_connection([row])(),
+        ],
+    ):
         resp = await client.get("/api/v1/incidents/inc-ackonly/metrics")
 
     assert resp.status_code == 200
@@ -171,16 +190,20 @@ async def test_metrics_endpoint_ack_no_resolve(client):
 
 # ── Open incidents gauge decremented on resolve ──────────────
 
+
 @pytest.mark.asyncio
 async def test_open_gauge_decremented_on_resolve(client):
     now = datetime.now(timezone.utc)
     row = _incident_row(status="acknowledged", acknowledged_at=now - timedelta(minutes=1))
     updated = _incident_row(status="resolved", acknowledged_at=now - timedelta(minutes=1), resolved_at=now)
 
-    with patch("app.routers.api.get_db_connection", side_effect=[
-        _fake_connection([row])(),
-        _fake_connection([updated])(autocommit=True),
-    ]):
+    with patch(
+        "app.routers.api.get_db_connection",
+        side_effect=[
+            _fake_connection([row])(),
+            _fake_connection([updated])(autocommit=True),
+        ],
+    ):
         with patch("app.routers.api.open_incidents") as mock_gauge:
             resp = await client.patch(
                 "/api/v1/incidents/inc-mtta",

@@ -1,10 +1,11 @@
 """Tests for the health router — /health, /health/ready, /health/live."""
 
-import pytest
 from unittest.mock import patch
 
+import pytest
 
 # ── /health/live (no DB needed) ──────────────────────────────
+
 
 @pytest.mark.asyncio
 async def test_liveness_returns_alive(client):
@@ -15,11 +16,12 @@ async def test_liveness_returns_alive(client):
 
 # ── /health (DB healthy) ────────────────────────────────────
 
+
 @pytest.mark.asyncio
 async def test_health_healthy(client):
-    with patch("app.routers.health.check_database_health", return_value=True), \
-         patch("psutil.virtual_memory") as mock_mem, \
-         patch("psutil.disk_usage") as mock_disk:
+    with patch("app.routers.health.check_database_health", return_value=True), patch(
+        "psutil.virtual_memory"
+    ) as mock_mem, patch("psutil.disk_usage") as mock_disk:
         mock_mem.return_value.percent = 50.0
         mock_disk.return_value.percent = 40.0
 
@@ -38,11 +40,12 @@ async def test_health_healthy(client):
 
 # ── /health (DB unhealthy → 503) ─────────────────────────────
 
+
 @pytest.mark.asyncio
 async def test_health_degraded_when_db_down(client):
-    with patch("app.routers.health.check_database_health", return_value=False), \
-         patch("psutil.virtual_memory") as mock_mem, \
-         patch("psutil.disk_usage") as mock_disk:
+    with patch("app.routers.health.check_database_health", return_value=False), patch(
+        "psutil.virtual_memory"
+    ) as mock_mem, patch("psutil.disk_usage") as mock_disk:
         mock_mem.return_value.percent = 50.0
         mock_disk.return_value.percent = 40.0
 
@@ -55,11 +58,12 @@ async def test_health_degraded_when_db_down(client):
 
 # ── /health (high memory → degraded) ─────────────────────────
 
+
 @pytest.mark.asyncio
 async def test_health_degraded_high_memory(client):
-    with patch("app.routers.health.check_database_health", return_value=True), \
-         patch("psutil.virtual_memory") as mock_mem, \
-         patch("psutil.disk_usage") as mock_disk:
+    with patch("app.routers.health.check_database_health", return_value=True), patch(
+        "psutil.virtual_memory"
+    ) as mock_mem, patch("psutil.disk_usage") as mock_disk:
         mock_mem.return_value.percent = 95.0
         mock_disk.return_value.percent = 40.0
 
@@ -72,11 +76,12 @@ async def test_health_degraded_high_memory(client):
 
 # ── /health (high disk → degraded) ───────────────────────────
 
+
 @pytest.mark.asyncio
 async def test_health_degraded_high_disk(client):
-    with patch("app.routers.health.check_database_health", return_value=True), \
-         patch("psutil.virtual_memory") as mock_mem, \
-         patch("psutil.disk_usage") as mock_disk:
+    with patch("app.routers.health.check_database_health", return_value=True), patch(
+        "psutil.virtual_memory"
+    ) as mock_mem, patch("psutil.disk_usage") as mock_disk:
         mock_mem.return_value.percent = 50.0
         mock_disk.return_value.percent = 95.0
 
@@ -89,6 +94,7 @@ async def test_health_degraded_high_disk(client):
 
 # ── /health/ready (DB healthy) ───────────────────────────────
 
+
 @pytest.mark.asyncio
 async def test_readiness_ready(client):
     with patch("app.routers.health.check_database_health", return_value=True):
@@ -98,6 +104,7 @@ async def test_readiness_ready(client):
 
 
 # ── /health/ready (DB unhealthy → 503) ───────────────────────
+
 
 @pytest.mark.asyncio
 async def test_readiness_not_ready(client):

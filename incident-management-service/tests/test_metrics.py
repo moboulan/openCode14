@@ -1,10 +1,10 @@
 """Tests for custom Prometheus metrics setup."""
 
 from app.metrics import (
-    incidents_total,
-    open_incidents,
     incident_mtta_seconds,
     incident_mttr_seconds,
+    incidents_total,
+    open_incidents,
     setup_custom_metrics,
 )
 

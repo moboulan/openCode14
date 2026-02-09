@@ -7,18 +7,19 @@ when no database is available (CI stage 5 supplies one).
 """
 
 import os
+from unittest.mock import MagicMock, patch
+
 import pytest
-from unittest.mock import patch, MagicMock
-from httpx import AsyncClient, ASGITransport
+from httpx import ASGITransport, AsyncClient
 
 # Provide a dummy DATABASE_URL for unit tests (DB is always mocked)
 os.environ.setdefault("DATABASE_URL", "postgresql://test:test@localhost:5432/test")
 
 # Re-export helpers so they stay accessible from conftest if needed
 from helpers import (  # noqa: F401
-    fake_connection,
     FakeAsyncClient,
     FakeAsyncClientDown,
+    fake_connection,
 )
 
 # ---------------------------------------------------------------------------
@@ -36,8 +37,7 @@ def _patch_db_pool(request):
         yield  # real DB
         return
 
-    with patch("app.database._connection_pool", _mock_pool), \
-         patch("app.database.get_pool", return_value=_mock_pool):
+    with patch("app.database._connection_pool", _mock_pool), patch("app.database.get_pool", return_value=_mock_pool):
         yield
 
 
@@ -45,10 +45,12 @@ def _patch_db_pool(request):
 # Async client fixture (talks directly to the ASGI app)
 # ---------------------------------------------------------------------------
 
+
 @pytest.fixture()
 async def client():
     """Async test client bound to the FastAPI app."""
     from app.main import app
+
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as ac:
         yield ac

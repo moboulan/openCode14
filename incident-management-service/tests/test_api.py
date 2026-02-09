@@ -3,12 +3,12 @@
 All database calls are mocked so these run without PostgreSQL.
 """
 
-import pytest
 import uuid
 from contextlib import contextmanager
 from datetime import datetime, timedelta, timezone
 from unittest.mock import MagicMock, patch
 
+import pytest
 from helpers import fake_connection as _fake_connection
 
 
@@ -16,12 +16,16 @@ from helpers import fake_connection as _fake_connection
 class _FakeAsyncClientDown:
     def __init__(self, **kw):
         pass
+
     async def __aenter__(self):
         return self
+
     async def __aexit__(self, *a):
         pass
+
     async def get(self, *a, **kw):
         raise Exception("connection refused")
+
     async def post(self, *a, **kw):
         raise Exception("connection refused")
 
@@ -56,14 +60,18 @@ def _make_incident_row(
 
 # ── POST /api/v1/incidents ───────────────────────────────────
 
+
 @pytest.mark.asyncio
 async def test_create_incident(client, sample_incident_payload):
     """Creating an incident stores it and returns 201."""
     row = _make_incident_row()
 
-    with patch("app.routers.api.get_db_connection", side_effect=[
-        _fake_connection([row])(autocommit=True),   # INSERT
-    ]):
+    with patch(
+        "app.routers.api.get_db_connection",
+        side_effect=[
+            _fake_connection([row])(autocommit=True),  # INSERT
+        ],
+    ):
         with patch("httpx.AsyncClient", _FakeAsyncClientDown):
             resp = await client.post("/api/v1/incidents", json=sample_incident_payload)
 
@@ -91,8 +99,10 @@ async def test_create_incident_bad_severity(client):
 
 # ── GET /api/v1/incidents (list) ─────────────────────────────
 
+
 def _list_connection(total: int, rows: list):
     """Return a get_db_connection CM whose cursor serves COUNT then SELECT."""
+
     @contextmanager
     def _ctx(autocommit=False):
         fetch_one_results = iter([{"cnt": total}])
@@ -106,6 +116,7 @@ def _list_connection(total: int, rows: list):
         conn.cursor.return_value.__enter__ = MagicMock(return_value=cur)
         conn.cursor.return_value.__exit__ = MagicMock(return_value=False)
         yield conn
+
     return _ctx
 
 
@@ -113,9 +124,12 @@ def _list_connection(total: int, rows: list):
 async def test_list_incidents(client):
     rows = [_make_incident_row()]
 
-    with patch("app.routers.api.get_db_connection", side_effect=[
-        _list_connection(total=1, rows=rows)(),
-    ]):
+    with patch(
+        "app.routers.api.get_db_connection",
+        side_effect=[
+            _list_connection(total=1, rows=rows)(),
+        ],
+    ):
         resp = await client.get("/api/v1/incidents")
 
     assert resp.status_code == 200
@@ -128,9 +142,12 @@ async def test_list_incidents(client):
 
 @pytest.mark.asyncio
 async def test_list_incidents_with_filters(client):
-    with patch("app.routers.api.get_db_connection", side_effect=[
-        _list_connection(total=0, rows=[])(),
-    ]):
+    with patch(
+        "app.routers.api.get_db_connection",
+        side_effect=[
+            _list_connection(total=0, rows=[])(),
+        ],
+    ):
         resp = await client.get("/api/v1/incidents?status=open&severity=high&service=web")
     assert resp.status_code == 200
     assert resp.json()["total"] == 0
@@ -138,14 +155,18 @@ async def test_list_incidents_with_filters(client):
 
 # ── GET /api/v1/incidents/{incident_id} ──────────────────────
 
+
 @pytest.mark.asyncio
 async def test_get_incident_found(client):
     row = _make_incident_row(incident_id="inc-found")
 
-    with patch("app.routers.api.get_db_connection", side_effect=[
-        _fake_connection([row])(),          # incident row
-        _fake_connection([[]])(),            # linked alerts (empty)
-    ]):
+    with patch(
+        "app.routers.api.get_db_connection",
+        side_effect=[
+            _fake_connection([row])(),  # incident row
+            _fake_connection([[]])(),  # linked alerts (empty)
+        ],
+    ):
         resp = await client.get("/api/v1/incidents/inc-found")
 
     assert resp.status_code == 200
@@ -156,14 +177,18 @@ async def test_get_incident_found(client):
 
 @pytest.mark.asyncio
 async def test_get_incident_not_found(client):
-    with patch("app.routers.api.get_db_connection", side_effect=[
-        _fake_connection([None])(),
-    ]):
+    with patch(
+        "app.routers.api.get_db_connection",
+        side_effect=[
+            _fake_connection([None])(),
+        ],
+    ):
         resp = await client.get("/api/v1/incidents/inc-nope")
     assert resp.status_code == 404
 
 
 # ── PATCH /api/v1/incidents/{incident_id} — acknowledge ──────
+
 
 @pytest.mark.asyncio
 async def test_patch_acknowledge(client):
@@ -172,10 +197,13 @@ async def test_patch_acknowledge(client):
     row = _make_incident_row(incident_id="inc-ack", status="open")
     updated = _make_incident_row(incident_id="inc-ack", status="acknowledged", acknowledged_at=now)
 
-    with patch("app.routers.api.get_db_connection", side_effect=[
-        _fake_connection([row])(),                    # fetch current
-        _fake_connection([updated])(autocommit=True),  # UPDATE RETURNING
-    ]):
+    with patch(
+        "app.routers.api.get_db_connection",
+        side_effect=[
+            _fake_connection([row])(),  # fetch current
+            _fake_connection([updated])(autocommit=True),  # UPDATE RETURNING
+        ],
+    ):
         resp = await client.patch(
             "/api/v1/incidents/inc-ack",
             json={"status": "acknowledged"},
@@ -186,6 +214,7 @@ async def test_patch_acknowledge(client):
 
 
 # ── PATCH — resolve ──────────────────────────────────────────
+
 
 @pytest.mark.asyncio
 async def test_patch_resolve(client):
@@ -203,10 +232,13 @@ async def test_patch_resolve(client):
         resolved_at=now,
     )
 
-    with patch("app.routers.api.get_db_connection", side_effect=[
-        _fake_connection([row])(),
-        _fake_connection([updated])(autocommit=True),
-    ]):
+    with patch(
+        "app.routers.api.get_db_connection",
+        side_effect=[
+            _fake_connection([row])(),
+            _fake_connection([updated])(autocommit=True),
+        ],
+    ):
         resp = await client.patch(
             "/api/v1/incidents/inc-res",
             json={"status": "resolved"},
@@ -218,16 +250,20 @@ async def test_patch_resolve(client):
 
 # ── PATCH — add note ─────────────────────────────────────────
 
+
 @pytest.mark.asyncio
 async def test_patch_add_note(client):
     row = _make_incident_row(incident_id="inc-note")
     updated = _make_incident_row(incident_id="inc-note")
     updated["notes"] = ["[2026-02-09T00:00:00+00:00] investigating root cause"]
 
-    with patch("app.routers.api.get_db_connection", side_effect=[
-        _fake_connection([row])(),
-        _fake_connection([updated])(autocommit=True),
-    ]):
+    with patch(
+        "app.routers.api.get_db_connection",
+        side_effect=[
+            _fake_connection([row])(),
+            _fake_connection([updated])(autocommit=True),
+        ],
+    ):
         resp = await client.patch(
             "/api/v1/incidents/inc-note",
             json={"note": "investigating root cause"},
@@ -239,24 +275,32 @@ async def test_patch_add_note(client):
 
 # ── PATCH — no fields → 400 ──────────────────────────────────
 
+
 @pytest.mark.asyncio
 async def test_patch_empty_body(client):
     row = _make_incident_row(incident_id="inc-empty")
 
-    with patch("app.routers.api.get_db_connection", side_effect=[
-        _fake_connection([row])(),
-    ]):
+    with patch(
+        "app.routers.api.get_db_connection",
+        side_effect=[
+            _fake_connection([row])(),
+        ],
+    ):
         resp = await client.patch("/api/v1/incidents/inc-empty", json={})
     assert resp.status_code == 400
 
 
 # ── PATCH — incident not found ───────────────────────────────
 
+
 @pytest.mark.asyncio
 async def test_patch_not_found(client):
-    with patch("app.routers.api.get_db_connection", side_effect=[
-        _fake_connection([None])(),
-    ]):
+    with patch(
+        "app.routers.api.get_db_connection",
+        side_effect=[
+            _fake_connection([None])(),
+        ],
+    ):
         resp = await client.patch(
             "/api/v1/incidents/inc-nope",
             json={"status": "acknowledged"},
@@ -265,6 +309,7 @@ async def test_patch_not_found(client):
 
 
 # ── GET /api/v1/incidents/{id}/metrics ───────────────────────
+
 
 @pytest.mark.asyncio
 async def test_get_incident_metrics_open(client):
@@ -277,9 +322,12 @@ async def test_get_incident_metrics_open(client):
         "resolved_at": None,
     }
 
-    with patch("app.routers.api.get_db_connection", side_effect=[
-        _fake_connection([row])(),
-    ]):
+    with patch(
+        "app.routers.api.get_db_connection",
+        side_effect=[
+            _fake_connection([row])(),
+        ],
+    ):
         resp = await client.get("/api/v1/incidents/inc-met/metrics")
 
     assert resp.status_code == 200
@@ -300,9 +348,12 @@ async def test_get_incident_metrics_resolved(client):
         "resolved_at": now,
     }
 
-    with patch("app.routers.api.get_db_connection", side_effect=[
-        _fake_connection([row])(),
-    ]):
+    with patch(
+        "app.routers.api.get_db_connection",
+        side_effect=[
+            _fake_connection([row])(),
+        ],
+    ):
         resp = await client.get("/api/v1/incidents/inc-met2/metrics")
 
     assert resp.status_code == 200
@@ -313,14 +364,18 @@ async def test_get_incident_metrics_resolved(client):
 
 @pytest.mark.asyncio
 async def test_get_incident_metrics_not_found(client):
-    with patch("app.routers.api.get_db_connection", side_effect=[
-        _fake_connection([None])(),
-    ]):
+    with patch(
+        "app.routers.api.get_db_connection",
+        side_effect=[
+            _fake_connection([None])(),
+        ],
+    ):
         resp = await client.get("/api/v1/incidents/inc-nope/metrics")
     assert resp.status_code == 404
 
 
 # ── GET /api/v1/incidents/analytics ──────────────────────────
+
 
 @pytest.mark.asyncio
 async def test_get_analytics(client):

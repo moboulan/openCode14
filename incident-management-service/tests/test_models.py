@@ -1,22 +1,23 @@
 """Tests for Pydantic models."""
 
-import pytest
 from datetime import datetime, timezone
+
+import pytest
 from pydantic import ValidationError
 
 from app.models import (
-    IncidentCreate,
-    IncidentUpdate,
-    IncidentResponse,
-    IncidentMetrics,
-    IncidentAnalyticsResponse,
     HealthCheck,
-    SeverityLevel,
+    IncidentAnalyticsResponse,
+    IncidentCreate,
+    IncidentMetrics,
+    IncidentResponse,
     IncidentStatus,
+    IncidentUpdate,
+    SeverityLevel,
 )
 
-
 # ── SeverityLevel enum ───────────────────────────────────────
+
 
 class TestSeverityLevel:
     def test_values(self):
@@ -36,16 +37,23 @@ class TestSeverityLevel:
 
 # ── IncidentStatus enum ─────────────────────────────────────
 
+
 class TestIncidentStatus:
     def test_values(self):
         expected = {
-            "open", "acknowledged", "in_progress",
-            "investigating", "mitigated", "resolved", "closed",
+            "open",
+            "acknowledged",
+            "in_progress",
+            "investigating",
+            "mitigated",
+            "resolved",
+            "closed",
         }
         assert {s.value for s in IncidentStatus} == expected
 
 
 # ── IncidentCreate model ─────────────────────────────────────
+
 
 class TestIncidentCreate:
     def test_valid_minimal(self):
@@ -74,6 +82,7 @@ class TestIncidentCreate:
 
 # ── IncidentUpdate model ─────────────────────────────────────
 
+
 class TestIncidentUpdate:
     def test_all_none_valid(self):
         m = IncidentUpdate()
@@ -92,6 +101,7 @@ class TestIncidentUpdate:
 
 # ── IncidentResponse model ───────────────────────────────────
 
+
 class TestIncidentResponse:
     def test_valid_response(self):
         r = IncidentResponse(
@@ -108,6 +118,7 @@ class TestIncidentResponse:
 
 
 # ── IncidentMetrics model ────────────────────────────────────
+
 
 class TestIncidentMetrics:
     def test_not_yet_resolved(self):
@@ -128,6 +139,7 @@ class TestIncidentMetrics:
 
 # ── IncidentAnalyticsResponse model ──────────────────────────
 
+
 class TestIncidentAnalyticsResponse:
     def test_defaults(self):
         a = IncidentAnalyticsResponse()
@@ -137,6 +149,7 @@ class TestIncidentAnalyticsResponse:
 
 
 # ── HealthCheck model ────────────────────────────────────────
+
 
 class TestHealthCheckModel:
     def test_valid_health_check(self):

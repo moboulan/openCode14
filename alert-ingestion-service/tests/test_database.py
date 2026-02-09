@@ -1,7 +1,8 @@
 """Tests for app/database.py — pool lifecycle, get_db_connection, health check."""
 
+from unittest.mock import MagicMock, patch
+
 import pytest
-from unittest.mock import patch, MagicMock
 
 import app.database as db_mod
 

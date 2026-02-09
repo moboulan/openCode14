@@ -63,8 +63,21 @@ scan: build  ## Scan image with Trivy
 
 # ── Stage 5: Tests ───────────────────────────────────────────
 
-test:  ## Run pytest with coverage
+test:  ## Run unit tests with coverage (excludes integration)
 	@echo "── pytest ──"
+	cd $(SERVICE_DIR) && $(PYTHON) -m pytest $(TESTS_DIR)/ -v \
+		--ignore=$(TESTS_DIR)/integration \
+		--tb=short \
+		--cov=$(APP_MODULE) \
+		--cov-report=term-missing \
+		--cov-report=html:htmlcov \
+		--cov-fail-under=$(COVERAGE_MIN)
+
+test-integration:  ## Run integration tests (requires running DB)
+	@echo "── integration tests ──"
+	cd $(SERVICE_DIR) && $(PYTHON) -m pytest $(TESTS_DIR)/integration/ -v --tb=short
+
+test-all:  ## Run all tests (unit + integration)
 	cd $(SERVICE_DIR) && $(PYTHON) -m pytest $(TESTS_DIR)/ -v \
 		--tb=short \
 		--cov=$(APP_MODULE) \

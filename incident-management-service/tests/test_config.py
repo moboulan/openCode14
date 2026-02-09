@@ -7,6 +7,7 @@ from unittest.mock import patch
 class TestSettings:
     def test_defaults(self):
         from app.config import Settings
+
         s = Settings()
         assert s.SERVICE_NAME == "incident-management"
         assert s.SERVICE_PORT == 8002
@@ -16,12 +17,16 @@ class TestSettings:
 
     def test_env_override(self):
         from app.config import Settings
-        with patch.dict(os.environ, {
-            "SERVICE_NAME": "custom-name",
-            "SERVICE_PORT": "9999",
-            "DATABASE_URL": "postgresql://u:p@host/db",
-            "ESCALATION_TIMEOUT_MINUTES": "15",
-        }):
+
+        with patch.dict(
+            os.environ,
+            {
+                "SERVICE_NAME": "custom-name",
+                "SERVICE_PORT": "9999",
+                "DATABASE_URL": "postgresql://u:p@host/db",
+                "ESCALATION_TIMEOUT_MINUTES": "15",
+            },
+        ):
             s = Settings()
             assert s.SERVICE_NAME == "custom-name"
             assert s.SERVICE_PORT == 9999

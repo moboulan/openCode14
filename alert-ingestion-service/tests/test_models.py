@@ -1,7 +1,8 @@
 """Tests for Pydantic models."""
 
-import pytest
 from datetime import datetime, timezone
+
+import pytest
 from pydantic import ValidationError
 
 from app.models import (
@@ -11,8 +12,8 @@ from app.models import (
     SeverityLevel,
 )
 
-
 # ── SeverityLevel enum ───────────────────────────────────────
+
 
 class TestSeverityLevel:
     def test_values(self):
@@ -31,6 +32,7 @@ class TestSeverityLevel:
 
 
 # ── Alert model ──────────────────────────────────────────────
+
 
 class TestAlertModel:
     def test_valid_alert_minimal(self):
@@ -92,6 +94,7 @@ class TestAlertModel:
 
 # ── AlertResponse model ──────────────────────────────────────
 
+
 class TestAlertResponseModel:
     def test_valid_response(self):
         resp = AlertResponse(
@@ -115,6 +118,7 @@ class TestAlertResponseModel:
 
 
 # ── HealthCheck model ────────────────────────────────────────
+
 
 class TestHealthCheckModel:
     def test_valid_health_check(self):
