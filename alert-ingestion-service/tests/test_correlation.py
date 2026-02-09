@@ -322,7 +322,7 @@ async def test_correlation_outside_window_creates_new_incident(client, sample_al
             cur.fetchone.return_value = None  # no matching incident
             cur.fetchall.return_value = []
 
-            original_execute = cur.execute
+            cur.execute
 
             def _capture(sql, params=None):
                 if params and "incidents.incidents" in str(sql):
@@ -363,7 +363,6 @@ async def test_concurrent_alerts_correlation(client):
     created.  We mock the DB so that the first call to the correlation query
     returns no match (→ new incident) and the second call returns a match
     (→ existing incident)."""
-    import asyncio
 
     alert_db_id_1 = uuid.uuid4()
     alert_db_id_2 = uuid.uuid4()

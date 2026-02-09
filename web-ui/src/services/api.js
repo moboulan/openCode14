@@ -1,4 +1,3 @@
-// ─── API layer ──────────────────────────────────────
 import axios from 'axios';
 
 const apiClient = axios.create({
@@ -39,7 +38,6 @@ export async function addIncidentNote(incidentId, payload) {
 	return data;
 }
 
-// ── On-Call ──
 export async function listSchedules() {
 	const { data } = await apiClient.get(`${oncallBase}/schedules`);
 	return data;
@@ -50,7 +48,6 @@ export async function getCurrentOncall(params = {}) {
 	return data;
 }
 
-// ── Metrics Trends ──
 export async function getMetricsTrends() {
 	const { data } = await apiClient.get(`${incidentBase}/incidents/metrics/trends`);
 	return data;

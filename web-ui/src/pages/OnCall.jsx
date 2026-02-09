@@ -1,5 +1,9 @@
 import { useEffect, useState } from 'react';
-import { getCurrentOncall, listSchedules } from '../services/api.js';
+import { getCurrentOncall, listSchedules } from '@/services/api';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Users, Calendar, Shield, User } from 'lucide-react';
 
 function initials(email) {
   if (!email) return '?';
@@ -11,18 +15,23 @@ function initials(email) {
 }
 
 function UserChip({ email, role }) {
+  const isPrimary = role === 'Primary';
   return (
-    <div className="user-chip">
-      <div className="user-chip__avatar">{initials(email)}</div>
-      <div className="user-chip__info">
-        <span className="user-chip__role">{role}</span>
-        <span className="user-chip__email">{email}</span>
+    <div className="flex items-center gap-3 rounded-md border border-border p-2.5">
+      <div className={`flex h-9 w-9 items-center justify-center rounded-full text-xs font-bold ${
+        isPrimary ? 'bg-primary text-primary-foreground' : 'bg-secondary text-secondary-foreground'
+      }`}>
+        {initials(email)}
+      </div>
+      <div className="flex flex-col">
+        <span className="text-[10px] uppercase tracking-wide text-muted-foreground font-medium">{role}</span>
+        <span className="text-sm font-medium">{email}</span>
       </div>
     </div>
   );
 }
 
-function OnCall() {
+export default function OnCall() {
   const [schedules, setSchedules] = useState([]);
   const [oncall, setOncall] = useState(null);
   const [error, setError] = useState(null);
@@ -45,75 +54,91 @@ function OnCall() {
 
   const oncallList = oncall ? (Array.isArray(oncall.oncall) ? oncall.oncall : [oncall]) : [];
 
-  if (loading) return <p className="loading-text">Loading on-call data…</p>;
+  if (loading) return <p className="text-sm text-muted-foreground animate-pulse">Loading on-call data…</p>;
 
   return (
-    <div className="page">
-      {error && <div className="error-banner">{error}</div>}
-
-      <div className="section-bar">
-        <span className="icon">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-        </span>
-        <h2>Current On-Call</h2>
-      </div>
-
-      {/* Roster Grid */}
-      <div className="roster-grid">
-        {oncallList.map((item, idx) => (
-          <div className="roster-card" key={`${item.team}-${idx}`}>
-            <div className="roster-card__team">{item.team}</div>
-            <UserChip email={item.primary} role="Primary" />
-            {item.secondary && <UserChip email={item.secondary} role="Secondary" />}
-          </div>
-        ))}
-        {oncallList.length === 0 && (
-          <div className="card empty">No on-call teams configured.</div>
-        )}
-      </div>
-
-      <div className="section-bar">
-        <span className="icon">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-        </span>
-        <h2>Schedules</h2>
-      </div>
-
-      <div className="card" style={{ padding: '4px 0' }}>
-        <div className="table-wrap">
-          <table className="table">
-            <thead>
-              <tr>
-                <th>Team</th>
-                <th>Rotation</th>
-                <th>Start</th>
-                <th>Engineers</th>
-                <th>Escalation</th>
-              </tr>
-            </thead>
-            <tbody>
-              {schedules.map((item) => (
-                <tr key={item.id}>
-                  <td style={{ color: 'var(--text-primary)', fontWeight: 600 }}>{item.team}</td>
-                  <td>
-                    <span className={`badge-rotation ${item.rotation_type}`}>
-                      {item.rotation_type}
-                    </span>
-                  </td>
-                  <td><span className="mono">{item.start_date}</span></td>
-                  <td style={{ color: 'var(--text-muted)' }}>{item.engineers.join(', ')}</td>
-                  <td><span className="mono">{item.escalation_minutes}m</span></td>
-                </tr>
-              ))}
-              {schedules.length === 0 && (
-                <tr><td colSpan="5" className="empty">No schedules found.</td></tr>
-              )}
-            </tbody>
-          </table>
+    <div className="space-y-6">
+      {error && (
+        <div className="rounded-md border border-destructive/50 bg-destructive/10 p-3 text-sm text-destructive">
+          {error}
         </div>
+      )}
+
+      {/* Current On-Call */}
+      <div>
+        <div className="mb-3 flex items-center gap-2">
+          <Shield className="h-4 w-4 text-muted-foreground" />
+          <h2 className="text-base font-semibold">Current On-Call</h2>
+        </div>
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {oncallList.map((item, idx) => (
+            <Card key={`${item.team}-${idx}`}>
+              <CardHeader className="pb-2">
+                <CardTitle className="flex items-center gap-2 text-sm">
+                  <Users className="h-4 w-4" />
+                  {item.team}
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                <UserChip email={item.primary} role="Primary" />
+                {item.secondary && <UserChip email={item.secondary} role="Secondary" />}
+              </CardContent>
+            </Card>
+          ))}
+          {oncallList.length === 0 && (
+            <Card>
+              <CardContent className="py-8 text-center text-sm text-muted-foreground">
+                No on-call teams configured.
+              </CardContent>
+            </Card>
+          )}
+        </div>
+      </div>
+
+      {/* Schedules */}
+      <div>
+        <div className="mb-3 flex items-center gap-2">
+          <Calendar className="h-4 w-4 text-muted-foreground" />
+          <h2 className="text-base font-semibold">Schedules</h2>
+        </div>
+        <Card>
+          <CardContent className="p-0">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Team</TableHead>
+                  <TableHead>Rotation</TableHead>
+                  <TableHead>Start</TableHead>
+                  <TableHead>Engineers</TableHead>
+                  <TableHead>Escalation</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {schedules.map((item) => (
+                  <TableRow key={item.id}>
+                    <TableCell className="font-semibold">{item.team}</TableCell>
+                    <TableCell>
+                      <Badge variant="outline" className="capitalize">{item.rotation_type}</Badge>
+                    </TableCell>
+                    <TableCell><code className="text-xs">{item.start_date}</code></TableCell>
+                    <TableCell className="text-muted-foreground text-xs max-w-[200px] truncate">
+                      {item.engineers.join(', ')}
+                    </TableCell>
+                    <TableCell><code className="text-xs">{item.escalation_minutes}m</code></TableCell>
+                  </TableRow>
+                ))}
+                {schedules.length === 0 && (
+                  <TableRow>
+                    <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                      No schedules found.
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
       </div>
     </div>
   );
 }
-
-export default OnCall;

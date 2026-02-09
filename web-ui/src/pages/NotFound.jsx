@@ -1,15 +1,23 @@
 import { Link } from 'react-router-dom';
+import { Card, CardContent } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Home } from 'lucide-react';
 
-function NotFound() {
+export default function NotFound() {
   return (
-    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '60vh' }}>
-      <div className="card" style={{ textAlign: 'center', maxWidth: 380, padding: 40 }}>
-        <div style={{ fontSize: 48, fontWeight: 800, color: 'var(--text-muted)', marginBottom: 4, letterSpacing: '-0.04em' }}>404</div>
-        <p style={{ color: 'var(--text-secondary)', marginBottom: 20, fontSize: 14 }}>Page not found.</p>
-        <Link to="/" className="btn btn-primary" style={{ textDecoration: 'none' }}>Dashboard</Link>
-      </div>
+    <div className="flex min-h-[60vh] items-center justify-center">
+      <Card className="max-w-sm text-center">
+        <CardContent className="p-10">
+          <p className="text-6xl font-extrabold text-muted-foreground mb-2">404</p>
+          <p className="text-sm text-muted-foreground mb-6">Page not found.</p>
+          <Button asChild>
+            <Link to="/">
+              <Home className="mr-2 h-4 w-4" />
+              Dashboard
+            </Link>
+          </Button>
+        </CardContent>
+      </Card>
     </div>
   );
 }
-
-export default NotFound;

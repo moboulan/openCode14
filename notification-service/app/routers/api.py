@@ -1,4 +1,3 @@
-import json
 import logging
 import time
 import uuid
@@ -109,9 +108,7 @@ async def _send_webhook(notification_id: str, request: NotificationRequest) -> N
                         logger.info(f"[WEBHOOK SENT] id={notification_id} url={url} status={resp.status_code}")
                         delivered = True
                     else:
-                        logger.warning(
-                            f"[WEBHOOK FAILED] id={notification_id} url={url} status={resp.status_code}"
-                        )
+                        logger.warning(f"[WEBHOOK FAILED] id={notification_id} url={url} status={resp.status_code}")
                 except Exception as e:
                     logger.error(f"[WEBHOOK ERROR] id={notification_id} url={url}: {e}")
     except Exception as e:

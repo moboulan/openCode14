@@ -36,12 +36,15 @@ jobs:
       - name: Install service dependencies
         run: pip install -r ${{ env.SERVICE_DIR }}/requirements.txt
 
-      - name: Auto-format code
+      - name: Check formatting (black)
         run: |
           cd ${{ env.SERVICE_DIR }}
-          autoflake --in-place --remove-all-unused-imports --remove-unused-variables -r app/
-          isort --profile=black app/
-          black --line-length=120 app/
+          black --check --line-length=120 app/
+
+      - name: Check import order (isort)
+        run: |
+          cd ${{ env.SERVICE_DIR }}
+          isort --check --profile=black app/
 
       - name: Run flake8
         run: |
@@ -52,16 +55,6 @@ jobs:
         run: |
           cd ${{ env.SERVICE_DIR }}
           pylint app/ --disable=C0114,C0115,C0116,C0301,R0903,R0914,E0401,W0603,W0621,W0613,W1203 --fail-under=7.0
-
-      - name: Check formatting (black)
-        run: |
-          cd ${{ env.SERVICE_DIR }}
-          black --check --line-length=120 app/
-
-      - name: Check import order (isort)
-        run: |
-          cd ${{ env.SERVICE_DIR }}
-          isort --check --profile=black app/
 
   # ──────────────────────────────────────────
   # Stage 2: Security Scanning

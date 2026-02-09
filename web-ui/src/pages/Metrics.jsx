@@ -1,146 +1,184 @@
 import { useEffect, useCallback, useState } from 'react';
 import {
-	LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-	BarChart, Bar,
+  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
+  BarChart, Bar,
 } from 'recharts';
-import IncidentAnalytics from '../components/IncidentAnalytics.jsx';
-import { getIncidentAnalytics, getMetricsTrends } from '../services/api.js';
+import { getIncidentAnalytics, getMetricsTrends } from '@/services/api';
+import { formatDuration } from '@/utils/formatters';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import {
+  AlertTriangle, Clock, CheckCircle2, Timer, TrendingUp, BarChart3,
+} from 'lucide-react';
 
 function ChartTooltip({ active, payload, label, valueFormatter }) {
-	if (!active || !payload?.length) return null;
-	return (
-		<div className="chart-tooltip">
-			<div className="chart-tooltip__label">{label}</div>
-			{payload.map((entry, idx) => (
-				<div key={idx} className="chart-tooltip__row">
-					<span className="chart-tooltip__dot" style={{ background: entry.color }} />
-					<span>{entry.name}:</span>
-					<span className="chart-tooltip__val">
-						{valueFormatter ? valueFormatter(entry.value) : entry.value}
-					</span>
-				</div>
-			))}
-		</div>
-	);
+  if (!active || !payload?.length) return null;
+  return (
+    <div className="rounded-md border border-border bg-popover p-2 shadow-md">
+      <p className="text-xs font-medium text-popover-foreground mb-1">{label}</p>
+      {payload.map((entry, idx) => (
+        <div key={idx} className="flex items-center gap-2 text-xs">
+          <span className="h-2 w-2 rounded-full" style={{ background: entry.color }} />
+          <span className="text-muted-foreground">{entry.name}:</span>
+          <span className="font-mono font-medium">{valueFormatter ? valueFormatter(entry.value) : entry.value}</span>
+        </div>
+      ))}
+    </div>
+  );
 }
 
-function Metrics() {
-	const [data, setData] = useState(null);
-	const [trends, setTrends] = useState(null);
-	const [error, setError] = useState(null);
+export default function Metrics() {
+  const [data, setData] = useState(null);
+  const [trends, setTrends] = useState(null);
+  const [error, setError] = useState(null);
 
-	const load = useCallback(async () => {
-		try {
-			const [analytics, trendData] = await Promise.all([
-				getIncidentAnalytics(),
-				getMetricsTrends(),
-			]);
-			setData(analytics);
-			setTrends(trendData);
-			setError(null);
-		} catch {
-			setError('Failed to load metrics');
-		}
-	}, []);
+  const load = useCallback(async () => {
+    try {
+      const [analytics, trendData] = await Promise.all([
+        getIncidentAnalytics(),
+        getMetricsTrends(),
+      ]);
+      setData(analytics);
+      setTrends(trendData);
+      setError(null);
+    } catch {
+      setError('Failed to load metrics');
+    }
+  }, []);
 
-	useEffect(() => {
-		load();
-		const interval = window.setInterval(load, Number(import.meta.env.VITE_METRICS_POLL_INTERVAL || 15000));
-		return () => window.clearInterval(interval);
-	}, [load]);
+  useEffect(() => {
+    load();
+    const interval = setInterval(load, Number(import.meta.env.VITE_METRICS_POLL_INTERVAL || 15000));
+    return () => clearInterval(interval);
+  }, [load]);
 
-	if (error) return <div className="error-banner">{error}</div>;
-	if (!data) return <p className="loading-text">Loading metrics…</p>;
+  if (error) {
+    return (
+      <div className="rounded-md border border-destructive/50 bg-destructive/10 p-3 text-sm text-destructive">
+        {error}
+      </div>
+    );
+  }
+  if (!data) return <p className="text-sm text-muted-foreground animate-pulse">Loading metrics…</p>;
 
-	const mttaData = trends?.trends?.map(d => ({ date: d.date, 'MTTA (min)': Math.round(d.mtta / 60 * 10) / 10 })) ?? [];
-	const mttrData = trends?.trends?.map(d => ({ date: d.date, 'MTTR (min)': Math.round(d.mttr / 60 * 10) / 10 })) ?? [];
-	const incidentVolume = trends?.trends?.map(d => ({ date: d.date, Incidents: d.incidents })) ?? [];
+  const summary = data.summary;
+  const byService = data.by_service ?? [];
 
-	// Merge MTTA + MTTR into one dataset for the combined chart
-	const combinedData = mttaData.map((d, i) => ({
-		date: d.date,
-		'MTTA (min)': d['MTTA (min)'],
-		'MTTR (min)': mttrData[i]?.['MTTR (min)'] ?? 0,
-	}));
+  const stats = [
+    { label: 'Total', value: summary.total ?? 0, icon: AlertTriangle, color: 'text-foreground' },
+    { label: 'Open', value: summary.open_count ?? 0, icon: AlertTriangle, color: 'text-status-open' },
+    { label: 'Acknowledged', value: summary.ack_count ?? 0, icon: Clock, color: 'text-status-acknowledged' },
+    { label: 'Resolved', value: summary.resolved_count ?? 0, icon: CheckCircle2, color: 'text-status-resolved' },
+    { label: 'Avg MTTA', value: formatDuration(summary.avg_mtta), icon: Timer, color: 'text-cyan-500' },
+    { label: 'Avg MTTR', value: formatDuration(summary.avg_mttr), icon: TrendingUp, color: 'text-yellow-500' },
+  ];
 
-	const mttaTrend = trends?.trends?.map(d => d.mtta) ?? [];
-	const mttrTrend = trends?.trends?.map(d => d.mttr) ?? [];
+  const mttaData = trends?.trends?.map(d => ({ date: d.date, 'MTTA (min)': Math.round(d.mtta / 60 * 10) / 10 })) ?? [];
+  const mttrData = trends?.trends?.map(d => ({ date: d.date, 'MTTR (min)': Math.round(d.mttr / 60 * 10) / 10 })) ?? [];
+  const incidentVolume = trends?.trends?.map(d => ({ date: d.date, Incidents: d.incidents })) ?? [];
 
-	// Chart axis/grid colors that work in both themes via CSS vars
-	const gridStroke = 'var(--border)';
-	const tickFill = 'var(--text-muted)';
+  const combinedData = mttaData.map((d, i) => ({
+    date: d.date,
+    'MTTA (min)': d['MTTA (min)'],
+    'MTTR (min)': mttrData[i]?.['MTTR (min)'] ?? 0,
+  }));
 
-	return (
-		<div className="page">
-			{/* Summary status bar */}
-			<IncidentAnalytics
-				summary={data.summary}
-				byService={data.by_service}
-				mttaTrend={mttaTrend}
-				mttrTrend={mttrTrend}
-			/>
+  return (
+    <div className="space-y-6">
+      {/* Summary cards */}
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+        {stats.map((s) => (
+          <Card key={s.label}>
+            <CardContent className="flex items-center justify-between p-4">
+              <div>
+                <p className="text-xs text-muted-foreground">{s.label}</p>
+                <p className={`text-xl font-bold font-mono ${s.color}`}>{s.value}</p>
+              </div>
+              <s.icon className={`h-4 w-4 ${s.color}`} />
+            </CardContent>
+          </Card>
+        ))}
+      </div>
 
-			{/* Split-pane: MTTA/MTTR line chart + Incident Volume bar chart */}
-			<div className="split-pane">
-				<div className="chart-card">
-					<h3>MTTA / MTTR Trend</h3>
-					<ResponsiveContainer width="100%" height={220}>
-						<LineChart data={combinedData} margin={{ top: 4, right: 8, bottom: 0, left: -10 }}>
-							<CartesianGrid strokeDasharray="2 4" stroke={gridStroke} />
-							<XAxis dataKey="date" tick={{ fontSize: 10, fill: tickFill }} tickLine={false} axisLine={false} />
-							<YAxis tick={{ fontSize: 10, fill: tickFill }} tickLine={false} axisLine={false} unit=" min" />
-							<Tooltip content={<ChartTooltip valueFormatter={(v) => `${v} min`} />} />
-							<Line type="monotone" dataKey="MTTA (min)" stroke="var(--cyan)" strokeWidth={1.5} dot={false} />
-							<Line type="monotone" dataKey="MTTR (min)" stroke="var(--yellow)" strokeWidth={1.5} dot={false} />
-						</LineChart>
-					</ResponsiveContainer>
-				</div>
+      {/* Charts */}
+      <div className="grid gap-4 lg:grid-cols-2">
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="flex items-center gap-2 text-sm">
+              <TrendingUp className="h-4 w-4" />
+              MTTA / MTTR Trend
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={240}>
+              <LineChart data={combinedData} margin={{ top: 4, right: 8, bottom: 0, left: -10 }}>
+                <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+                <XAxis dataKey="date" tick={{ fontSize: 10 }} className="fill-muted-foreground" tickLine={false} axisLine={false} />
+                <YAxis tick={{ fontSize: 10 }} className="fill-muted-foreground" tickLine={false} axisLine={false} unit=" min" />
+                <Tooltip content={<ChartTooltip valueFormatter={(v) => `${v} min`} />} />
+                <Line type="monotone" dataKey="MTTA (min)" stroke="#06b6d4" strokeWidth={2} dot={false} />
+                <Line type="monotone" dataKey="MTTR (min)" stroke="#eab308" strokeWidth={2} dot={false} />
+              </LineChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
 
-				<div className="chart-card">
-					<h3>Daily Incident Volume</h3>
-					<ResponsiveContainer width="100%" height={220}>
-						<BarChart data={incidentVolume} margin={{ top: 4, right: 8, bottom: 0, left: -10 }}>
-							<CartesianGrid strokeDasharray="2 4" stroke={gridStroke} vertical={false} />
-							<XAxis dataKey="date" tick={{ fontSize: 10, fill: tickFill }} tickLine={false} axisLine={false} />
-							<YAxis tick={{ fontSize: 10, fill: tickFill }} tickLine={false} axisLine={false} allowDecimals={false} />
-							<Tooltip content={<ChartTooltip />} />
-							<Bar dataKey="Incidents" fill="var(--accent)" radius={[2, 2, 0, 0]} barSize={18} />
-						</BarChart>
-					</ResponsiveContainer>
-				</div>
-			</div>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="flex items-center gap-2 text-sm">
+              <BarChart3 className="h-4 w-4" />
+              Daily Incident Volume
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={240}>
+              <BarChart data={incidentVolume} margin={{ top: 4, right: 8, bottom: 0, left: -10 }}>
+                <CartesianGrid strokeDasharray="3 3" className="stroke-border" vertical={false} />
+                <XAxis dataKey="date" tick={{ fontSize: 10 }} className="fill-muted-foreground" tickLine={false} axisLine={false} />
+                <YAxis tick={{ fontSize: 10 }} className="fill-muted-foreground" tickLine={false} axisLine={false} allowDecimals={false} />
+                <Tooltip content={<ChartTooltip />} />
+                <Bar dataKey="Incidents" fill="hsl(240, 5.9%, 10%)" radius={[3, 3, 0, 0]} barSize={20} className="fill-foreground" />
+              </BarChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+      </div>
 
-			{/* Per-Service MTTA/MTTR line chart */}
-			{trends?.by_service?.length > 0 && (
-				<div className="chart-card">
-					<h3>MTTA by Service (14-day)</h3>
-					<ResponsiveContainer width="100%" height={200}>
-						<LineChart margin={{ top: 4, right: 8, bottom: 0, left: -10 }}>
-							<CartesianGrid strokeDasharray="2 4" stroke={gridStroke} />
-							<XAxis dataKey="date" tick={{ fontSize: 10, fill: tickFill }} tickLine={false} axisLine={false} type="category" allowDuplicatedCategory={false} />
-							<YAxis tick={{ fontSize: 10, fill: tickFill }} tickLine={false} axisLine={false} unit=" min" />
-							<Tooltip content={<ChartTooltip valueFormatter={(v) => `${v} min`} />} />
-							{trends.by_service.map((svc, idx) => {
-								const colors = ['var(--red)', 'var(--orange)', 'var(--cyan)', 'var(--green)', 'var(--yellow)', 'var(--text-muted)'];
-								return (
-									<Line
-										key={svc.service}
-										data={svc.data.map(d => ({ date: d.date, [svc.service]: Math.round(d.mtta / 60 * 10) / 10 }))}
-										dataKey={svc.service}
-										name={svc.service}
-										type="monotone"
-										stroke={colors[idx % colors.length]}
-										strokeWidth={1.5}
-										dot={false}
-									/>
-								);
-							})}
-						</LineChart>
-					</ResponsiveContainer>
-				</div>
-			)}
-		</div>
-	);
+      {/* Service breakdown */}
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-sm">Service Breakdown</CardTitle>
+        </CardHeader>
+        <CardContent className="p-0">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Service</TableHead>
+                <TableHead>Incidents</TableHead>
+                <TableHead>Avg MTTA</TableHead>
+                <TableHead>Avg MTTR</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {byService.map((item) => (
+                <TableRow key={item.service}>
+                  <TableCell className="font-semibold">{item.service}</TableCell>
+                  <TableCell><code className="text-xs">{item.count}</code></TableCell>
+                  <TableCell><code className="text-xs">{formatDuration(item.avg_mtta)}</code></TableCell>
+                  <TableCell><code className="text-xs">{formatDuration(item.avg_mttr)}</code></TableCell>
+                </TableRow>
+              ))}
+              {byService.length === 0 && (
+                <TableRow>
+                  <TableCell colSpan={4} className="text-center py-8 text-muted-foreground">
+                    No data available
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+    </div>
+  );
 }
-
-export default Metrics;

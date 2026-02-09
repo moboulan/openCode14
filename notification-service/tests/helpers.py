@@ -3,7 +3,6 @@
 Importable by test_api.py, test_notify.py, etc.
 """
 
-import uuid
 from contextlib import contextmanager
 from unittest.mock import MagicMock
 

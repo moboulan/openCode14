@@ -18,8 +18,6 @@ paths = [
 ]
 regexTarget = "match"
 regexes = [
-    # Default postgres password used only in CI test containers
-    '''hackathon2026''',
     # Placeholder / example tokens in docs
     '''EXAMPLE_[A-Z_]+''',
 ]

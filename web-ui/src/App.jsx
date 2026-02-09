@@ -1,10 +1,10 @@
 import { Routes, Route } from 'react-router-dom';
-import Layout from './components/Layout.jsx';
-import Dashboard from './pages/Dashboard.jsx';
-import IncidentDetail from './pages/IncidentDetail.jsx';
-import OnCall from './pages/OnCall.jsx';
-import Metrics from './pages/Metrics.jsx';
-import NotFound from './pages/NotFound.jsx';
+import Layout from '@/components/Layout';
+import Dashboard from '@/pages/Dashboard';
+import IncidentDetail from '@/pages/IncidentDetail';
+import OnCall from '@/pages/OnCall';
+import Metrics from '@/pages/Metrics';
+import NotFound from '@/pages/NotFound';
 
 function App() {
   return (

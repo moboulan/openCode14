@@ -14,7 +14,6 @@ automatically and the DB is seeded before these tests execute.
 
 import os
 import uuid
-from datetime import datetime, timezone
 
 import psycopg2
 import pytest

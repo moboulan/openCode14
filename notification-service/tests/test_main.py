@@ -1,11 +1,8 @@
 """Tests for the FastAPI application setup (main.py)."""
 
-import time
-from unittest.mock import patch, AsyncMock, MagicMock
+from unittest.mock import patch
 
 import pytest
-from fastapi import Request
-from fastapi.responses import JSONResponse
 
 
 @pytest.mark.asyncio
@@ -55,7 +52,7 @@ async def test_process_time_header(client):
 @pytest.mark.asyncio
 async def test_lifespan_startup_shutdown():
     """Lifespan context manager runs startup and shutdown."""
-    from app.main import lifespan, app
+    from app.main import app, lifespan
 
     with patch("app.main.close_pool") as mock_close:
         async with lifespan(app):
@@ -67,8 +64,8 @@ async def test_lifespan_startup_shutdown():
 @pytest.mark.asyncio
 async def test_global_exception_handler():
     """Global exception handler returns 500 JSON response."""
-    from starlette.requests import Request
     from app.main import global_exception_handler
+    from starlette.requests import Request
 
     scope = {"type": "http", "method": "GET", "path": "/test"}
     mock_request = Request(scope)
@@ -76,6 +73,7 @@ async def test_global_exception_handler():
     resp = await global_exception_handler(mock_request, RuntimeError("boom"))
     assert resp.status_code == 500
     import json
+
     body = json.loads(resp.body)
     assert "error" in body
     assert body["error"]["type"] == "RuntimeError"

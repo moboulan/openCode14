@@ -288,8 +288,9 @@ async def test_send_email_with_api_key_success(client):
     with patch(
         "app.routers.api.get_db_connection",
         side_effect=[_fake_connection([row])(autocommit=True)],
-    ), patch("app.routers.api.settings") as mock_settings, \
-       patch("app.routers.api.httpx.AsyncClient") as MockClient:
+    ), patch(
+        "app.routers.api.settings"
+    ) as mock_settings, patch("app.routers.api.httpx.AsyncClient") as MockClient:
         mock_settings.SENDGRID_API_KEY = "SG.test-key"
         mock_settings.HTTP_CLIENT_TIMEOUT = 10.0
         mock_settings.SENDGRID_FROM_EMAIL = "noreply@test.local"
@@ -327,8 +328,9 @@ async def test_send_email_with_api_key_failure(client):
     with patch(
         "app.routers.api.get_db_connection",
         side_effect=[_fake_connection([row])(autocommit=True)],
-    ), patch("app.routers.api.settings") as mock_settings, \
-       patch("app.routers.api.httpx.AsyncClient") as MockClient:
+    ), patch(
+        "app.routers.api.settings"
+    ) as mock_settings, patch("app.routers.api.httpx.AsyncClient") as MockClient:
         mock_settings.SENDGRID_API_KEY = "SG.test-key"
         mock_settings.HTTP_CLIENT_TIMEOUT = 10.0
         mock_settings.SENDGRID_FROM_EMAIL = "noreply@test.local"
@@ -362,8 +364,9 @@ async def test_send_email_with_api_key_exception(client):
     with patch(
         "app.routers.api.get_db_connection",
         side_effect=[_fake_connection([row])(autocommit=True)],
-    ), patch("app.routers.api.settings") as mock_settings, \
-       patch("app.routers.api.httpx.AsyncClient") as MockClient:
+    ), patch(
+        "app.routers.api.settings"
+    ) as mock_settings, patch("app.routers.api.httpx.AsyncClient") as MockClient:
         mock_settings.SENDGRID_API_KEY = "SG.test-key"
         mock_settings.HTTP_CLIENT_TIMEOUT = 10.0
         mock_settings.SENDGRID_FROM_EMAIL = "noreply@test.local"
@@ -407,8 +410,9 @@ async def test_send_webhook_with_urls_success(client):
     with patch(
         "app.routers.api.get_db_connection",
         side_effect=[_fake_connection([row])(autocommit=True)],
-    ), patch("app.routers.api.settings") as mock_settings, \
-       patch("app.routers.api.httpx.AsyncClient") as MockClient:
+    ), patch(
+        "app.routers.api.settings"
+    ) as mock_settings, patch("app.routers.api.httpx.AsyncClient") as MockClient:
         mock_settings.webhook_url_list = ["http://hook1.test/hook"]
         mock_settings.HTTP_CLIENT_TIMEOUT = 10.0
 
@@ -444,8 +448,9 @@ async def test_send_webhook_with_urls_failure(client):
     with patch(
         "app.routers.api.get_db_connection",
         side_effect=[_fake_connection([row])(autocommit=True)],
-    ), patch("app.routers.api.settings") as mock_settings, \
-       patch("app.routers.api.httpx.AsyncClient") as MockClient:
+    ), patch(
+        "app.routers.api.settings"
+    ) as mock_settings, patch("app.routers.api.httpx.AsyncClient") as MockClient:
         mock_settings.webhook_url_list = ["http://hook1.test/hook"]
         mock_settings.HTTP_CLIENT_TIMEOUT = 10.0
 
@@ -477,8 +482,9 @@ async def test_send_webhook_per_url_exception(client):
     with patch(
         "app.routers.api.get_db_connection",
         side_effect=[_fake_connection([row])(autocommit=True)],
-    ), patch("app.routers.api.settings") as mock_settings, \
-       patch("app.routers.api.httpx.AsyncClient") as MockClient:
+    ), patch(
+        "app.routers.api.settings"
+    ) as mock_settings, patch("app.routers.api.httpx.AsyncClient") as MockClient:
         mock_settings.webhook_url_list = ["http://hook1.test/hook"]
         mock_settings.HTTP_CLIENT_TIMEOUT = 10.0
 
@@ -514,8 +520,9 @@ async def test_send_webhook_client_exception(client):
     with patch(
         "app.routers.api.get_db_connection",
         side_effect=[_fake_connection([row])(autocommit=True)],
-    ), patch("app.routers.api.settings") as mock_settings, \
-       patch("app.routers.api.httpx.AsyncClient") as MockClient:
+    ), patch(
+        "app.routers.api.settings"
+    ) as mock_settings, patch("app.routers.api.httpx.AsyncClient") as MockClient:
         mock_settings.webhook_url_list = ["http://hook1.test/hook"]
         mock_settings.HTTP_CLIENT_TIMEOUT = 10.0
 
@@ -543,6 +550,7 @@ async def test_send_webhook_client_exception(client):
 
 
 # ── async helper ──────────────────────────────────────────────
+
 
 async def _async_return(value):
     """Helper to make a coroutine that returns a value."""

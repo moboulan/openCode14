@@ -27,7 +27,7 @@ function useIncidentSocket(onEvent) {
 				try {
 					const parsed = JSON.parse(event.data);
 					if (parsed && onEvent) onEvent(parsed);
-				} catch (err) {
+				} catch {
 					// ignore malformed frames
 				}
 			};

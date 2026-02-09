@@ -1,15 +1,13 @@
 """Tests for notification service models (Pydantic validation)."""
 
 import pytest
-from pydantic import ValidationError
-
 from app.models import (
     NotificationChannel,
     NotificationRequest,
-    NotificationResponse,
     NotificationStatus,
     SeverityLevel,
 )
+from pydantic import ValidationError
 
 
 def test_notification_request_valid():

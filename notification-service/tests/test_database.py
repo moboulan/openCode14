@@ -1,11 +1,9 @@
 """Tests for database module."""
 
-from contextlib import contextmanager
-from unittest.mock import MagicMock, patch, PropertyMock
+from unittest.mock import MagicMock, patch
 
 import pytest
-
-from app.database import check_database_health, close_pool, get_pool, get_db_connection
+from app.database import check_database_health, close_pool, get_db_connection, get_pool
 
 
 def test_check_database_health_success():

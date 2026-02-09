@@ -11,7 +11,6 @@ Run with:
 
 import os
 import uuid
-from datetime import datetime, timezone
 
 import psycopg2
 import pytest

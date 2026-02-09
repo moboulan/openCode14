@@ -1,32 +1,24 @@
 import { Link, useLocation } from 'react-router-dom';
-import { useIncidentSocket } from '../hooks/useIncidentSocket.js';
 import { useState, useCallback, useEffect } from 'react';
+import { useIncidentSocket } from '@/hooks/useIncidentSocket';
+import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
+import {
+  LayoutDashboard,
+  BarChart3,
+  Users,
+  Activity,
+  Moon,
+  Sun,
+  Wifi,
+  WifiOff,
+} from 'lucide-react';
 
-/* ── SVG Icons (inline, no deps) ──────────────────── */
-const icons = {
-  dashboard: (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round">
-      <rect x="3" y="3" width="7" height="9" />
-      <rect x="14" y="3" width="7" height="5" />
-      <rect x="14" y="12" width="7" height="9" />
-      <rect x="3" y="16" width="7" height="5" />
-    </svg>
-  ),
-  metrics: (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M3 3v18h18" />
-      <path d="M7 16l4-8 4 4 5-9" />
-    </svg>
-  ),
-  oncall: (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
-      <circle cx="9" cy="7" r="4" />
-      <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
-      <path d="M16 3.13a4 4 0 0 1 0 7.75" />
-    </svg>
-  ),
-};
+const navItems = [
+  { to: '/', icon: LayoutDashboard, label: 'Dashboard' },
+  { to: '/metrics', icon: BarChart3, label: 'SRE Metrics' },
+  { to: '/oncall', icon: Users, label: 'On-Call' },
+];
 
 const pageNames = {
   '/': 'Dashboard',
@@ -34,103 +26,98 @@ const pageNames = {
   '/oncall': 'On-Call',
 };
 
-const THEME_STORAGE_KEY = 'incident-ops-theme';
+const THEME_KEY = 'incident-ops-theme';
 
-function SidebarLink({ to, icon, label }) {
-  const location = useLocation();
-  const isActive = location.pathname === to || (to !== '/' && location.pathname.startsWith(to));
-  const cls = `sidebar-link${isActive ? ' active' : ''}`;
+function SidebarLink({ to, icon: Icon, label }) {
+  const { pathname } = useLocation();
+  const isActive = pathname === to || (to !== '/' && pathname.startsWith(to));
 
   return (
-    <Link to={to} className={cls}>
-      {icon}
-      <span>{label}</span>
+    <Link
+      to={to}
+      className={cn(
+        'flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors',
+        isActive
+          ? 'bg-sidebar-accent text-sidebar-accent-foreground'
+          : 'text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
+      )}
+    >
+      <Icon className="h-4 w-4" />
+      {label}
     </Link>
   );
 }
 
-function Layout({ children }) {
-  const [wsConnected, setWsConnected] = useState(false);
-  const location = useLocation();
+export default function Layout({ children }) {
+  const { pathname } = useLocation();
   const [theme, setTheme] = useState('light');
 
   const handleWsEvent = useCallback(() => {}, []);
-
   const { connected } = useIncidentSocket(handleWsEvent);
-  if (connected !== wsConnected) setWsConnected(connected);
 
   useEffect(() => {
-    if (typeof window === 'undefined') return;
     try {
-      const stored = window.localStorage.getItem(THEME_STORAGE_KEY);
+      const stored = localStorage.getItem(THEME_KEY);
       if (stored === 'light' || stored === 'dark') {
         setTheme(stored);
         return;
       }
-    } catch (error) {
-      // ignore
-    }
-    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-    setTheme(prefersDark ? 'dark' : 'light');
+    } catch {}
+    setTheme(window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
   }, []);
 
   useEffect(() => {
-    if (typeof document === 'undefined') return;
-    document.documentElement.dataset.theme = theme;
-    try {
-      window.localStorage.setItem(THEME_STORAGE_KEY, theme);
-    } catch (error) {
-      // best effort
-    }
+    document.documentElement.classList.toggle('dark', theme === 'dark');
+    try { localStorage.setItem(THEME_KEY, theme); } catch {}
   }, [theme]);
 
   const toggleTheme = useCallback(() => {
     setTheme((prev) => (prev === 'light' ? 'dark' : 'light'));
   }, []);
 
-  const currentPage = pageNames[location.pathname] || 'Incident Response';
+  const currentPage = pageNames[pathname] || 'Incident Response';
 
   return (
-    <div className="app-shell">
-      <aside className="sidebar">
-        <div className="sidebar-logo">
-          <svg width="22" height="22" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <rect width="100" height="100" rx="20" fill="currentColor" style={{ color: 'var(--accent)' }}/>
-            <path d="M20 55 H35 L45 25 L55 85 L65 55 H80" stroke="var(--bg-body)" strokeWidth="7" strokeLinecap="round" strokeLinejoin="round"/>
-          </svg>
-          <span className="sidebar-logo-text">ExpertMind</span>
+    <div className="flex h-screen overflow-hidden">
+      {/* Sidebar */}
+      <aside className="flex w-56 flex-col border-r border-sidebar-border bg-sidebar-background">
+        <div className="flex items-center gap-2.5 px-5 py-5">
+          <Activity className="h-6 w-6 text-foreground" />
+          <span className="text-base font-bold tracking-tight">ExpertMind</span>
         </div>
-        <nav className="sidebar-nav">
-          <SidebarLink to="/" icon={icons.dashboard} label="Dashboard" />
-          <SidebarLink to="/metrics" icon={icons.metrics} label="SRE Metrics" />
-          <SidebarLink to="/oncall" icon={icons.oncall} label="On-Call" />
+        <nav className="flex flex-1 flex-col gap-1 px-3">
+          {navItems.map((item) => (
+            <SidebarLink key={item.to} {...item} />
+          ))}
         </nav>
       </aside>
 
-      <div className="main-area">
-        <header className="topbar">
-          <span className="topbar-title">{currentPage}</span>
-          <div className="topbar-spacer" />
-          <button
-            type="button"
-            className="theme-toggle"
-            onClick={toggleTheme}
-            aria-label={theme === 'light' ? 'Switch to dark mode' : 'Switch to light mode'}
-            title={theme === 'light' ? 'Switch to dark mode' : 'Switch to light mode'}
-          >
-            <span aria-hidden="true">{theme === 'light' ? '🌙' : '☀️'}</span>
-          </button>
-          <span className="topbar-badge">
-            <span className={`dot${wsConnected ? '' : ' off'}`} />
-            {wsConnected ? 'Live' : 'Offline'}
-          </span>
+      {/* Main */}
+      <div className="flex flex-1 flex-col overflow-hidden">
+        {/* Top bar */}
+        <header className="flex h-14 items-center justify-between border-b border-border bg-card px-6">
+          <h1 className="text-sm font-semibold">{currentPage}</h1>
+          <div className="flex items-center gap-3">
+            <Button variant="ghost" size="icon" onClick={toggleTheme} aria-label="Toggle theme">
+              {theme === 'light' ? <Moon className="h-4 w-4" /> : <Sun className="h-4 w-4" />}
+            </Button>
+            <div className={cn(
+              'flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium',
+              connected
+                ? 'bg-status-resolved/15 text-status-resolved'
+                : 'bg-muted text-muted-foreground'
+            )}>
+              {connected ? <Wifi className="h-3 w-3" /> : <WifiOff className="h-3 w-3" />}
+              {connected ? 'Live' : 'Offline'}
+            </div>
+          </div>
         </header>
-        <div className="content">
+
+        {/* Content */}
+        <main className="flex-1 overflow-y-auto p-6">
           {children}
-        </div>
+        </main>
       </div>
     </div>
   );
 }
-
-export default Layout;
