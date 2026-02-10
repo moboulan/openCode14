@@ -90,7 +90,7 @@ def test_get_db_connection_autocommit():
     mock_pool.getconn.return_value = mock_conn
 
     with patch("app.database.get_pool", return_value=mock_pool):
-        with get_db_connection(autocommit=True) as conn:
+        with get_db_connection(autocommit=True):
             pass  # normal flow
 
     mock_conn.commit.assert_called_once()
@@ -104,7 +104,7 @@ def test_get_db_connection_no_autocommit():
     mock_pool.getconn.return_value = mock_conn
 
     with patch("app.database.get_pool", return_value=mock_pool):
-        with get_db_connection(autocommit=False) as conn:
+        with get_db_connection(autocommit=False):
             pass
 
     mock_conn.commit.assert_not_called()
@@ -119,7 +119,7 @@ def test_get_db_connection_rollback_on_exception():
 
     with patch("app.database.get_pool", return_value=mock_pool):
         with pytest.raises(ValueError):
-            with get_db_connection() as conn:
+            with get_db_connection():
                 raise ValueError("test error")
 
     mock_conn.rollback.assert_called_once()

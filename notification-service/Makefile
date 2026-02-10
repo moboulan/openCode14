@@ -66,6 +66,7 @@ scan: build  ## Scan image with Trivy
 test:  ## Run unit tests with coverage
 	@echo "── pytest ──"
 	cd $(SERVICE_DIR) && $(PYTHON) -m pytest $(TESTS_DIR)/ \
+		--ignore=$(TESTS_DIR)/integration \
 		-v --tb=short \
 		--cov=$(APP_MODULE) \
 		--cov-report=term-missing \
