@@ -1,0 +1,336 @@
+name: AI Analysis CI/CD
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - 'ai-analysis-service/**'
+      - '.github/workflows/ai-analysis-ci.yml'
+  pull_request:
+    paths:
+      - 'ai-analysis-service/**'
+      - '.github/workflows/ai-analysis-ci.yml'
+  workflow_dispatch:
+
+env:
+  SERVICE_DIR: ai-analysis-service
+  IMAGE_NAME: expertmind-ai-analysis
+
+jobs:
+  # ──────────────────────────────────────────
+  # Stage 1: Code Quality
+  # ──────────────────────────────────────────
+  lint:
+    name: "Stage 1: Code Quality"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install linting tools
+        run: pip install flake8 pylint black isort autoflake
+
+      - name: Install service dependencies
+        run: pip install -r ${{ env.SERVICE_DIR }}/requirements.txt
+
+      - name: Check formatting (black)
+        run: |
+          cd ${{ env.SERVICE_DIR }}
+          black --check --line-length=120 app/
+
+      - name: Check import order (isort)
+        run: |
+          cd ${{ env.SERVICE_DIR }}
+          isort --check --profile=black app/
+
+      - name: Run flake8
+        run: |
+          cd ${{ env.SERVICE_DIR }}
+          flake8 app/ --max-line-length=120 --ignore=E501,W503,E402 --statistics
+
+      - name: Run pylint
+        run: |
+          cd ${{ env.SERVICE_DIR }}
+          pylint app/ --disable=C0114,C0115,C0116,C0301,R0903,R0914,E0401,W0603,W0621,W0613,W1203 --fail-under=7.0
+
+      - name: Check code duplication
+        run: |
+          cd ${{ env.SERVICE_DIR }}
+          pylint --disable=all --enable=R0801 app/ --min-similarity-lines=5 || true
+
+  # ──────────────────────────────────────────
+  # Stage 2: Security Scanning
+  # ──────────────────────────────────────────
+  security:
+    name: "Stage 2: Security Scanning"
+    runs-on: ubuntu-latest
+    needs: lint
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Run Gitleaks
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Run TruffleHog
+        uses: trufflesecurity/trufflehog@main
+        with:
+          extra_args: --only-verified
+
+  # ──────────────────────────────────────────
+  # Stage 3: Build Docker Image
+  # ──────────────────────────────────────────
+  build:
+    name: "Stage 3: Build"
+    runs-on: ubuntu-latest
+    needs: security
+    permissions:
+      packages: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Login to GHCR
+        if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Docker metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository_owner }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=sha,prefix=
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - name: Build and push
+        uses: docker/build-push-action@v5
+        with:
+          context: ${{ env.SERVICE_DIR }}
+          push: ${{ github.event_name == 'push' && github.ref == 'refs/heads/master' }}
+          tags: ${{ steps.meta.outputs.tags }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          build-args: |
+            VERSION=${{ github.sha }}
+
+      - name: Print image size
+        run: docker images ${{ env.IMAGE_NAME }} --format "{{.Repository}}:{{.Tag}} — {{.Size}}"
+
+  # ──────────────────────────────────────────
+  # Stage 4: Vulnerability Scan
+  # ──────────────────────────────────────────
+  scan:
+    name: "Stage 4: Trivy Scan"
+    runs-on: ubuntu-latest
+    needs: build
+    permissions:
+      security-events: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build image for scanning
+        run: |
+          cd ${{ env.SERVICE_DIR }}
+          docker build -t ${{ env.IMAGE_NAME }}:scan .
+
+      - name: Run Trivy vulnerability scan
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          image-ref: "${{ env.IMAGE_NAME }}:scan"
+          format: "table"
+          exit-code: "0"
+          severity: "CRITICAL,HIGH"
+          ignore-unfixed: true
+
+      - name: Run Trivy (SARIF report)
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          image-ref: "${{ env.IMAGE_NAME }}:scan"
+          format: "sarif"
+          output: "trivy.sarif"
+          severity: "HIGH,CRITICAL"
+          ignore-unfixed: true
+
+      - name: Upload Trivy SARIF report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: trivy-sarif-report
+          path: "trivy.sarif"
+          retention-days: 30
+
+  # ──────────────────────────────────────────
+  # Stage 5: Tests
+  # ──────────────────────────────────────────
+  test:
+    name: "Stage 5: Tests"
+    runs-on: ubuntu-latest
+    needs: lint
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_HOST_AUTH_METHOD: trust
+          POSTGRES_DB: incident_platform
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U postgres"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          cd ${{ env.SERVICE_DIR }}
+          pip install -r requirements.txt
+          pip install pytest pytest-cov pytest-asyncio httpx
+
+      - name: Install PostgreSQL client
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq postgresql-client
+
+      - name: Initialize database schemas
+        env:
+          PGHOST: localhost
+          PGUSER: postgres
+          PGDATABASE: incident_platform
+        run: |
+          psql -f database/init-db/01-init-database.sql
+
+      - name: Run tests with coverage
+        env:
+          DATABASE_URL: postgresql://postgres@localhost:5432/incident_platform
+          INCIDENT_SERVICE_URL: http://localhost:8002
+        run: |
+          cd ${{ env.SERVICE_DIR }}
+          python -m pytest tests/ -v \
+            --tb=short \
+            --cov=app \
+            --cov-report=term-missing \
+            --cov-report=html:htmlcov \
+            --cov-fail-under=80
+
+      - name: Upload coverage report
+        if: always()
+        uses: actions/upload-artifact@v4
+        continue-on-error: true
+        with:
+          name: coverage-ai-analysis
+          path: ${{ env.SERVICE_DIR }}/htmlcov/
+          retention-days: 7
+
+  # ──────────────────────────────────────────
+  # Stage 6 + 7: Deploy & Verify (same runner)
+  # ──────────────────────────────────────────
+  deploy-verify:
+    name: "Stage 6+7: Deploy & Smoke Test"
+    runs-on: ubuntu-latest
+    needs: [build, test, scan]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+    env:
+      IMAGE_NAME: expertmind-ai-analysis
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Tag current images as :prev for rollback
+        run: |
+          docker tag ${{ env.IMAGE_NAME }}:latest ${{ env.IMAGE_NAME }}:prev 2>/dev/null || echo "No existing image to tag"
+
+      - name: Deploy with Docker Compose
+        run: |
+          docker compose down -v --remove-orphans 2>/dev/null || true
+          docker compose up -d --build
+          echo "Waiting for services to start..."
+
+      - name: Wait for database to be healthy
+        run: |
+          TIMEOUT=60; ELAPSED=0
+          until docker compose exec -T database pg_isready -U postgres > /dev/null 2>&1; do
+            if [ $ELAPSED -ge $TIMEOUT ]; then
+              echo "Database health check failed after ${TIMEOUT}s"
+              docker compose logs database
+              exit 1
+            fi
+            sleep 5; ELAPSED=$((ELAPSED + 5))
+          done
+          echo "Database is healthy"
+
+      - name: Wait for AI Analysis to be healthy
+        run: |
+          TIMEOUT=90; ELAPSED=0
+          until curl -sf http://localhost:8005/health > /dev/null 2>&1; do
+            if [ $ELAPSED -ge $TIMEOUT ]; then
+              echo "AI Analysis health check failed after ${TIMEOUT}s"
+              docker compose logs ai-analysis
+              exit 1
+            fi
+            echo "Waiting... (${ELAPSED}/${TIMEOUT}s)"
+            sleep 5; ELAPSED=$((ELAPSED + 5))
+          done
+          echo "AI Analysis is healthy"
+
+      - name: Verify health endpoint
+        run: |
+          echo "--- /health ---"
+          curl -sf http://localhost:8005/health | jq .
+
+      - name: Smoke test — POST analyze
+        run: |
+          HTTP_CODE=$(curl -sf -o /tmp/resp.json -w "%{http_code}" -X POST \
+            http://localhost:8005/api/v1/analyze \
+            -H "Content-Type: application/json" \
+            -d '{"message":"high cpu usage on web-server","service":"web-server","severity":"critical"}')
+          [ "$HTTP_CODE" = "200" ] && echo "200 OK" || (echo "Got $HTTP_CODE" && exit 1)
+          cat /tmp/resp.json | jq .
+
+      - name: Smoke test — GET knowledge-base
+        run: |
+          COUNT=$(curl -sf http://localhost:8005/api/v1/knowledge-base | jq 'length')
+          [ "$COUNT" -ge 1 ] && echo "Found $COUNT patterns" || (echo "No patterns" && exit 1)
+
+      - name: Verify Prometheus metrics
+        run: |
+          METRICS=$(curl -sf http://localhost:8005/metrics)
+          echo "$METRICS" | grep -q "http_request" && echo "http_request metrics present"
+
+      - name: Rollback on failure
+        if: failure()
+        run: |
+          echo "FAIL Verification failed -- attempting rollback to :prev"
+          docker tag ${{ env.IMAGE_NAME }}:prev ${{ env.IMAGE_NAME }}:latest 2>/dev/null || echo "No :prev image found"
+          docker compose down -v --remove-orphans 2>/dev/null || true
+          docker compose up -d
+          sleep 20
+          curl -sf http://localhost:8005/health | jq . || echo "WARN Service not healthy after rollback"
+
+      - name: Dump logs on failure
+        if: failure()
+        run: docker compose logs --tail=50
+
+      - name: Teardown
+        if: always()
+        run: docker compose down -v --remove-orphans 2>/dev/null || true

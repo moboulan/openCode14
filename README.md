@@ -1,25 +1,44 @@
 # Incident & On-Call Management Platform
 
-> **OpenCode Hackathon 2026** — Production-ready incident management platform built with Python/FastAPI microservices, React frontend, PostgreSQL, and Prometheus + Grafana monitoring.
+> **OpenCode Hackathon 2026** — Production-ready incident management platform built with Python/FastAPI microservices, React frontend, PostgreSQL, and Prometheus + Grafana monitoring. Includes an NLP-powered AI analysis engine for root-cause suggestions.
 
 ---
 
-## Quick Start (≤5 commands)
+## Quick Start (5 commands)
 
 ```bash
-git clone <repo-url>        # clone the repository
-cd incident-platform        # navigate to project root
-cp .env.example .env        # configure environment
-make all                    # build and start all Docker images
+git clone <repo-url>        # 1. clone the repository
+cd OpenCode14               # 2. navigate to project root
+cp .env.example .env        # 3. configure environment
+make setup                  # 4. create venv + install dependencies
+make up                     # 5. start all services via Docker Compose
 ```
 
 **That's it!** Open:
 
 - **Web UI** → <http://localhost:8080>
+- **Test Runner UI** → <http://localhost:8006>
 - **Alert Ingestion API** → <http://localhost:8001/docs>
 - **Incident Management API** → <http://localhost:8002/docs>
+- **AI Analysis API** → <http://localhost:8005/docs>
 - **Grafana Dashboards** → <http://localhost:3000> (admin/admin)
 - **Prometheus** → <http://localhost:9090>
+
+> **Full CI/CD pipeline** (lint → security → build → scan → test → deploy → verify):
+>
+> ```bash
+> make all
+> ```
+
+### Send Test Data
+
+Open the **Test Runner UI** at <http://localhost:8006> to:
+
+- Browse 15 predefined alert scenarios grouped by category
+- Send individual alerts or all at once with one click
+- Create custom alerts with free-form fields
+- Start continuous mode with configurable intervals
+- Monitor service health and view live AI analysis results
 
 ---
 
@@ -39,14 +58,19 @@ make all                    # build and start all Docker images
 └───────┬────────┘ └───────┬────────┘ └───────┬────────┘
         │                  │                  │
         │          ┌───────┴────────┐         │
-        │          │  Notification  │←────────┘
+        ├─────────→│  Notification  │←────────┘
         │          │   :8004        │
         │          └───────┬────────┘
         │                  │
-        |                  |
+┌───────┴────────┐         │
+│  AI Analysis   │         │
+│   :8005        │         │
+│ (NLP / TF-IDF) │         │
+└───────┬────────┘         │
+        │                  │
 ┌──────────────────────────────────────┐
 │         PostgreSQL (:5432)           │
-│  schemas: alerts │ incidents │ oncall │ notifications │
+│  schemas: alerts │ incidents │ oncall │ notifications │ analysis │
 └──────────────────────────────────────┘
         │
 ┌───────┴──────────────────────────────┐
@@ -61,10 +85,11 @@ make all                    # build and start all Docker images
 2. Alert is validated, normalized, stored in `alerts.alerts`
 3. Correlation engine checks for open incidents (same service + severity within 5-min window)
 4. If match → attach to existing incident; if no match → create new incident via Incident Management
-5. Incident Management assigns on-call engineer via On-Call Service
-6. Notification Service alerts the engineer (email/webhook/mock)
-7. Engineer acknowledges → MTTA calculated; resolves → MTTR calculated
-8. All metrics exposed via Prometheus and visualized in Grafana dashboards
+5. **AI Analysis Service** receives the alert asynchronously and returns root-cause suggestions via TF-IDF similarity
+6. Incident Management assigns on-call engineer via On-Call Service
+7. Notification Service alerts the engineer (email/webhook/mock)
+8. Engineer acknowledges → MTTA calculated; resolves → MTTR calculated
+9. All metrics exposed via Prometheus and visualized in Grafana dashboards
 
 ---
 
@@ -76,10 +101,12 @@ make all                    # build and start all Docker images
 | **Incident Management** | 8002 | CRUD for incidents, status transitions, MTTA/MTTR |
 | **On-Call & Escalation** | 8003 | Rotation schedules, current on-call, auto-escalation |
 | **Notification** | 8004 | Multi-channel notifications (mock, email, webhook) |
-| **Web UI** | 8080 | React dashboard with live incident view |
-| **PostgreSQL** | 5432 | Persistent storage (4 schemas) |
+| **AI Analysis** | 8005 | NLP-powered root-cause analysis (TF-IDF + knowledge base) |
+| **Web UI** | 8080 | React dashboard with live incident view + AI suggestions |
+| **PostgreSQL** | 5432 | Persistent storage (5 schemas) |
 | **Prometheus** | 9090 | Metrics collection (10s scrape) |
 | **Grafana** | 3000 | 3 dashboards (incidents, SRE metrics, system health) |
+| **Test Runner** | 8006 | Interactive web UI for sending test alerts + viewing AI analysis |
 
 ---
 
@@ -93,6 +120,7 @@ Each service auto-generates interactive API docs via FastAPI:
 | Incident Management | <http://localhost:8002/docs> |
 | On-Call Service | <http://localhost:8003/docs> |
 | Notification Service | <http://localhost:8004/docs> |
+| AI Analysis | <http://localhost:8005/docs> |
 
 ### Key Endpoints
 
@@ -107,6 +135,14 @@ curl http://localhost:8002/api/v1/incidents?status=open
 
 # Get current on-call
 curl http://localhost:8003/api/v1/oncall/current?team=platform
+
+# Analyse an alert with AI
+curl -X POST http://localhost:8005/api/v1/analyze \
+  -H "Content-Type: application/json" \
+  -d '{"message":"high cpu usage detected","service":"web-server","severity":"critical"}'
+
+# Get AI suggestions for an incident
+curl http://localhost:8005/api/v1/suggestions?incident_id=<uuid>
 
 # Check health
 curl http://localhost:8001/health
@@ -177,16 +213,19 @@ incident-platform/
 ├── incident-management-service/# FastAPI :8002
 ├── oncall-service/             # FastAPI :8003
 ├── notification-service/       # FastAPI :8004
+├── ai-analysis-service/        # FastAPI :8005 (NLP engine)
 ├── web-ui/                     # React :8080
+├── test-runner/                # Test data generator (Docker)
 ├── database/                   # PostgreSQL init scripts
 │   └── init-db/
 │       └── 01-init-database.sql
 ├── monitoring/                 # Prometheus & Grafana config
+│   └── grafana-dashboards/     # 5 auto-provisioned dashboards
 ├── docker-compose.yml          # All services orchestration
 ├── Makefile                    # 7-stage CI/CD pipeline
 ├── .env.example                # Environment template
 ├── .gitleaks.toml              # Credentials scanning config
-└── .github/workflows/          # GitHub Actions CI
+└── .github/workflows/          # GitHub Actions CI (6 pipelines)
 ```
 
 ---

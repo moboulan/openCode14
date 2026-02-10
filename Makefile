@@ -8,12 +8,13 @@
 # ============================================================
 
 COMPOSE       := docker compose
-SERVICES      := alert-ingestion incident-management notification-service oncall-service
+SERVICES      := alert-ingestion incident-management notification-service oncall-service ai-analysis
 DB_CONTAINER  := incident-db
 IMAGE_ALERT   := expertmind-alert-ingestion
 IMAGE_INCIDENT:= expertmind-incident-management
 IMAGE_NOTIF   := expertmind-notification-service
 IMAGE_ONCALL  := expertmind-oncall-service
+IMAGE_AI      := expertmind-ai-analysis
 PREV_TAG      := prev
 VERSION       := $(shell git rev-parse --short HEAD 2>/dev/null || echo "dev")
 VENV          := .venv
@@ -36,12 +37,13 @@ PIP           := $(VENV)/bin/pip
 $(VENV)/bin/activate:
 	$(PYTHON_BIN) -m venv $(VENV)
 
-$(VENV)/.installed: $(VENV)/bin/activate alert-ingestion-service/requirements.txt incident-management-service/requirements.txt notification-service/requirements.txt oncall-service/requirements.txt
+$(VENV)/.installed: $(VENV)/bin/activate alert-ingestion-service/requirements.txt incident-management-service/requirements.txt notification-service/requirements.txt oncall-service/requirements.txt ai-analysis-service/requirements.txt
 	$(PIP) install --upgrade pip -q
 	$(PIP) install -r alert-ingestion-service/requirements.txt -q
 	$(PIP) install -r incident-management-service/requirements.txt -q
 	$(PIP) install -r notification-service/requirements.txt -q
 	$(PIP) install -r oncall-service/requirements.txt -q
+	$(PIP) install -r ai-analysis-service/requirements.txt -q
 	$(PIP) install flake8 pylint black isort autoflake pytest pytest-cov pytest-asyncio httpx pre-commit -q
 	touch $(VENV)/.installed
 
@@ -61,18 +63,19 @@ lint:  ## Run linters for all services
 	$(MAKE) -C incident-management-service lint PYTHON=$(CURDIR)/$(PYTHON)
 	$(MAKE) -C notification-service lint PYTHON=$(CURDIR)/$(PYTHON)
 	$(MAKE) -C oncall-service lint PYTHON=$(CURDIR)/$(PYTHON)
+	$(MAKE) -C ai-analysis-service lint PYTHON=$(CURDIR)/$(PYTHON)
 
 dupcheck:  ## Check for code duplication (< 3% threshold)
 	@echo "── duplication check ──"
 	@if command -v jscpd >/dev/null 2>&1; then \
-		jscpd alert-ingestion-service/app/ incident-management-service/app/ oncall-service/app/ notification-service/app/ \
+		jscpd alert-ingestion-service/app/ incident-management-service/app/ oncall-service/app/ notification-service/app/ ai-analysis-service/app/ \
 			--min-lines 5 --min-tokens 50 --threshold 3 \
 			--reporters console \
 			--ignore 'node_modules|.venv|htmlcov|__pycache__' || exit 1; \
 	else \
 		$(PYTHON) -m pylint --disable=all --enable=R0801 \
 			alert-ingestion-service/app/ incident-management-service/app/ \
-			oncall-service/app/ notification-service/app/ \
+			oncall-service/app/ notification-service/app/ ai-analysis-service/app/ \
 			--min-similarity-lines=5 2>&1 | tee /tmp/dupcheck.txt; \
 		if grep -q 'R0801' /tmp/dupcheck.txt; then \
 			echo "WARN Duplicate code detected (see above)"; \
@@ -105,7 +108,7 @@ build: .env  ## Stage 3 — Build all Docker images
 # ── Stage 4: Vulnerability Scan ──────────────────────────────
 
 scan: build  ## Stage 4 — Trivy vulnerability scan on all images
-	@for img in $(IMAGE_ALERT) $(IMAGE_INCIDENT) $(IMAGE_NOTIF) $(IMAGE_ONCALL); do \
+	@for img in $(IMAGE_ALERT) $(IMAGE_INCIDENT) $(IMAGE_NOTIF) $(IMAGE_ONCALL) $(IMAGE_AI); do \
 		echo "── trivy scan: $$img ──"; \
 		trivy image --severity HIGH,CRITICAL --ignore-unfixed --exit-code 0 $$img:latest 2>/dev/null || \
 			docker run --rm -v /var/run/docker.sock:/var/run/docker.sock \
@@ -119,12 +122,14 @@ test: $(VENV)/.installed  ## Stage 5 — Run unit tests with coverage
 	$(MAKE) -C incident-management-service test PYTHON=$(CURDIR)/$(PYTHON)
 	$(MAKE) -C notification-service test PYTHON=$(CURDIR)/$(PYTHON)
 	$(MAKE) -C oncall-service test PYTHON=$(CURDIR)/$(PYTHON)
+	$(MAKE) -C ai-analysis-service test PYTHON=$(CURDIR)/$(PYTHON)
 
 test-integration: $(VENV)/.installed  ## Run integration tests (requires running services)
 	$(MAKE) -C alert-ingestion-service test-integration PYTHON=$(CURDIR)/$(PYTHON)
 	$(MAKE) -C incident-management-service test-integration PYTHON=$(CURDIR)/$(PYTHON)
 	$(MAKE) -C notification-service test-integration PYTHON=$(CURDIR)/$(PYTHON) 2>/dev/null || true
 	$(MAKE) -C oncall-service test-integration PYTHON=$(CURDIR)/$(PYTHON) 2>/dev/null || true
+	$(MAKE) -C ai-analysis-service test-integration PYTHON=$(CURDIR)/$(PYTHON) 2>/dev/null || true
 
 # ── Stage 6: Deploy ──────────────────────────────────────────
 
@@ -134,6 +139,7 @@ deploy: .env  ## Stage 6 — Tag prev images for rollback, then deploy
 	@docker tag $(IMAGE_INCIDENT):latest $(IMAGE_INCIDENT):$(PREV_TAG) 2>/dev/null || true
 	@docker tag $(IMAGE_NOTIF):latest $(IMAGE_NOTIF):$(PREV_TAG) 2>/dev/null || true
 	@docker tag $(IMAGE_ONCALL):latest $(IMAGE_ONCALL):$(PREV_TAG) 2>/dev/null || true
+	@docker tag $(IMAGE_AI):latest $(IMAGE_AI):$(PREV_TAG) 2>/dev/null || true
 	@echo "── deploying ──"
 	$(COMPOSE) down -v --remove-orphans 2>/dev/null || true
 	$(COMPOSE) up -d --build
@@ -166,11 +172,18 @@ deploy: .env  ## Stage 6 — Tag prev images for rollback, then deploy
 		sleep 2; \
 	done
 	@curl -sf http://localhost:8003/health >/dev/null 2>&1 && echo "OK On-Call Service is healthy" || echo "WARN On-Call Service not responding yet"
+	@echo "Waiting for ai-analysis to be healthy..."
+	@for i in 1 2 3 4 5 6 7 8 9 10; do \
+		curl -sf http://localhost:8005/health >/dev/null 2>&1 && break; \
+		sleep 2; \
+	done
+	@curl -sf http://localhost:8005/health >/dev/null 2>&1 && echo "OK AI Analysis is healthy" || echo "WARN AI Analysis not responding yet"
 	@echo "Services:"
 	@echo "  Alert Ingestion       → http://localhost:8001"
 	@echo "  Incident Management   → http://localhost:8002"
 	@echo "  On-Call Service       → http://localhost:8003"
 	@echo "  Notification Service  → http://localhost:8004"
+	@echo "  AI Analysis           → http://localhost:8005"
 	@echo "  Database              → localhost:5432"
 
 # ── Stage 7: Verify & Smoke Test ─────────────────────────────
@@ -209,6 +222,9 @@ verify:  ## Stage 7 — Health checks + smoke tests (auto-rollback on failure)
 	curl -sf http://localhost:8003/health/ready | python3 -m json.tool || VERIFY_PASS=false; \
 	curl -sf http://localhost:8003/health/live  | python3 -m json.tool || VERIFY_PASS=false; \
 	curl -sf http://localhost:8003/metrics | grep -q "escalations_total" && echo "oncall metrics OK" || VERIFY_PASS=false; \
+	echo "── ai-analysis health ──"; \
+	curl -sf http://localhost:8005/health | python3 -m json.tool || VERIFY_PASS=false; \
+	curl -sf http://localhost:8005/metrics | grep -q "http_request" && echo "ai-analysis metrics OK" || VERIFY_PASS=false; \
 	if [ "$$VERIFY_PASS" = "false" ]; then \
 		echo "FAIL Verification FAILED -- rolling back to :prev"; \
 		$(MAKE) rollback; \
@@ -224,6 +240,7 @@ rollback:  ## Rollback to :prev tagged images
 	@docker tag $(IMAGE_INCIDENT):$(PREV_TAG) $(IMAGE_INCIDENT):latest 2>/dev/null || echo "No :prev incident image found"
 	@docker tag $(IMAGE_NOTIF):$(PREV_TAG) $(IMAGE_NOTIF):latest 2>/dev/null || echo "No :prev notification image found"
 	@docker tag $(IMAGE_ONCALL):$(PREV_TAG) $(IMAGE_ONCALL):latest 2>/dev/null || echo "No :prev oncall image found"
+	@docker tag $(IMAGE_AI):$(PREV_TAG) $(IMAGE_AI):latest 2>/dev/null || echo "No :prev ai-analysis image found"
 	$(COMPOSE) down -v --remove-orphans 2>/dev/null || true
 	$(COMPOSE) up -d
 	@echo "Rollback complete — waiting for health…"
@@ -273,6 +290,7 @@ coverage: $(VENV)/.installed  ## Run tests with coverage and open HTML report
 	$(MAKE) -C incident-management-service test PYTHON=$(CURDIR)/$(PYTHON)
 	$(MAKE) -C notification-service test PYTHON=$(CURDIR)/$(PYTHON)
 	$(MAKE) -C oncall-service test PYTHON=$(CURDIR)/$(PYTHON)
+	$(MAKE) -C ai-analysis-service test PYTHON=$(CURDIR)/$(PYTHON)
 	@echo "Opening coverage report…"
 	@xdg-open alert-ingestion-service/htmlcov/index.html 2>/dev/null || open alert-ingestion-service/htmlcov/index.html 2>/dev/null || echo "Report at alert-ingestion-service/htmlcov/index.html"
 	@xdg-open incident-management-service/htmlcov/index.html 2>/dev/null || open incident-management-service/htmlcov/index.html 2>/dev/null || echo "Report at incident-management-service/htmlcov/index.html"
@@ -295,6 +313,8 @@ health:  ## Hit health endpoints
 	@curl -sf http://localhost:8003/health | python3 -m json.tool
 	@curl -sf http://localhost:8003/health/ready | python3 -m json.tool
 	@curl -sf http://localhost:8003/health/live  | python3 -m json.tool
+	@echo "── AI Analysis ──"
+	@curl -sf http://localhost:8005/health | python3 -m json.tool
 
 smoke:  ## Quick smoke test (POST + GET alert)
 	@echo "── POST alert ──"
@@ -311,6 +331,7 @@ fmt: $(VENV)/.installed  ## Auto-format all service code
 	$(MAKE) -C incident-management-service fmt PYTHON=$(CURDIR)/$(PYTHON)
 	$(MAKE) -C notification-service fmt PYTHON=$(CURDIR)/$(PYTHON)
 	$(MAKE) -C oncall-service fmt PYTHON=$(CURDIR)/$(PYTHON)
+	$(MAKE) -C ai-analysis-service fmt PYTHON=$(CURDIR)/$(PYTHON)
 
 format: fmt  ## Alias for fmt
 
@@ -321,6 +342,7 @@ clean:  ## Remove build artifacts across all services
 	$(MAKE) -C incident-management-service clean
 	$(MAKE) -C notification-service clean
 	$(MAKE) -C oncall-service clean
+	$(MAKE) -C ai-analysis-service clean
 	docker image prune -f
 
 fclean: clean  ## Remove everything (venv, volumes, images)

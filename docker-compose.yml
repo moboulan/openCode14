@@ -279,6 +279,29 @@ services:
       start_period: 30s
     restart: unless-stopped
 
+  # ── Test Runner (Web UI) ───────────────────────────────────
+  test-runner:
+    build:
+      context: ./test-runner
+      dockerfile: Dockerfile
+    container_name: test-runner
+    ports:
+      - "8006:8006"
+    environment:
+      - SERVICE_PORT=8006
+    networks:
+      - incident-platform
+    depends_on:
+      database:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8006/health')"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    restart: unless-stopped
+
 volumes:
   db-data:
     driver: local
