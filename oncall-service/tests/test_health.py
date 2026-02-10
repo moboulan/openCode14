@@ -1,6 +1,6 @@
 """Tests for the health router -- /health, /health/ready, /health/live."""
 
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -27,6 +27,36 @@ async def test_health_check_degraded(client):
         body = resp.json()
         assert body["status"] == "degraded"
         assert body["checks"]["database"] == "unhealthy"
+
+
+@pytest.mark.asyncio
+async def test_health_check_high_memory(client):
+    """Health endpoint marks memory as warning when usage exceeds threshold."""
+    mock_mem = MagicMock()
+    mock_mem.percent = 99.0  # Above default threshold (90)
+    with (
+        patch("app.routers.health.check_database_health", return_value=True),
+        patch("app.routers.health.psutil.virtual_memory", return_value=mock_mem),
+    ):
+        resp = await client.get("/health")
+        body = resp.json()
+        assert body["status"] == "degraded"
+        assert body["checks"]["memory"] == "warning"
+
+
+@pytest.mark.asyncio
+async def test_health_check_high_disk(client):
+    """Health endpoint marks disk as warning when usage exceeds threshold."""
+    mock_disk = MagicMock()
+    mock_disk.percent = 99.0  # Above default threshold (90)
+    with (
+        patch("app.routers.health.check_database_health", return_value=True),
+        patch("app.routers.health.psutil.disk_usage", return_value=mock_disk),
+    ):
+        resp = await client.get("/health")
+        body = resp.json()
+        assert body["status"] == "degraded"
+        assert body["checks"]["disk"] == "warning"
 
 
 @pytest.mark.asyncio

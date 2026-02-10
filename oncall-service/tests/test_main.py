@@ -41,6 +41,9 @@ async def test_openapi_json(client):
     assert "/api/v1/schedules" in body["paths"]
     assert "/api/v1/oncall/current" in body["paths"]
     assert "/api/v1/escalate" in body["paths"]
+    assert "/api/v1/escalation-policies" in body["paths"]
+    assert "/api/v1/check-escalations" in body["paths"]
+    assert "/api/v1/metrics/oncall" in body["paths"]
 
 
 @pytest.mark.asyncio

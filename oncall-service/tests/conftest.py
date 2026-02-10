@@ -78,3 +78,14 @@ def sample_escalate_payload():
         "team": "platform",
         "reason": "No acknowledgment within 5 minutes",
     }
+
+
+@pytest.fixture()
+def sample_policy_payload():
+    return {
+        "team": "platform",
+        "levels": [
+            {"level": 1, "wait_minutes": 5, "notify_target": "secondary"},
+            {"level": 2, "wait_minutes": 10, "notify_target": "manager"},
+        ],
+    }

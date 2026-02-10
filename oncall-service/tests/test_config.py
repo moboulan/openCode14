@@ -15,6 +15,9 @@ def test_settings_loads_defaults():
     assert settings.APP_VERSION == "1.0.0"
     assert settings.DB_POOL_MIN == 1
     assert settings.DB_POOL_MAX == 10
+    assert settings.DEFAULT_ESCALATION_MINUTES == 5
+    assert settings.MANAGER_EMAIL == "admin@example.com"
+    assert settings.ESCALATION_LOOP_COUNT == 2
 
 
 def test_settings_cors_origin_list():

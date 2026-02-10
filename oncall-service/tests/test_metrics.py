@@ -25,3 +25,49 @@ def test_setup_custom_metrics():
     from app.metrics import setup_custom_metrics
 
     setup_custom_metrics()  # should not raise
+
+
+def test_escalation_notifications_total():
+    """escalation_notifications_total counter increments."""
+    from app.metrics import escalation_notifications_total
+
+    before = escalation_notifications_total.labels(team="platform", channel="mock", status="sent")._value.get()
+    escalation_notifications_total.labels(team="platform", channel="mock", status="sent").inc()
+    after = escalation_notifications_total.labels(team="platform", channel="mock", status="sent")._value.get()
+    assert after == before + 1
+
+
+def test_auto_escalation_runs_total():
+    """auto_escalation_runs_total counter increments."""
+    from app.metrics import auto_escalation_runs_total
+
+    before = auto_escalation_runs_total._value.get()
+    auto_escalation_runs_total.inc()
+    after = auto_escalation_runs_total._value.get()
+    assert after == before + 1
+
+
+def test_active_escalation_timers_gauge():
+    """active_escalation_timers gauge can be set."""
+    from app.metrics import active_escalation_timers
+
+    active_escalation_timers.labels(team="platform").set(3)
+    val = active_escalation_timers.labels(team="platform")._value.get()
+    assert val == 3.0
+
+
+def test_escalation_rate_gauge():
+    """escalation_rate gauge can be set."""
+    from app.metrics import escalation_rate
+
+    escalation_rate.set(15.5)
+    val = escalation_rate._value.get()
+    assert val == 15.5
+
+
+def test_escalation_response_seconds_histogram():
+    """escalation_response_seconds histogram can observe values."""
+    from app.metrics import escalation_response_seconds
+
+    escalation_response_seconds.labels(team="platform").observe(120)
+    # No assert needed — just verifying no exception

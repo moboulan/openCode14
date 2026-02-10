@@ -56,3 +56,60 @@ def test_check_database_health_failure():
         from app.database import check_database_health
 
         assert check_database_health() is False
+
+
+# ── get_db_connection context-manager paths ───────────────────
+
+
+def test_get_db_connection_normal_path():
+    """get_db_connection yields a connection and returns it to the pool."""
+    mock_pool = MagicMock()
+    mock_conn = MagicMock()
+    mock_pool.getconn.return_value = mock_conn
+
+    with patch("app.database.get_pool", return_value=mock_pool):
+        from app.database import get_db_connection
+
+        with get_db_connection() as conn:
+            assert conn is mock_conn
+
+        # Connection returned to pool
+        mock_pool.putconn.assert_called_once_with(mock_conn)
+        # No commit (autocommit=False)
+        mock_conn.commit.assert_not_called()
+        # No rollback (no error)
+        mock_conn.rollback.assert_not_called()
+
+
+def test_get_db_connection_autocommit():
+    """get_db_connection commits on successful exit when autocommit=True."""
+    mock_pool = MagicMock()
+    mock_conn = MagicMock()
+    mock_pool.getconn.return_value = mock_conn
+
+    with patch("app.database.get_pool", return_value=mock_pool):
+        from app.database import get_db_connection
+
+        with get_db_connection(autocommit=True) as conn:
+            assert conn is mock_conn
+
+        mock_conn.commit.assert_called_once()
+        mock_pool.putconn.assert_called_once_with(mock_conn)
+
+
+def test_get_db_connection_rollback_on_error():
+    """get_db_connection rolls back and re-raises on error inside the block."""
+    mock_pool = MagicMock()
+    mock_conn = MagicMock()
+    mock_pool.getconn.return_value = mock_conn
+
+    with patch("app.database.get_pool", return_value=mock_pool):
+        from app.database import get_db_connection
+
+        with pytest.raises(ValueError, match="boom"):
+            with get_db_connection() as conn:
+                raise ValueError("boom")
+
+        mock_conn.rollback.assert_called_once()
+        mock_conn.commit.assert_not_called()
+        mock_pool.putconn.assert_called_once_with(mock_conn)

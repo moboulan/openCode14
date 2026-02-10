@@ -49,6 +49,27 @@ class EscalateRequest(BaseModel):
     incident_id: str = Field(..., description="Incident ID to escalate")
     team: Optional[str] = Field(None, description="Team to escalate within (optional)")
     reason: Optional[str] = Field(None, description="Reason for escalation")
+    level: Optional[int] = Field(None, ge=1, description="Escalation level (auto-determined if omitted)")
+
+
+# ---------------------------------------------------------------------------
+# Escalation Policy models
+# ---------------------------------------------------------------------------
+
+
+class EscalationPolicyLevel(BaseModel):
+    """A single level in an escalation policy."""
+
+    level: int = Field(..., ge=1, description="Escalation level (1 = first escalation)")
+    wait_minutes: int = Field(..., ge=1, description="Minutes to wait before escalating to this level")
+    notify_target: str = Field(..., description="Target: 'secondary', 'manager', or an email")
+
+
+class EscalationPolicyCreateRequest(BaseModel):
+    """Create or replace escalation policy for a team."""
+
+    team: str = Field(..., description="Team name")
+    levels: List[EscalationPolicyLevel] = Field(..., min_length=1, description="Ordered escalation levels")
 
 
 # ---------------------------------------------------------------------------
@@ -101,6 +122,7 @@ class EscalateResponse(BaseModel):
     incident_id: str
     from_engineer: str
     to_engineer: str
+    level: int = 1
     reason: Optional[str]
     escalated_at: datetime
 
@@ -112,8 +134,53 @@ class EscalationHistoryItem(BaseModel):
     incident_id: str
     from_engineer: str
     to_engineer: str
+    level: int = 1
     reason: Optional[str]
     escalated_at: datetime
+
+
+class EscalationPolicyResponse(BaseModel):
+    """Escalation policy for a team."""
+
+    team: str
+    levels: List[EscalationPolicyLevel]
+
+
+class EscalationTimerResponse(BaseModel):
+    """Active escalation timer."""
+
+    id: str
+    incident_id: str
+    team: str
+    current_level: int
+    assigned_to: str
+    escalate_after: datetime
+    is_active: bool
+
+
+class AutoEscalationResult(BaseModel):
+    """Result of running the automatic escalation check."""
+
+    checked: int
+    escalated: int
+    details: List[Dict]
+
+
+# ---------------------------------------------------------------------------
+# Analytics / Metrics models
+# ---------------------------------------------------------------------------
+
+
+class OnCallMetrics(BaseModel):
+    """Key on-call metrics: MTTA, MTTR, escalation rate, on-call load."""
+
+    total_incidents: int = 0
+    total_escalations: int = 0
+    escalation_rate_pct: Optional[float] = None
+    avg_mtta_seconds: Optional[float] = None
+    avg_mttr_seconds: Optional[float] = None
+    oncall_load: Dict[str, int] = Field(default_factory=dict)
+    by_team: Dict[str, int] = Field(default_factory=dict)
 
 
 # ---------------------------------------------------------------------------

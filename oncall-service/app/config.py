@@ -37,6 +37,8 @@ class Settings(BaseSettings):
 
     # Escalation defaults
     DEFAULT_ESCALATION_MINUTES: int = 5
+    MANAGER_EMAIL: str = "admin@example.com"
+    ESCALATION_LOOP_COUNT: int = 2
 
     # Logging
     LOG_LEVEL: str = "INFO"

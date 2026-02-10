@@ -1,6 +1,6 @@
 import logging
 
-from prometheus_client import Counter, Gauge
+from prometheus_client import Counter, Gauge, Histogram
 
 logger = logging.getLogger(__name__)
 
@@ -15,6 +15,19 @@ escalations_total = Counter(
     ["team"],
 )
 
+# Notifications sent during escalation
+escalation_notifications_total = Counter(
+    "escalation_notifications_total",
+    "Total notifications sent during escalation",
+    ["team", "channel", "status"],
+)
+
+# Auto-escalation runs
+auto_escalation_runs_total = Counter(
+    "auto_escalation_runs_total",
+    "Total automatic escalation check runs",
+)
+
 # ---------------------------------------------------------------------------
 # Gauges
 # ---------------------------------------------------------------------------
@@ -26,6 +39,31 @@ oncall_current = Gauge(
     ["team", "engineer", "role"],
 )
 
+# Active escalation timers
+active_escalation_timers = Gauge(
+    "active_escalation_timers",
+    "Number of active escalation timers",
+    ["team"],
+)
+
+# Escalation rate (% of incidents that needed escalation)
+escalation_rate = Gauge(
+    "escalation_rate_percent",
+    "Percentage of incidents that required escalation",
+)
+
+# ---------------------------------------------------------------------------
+# Histograms
+# ---------------------------------------------------------------------------
+
+# Escalation response time (time from escalation to acknowledgment)
+escalation_response_seconds = Histogram(
+    "escalation_response_seconds",
+    "Time from escalation to acknowledgment in seconds",
+    ["team"],
+    buckets=[30, 60, 120, 300, 600, 900, 1800],
+)
+
 
 def setup_custom_metrics():
     """Initialize custom metrics."""
@@ -34,5 +72,10 @@ def setup_custom_metrics():
 
 __all__ = [
     "escalations_total",
+    "escalation_notifications_total",
+    "auto_escalation_runs_total",
     "oncall_current",
+    "active_escalation_timers",
+    "escalation_rate",
+    "escalation_response_seconds",
 ]
