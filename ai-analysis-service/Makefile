@@ -17,28 +17,11 @@ all: lint security test  ## Run non-Docker stages (1, 2, 5)
 
 # ── Stage 1: Code Quality ───────────────────────────────────
 
-lint: lint-flake8 lint-pylint lint-black lint-isort  ## Run all linters
-
-lint-flake8:
-	@echo "── flake8 ──"
-	cd $(SERVICE_DIR) && $(PYTHON) -m flake8 $(APP_MODULE)/ \
-		--max-line-length=120 \
-		--ignore=E501,W503,E402 \
-		--statistics
-
-lint-pylint:
-	@echo "── pylint ──"
-	cd $(SERVICE_DIR) && $(PYTHON) -m pylint $(APP_MODULE)/ \
-		--disable=C0114,C0115,C0116,C0301,R0903,R0914,E0401,W0603,W0621,W0613,W1203 \
-		--fail-under=7.0
-
-lint-black:
-	@echo "── black --check ──"
-	cd $(SERVICE_DIR) && $(PYTHON) -m black --check --line-length=120 $(APP_MODULE)/
-
-lint-isort:
-	@echo "── isort --check ──"
-	cd $(SERVICE_DIR) && $(PYTHON) -m isort --check --profile=black $(APP_MODULE)/
+lint:  ## Lint with ruff
+	@echo "── ruff check ──"
+	cd $(SERVICE_DIR) && $(PYTHON) -m ruff check $(APP_MODULE)/
+	@echo "── ruff format --check ──"
+	cd $(SERVICE_DIR) && $(PYTHON) -m ruff format --check $(APP_MODULE)/
 
 # ── Stage 2: Security Scanning ──────────────────────────────
 
@@ -115,11 +98,11 @@ verify:  ## Run health & smoke tests against running service
 
 install-dev:  ## Install dev / test dependencies
 	$(PYTHON) -m pip install -r $(SERVICE_DIR)/requirements.txt
-	$(PYTHON) -m pip install flake8 pylint black isort pytest pytest-cov pytest-asyncio httpx
+	$(PYTHON) -m pip install ruff pytest pytest-cov pytest-asyncio httpx
 
 fmt:  ## Auto-format code
-	cd $(SERVICE_DIR) && $(PYTHON) -m black --line-length=120 $(APP_MODULE)/ $(TESTS_DIR)/
-	cd $(SERVICE_DIR) && $(PYTHON) -m isort --profile=black $(APP_MODULE)/ $(TESTS_DIR)/
+	cd $(SERVICE_DIR) && $(PYTHON) -m ruff format $(APP_MODULE)/ $(TESTS_DIR)/
+	cd $(SERVICE_DIR) && $(PYTHON) -m ruff check --fix $(APP_MODULE)/ $(TESTS_DIR)/
 
 format: fmt  ## Alias for fmt
 
