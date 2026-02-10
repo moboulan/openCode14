@@ -57,6 +57,7 @@ async def live_client():
 async def test_post_notification_stores_in_database(live_client, db_conn):
     """POST /api/v1/notify stores a notification in notifications.notifications."""
     payload = {
+        "incident_id": f"inc-{uuid.uuid4().hex[:8]}",
         "engineer": f"integ-{uuid.uuid4().hex[:6]}@example.com",
         "message": "Integration test notification",
         "channel": "mock",
@@ -87,6 +88,7 @@ async def test_post_notification_stores_in_database(live_client, db_conn):
 async def test_get_notification_by_id(live_client):
     """POST then GET the same notification by ID."""
     payload = {
+        "incident_id": f"inc-{uuid.uuid4().hex[:8]}",
         "engineer": f"integ-get-{uuid.uuid4().hex[:6]}@example.com",
         "message": "GET by ID integration test",
         "channel": "mock",
@@ -105,6 +107,7 @@ async def test_list_notifications(live_client):
     """POST a notification then verify it appears in the list."""
     engineer = f"integ-list-{uuid.uuid4().hex[:6]}@example.com"
     payload = {
+        "incident_id": f"inc-{uuid.uuid4().hex[:8]}",
         "engineer": engineer,
         "message": "List integration test",
         "channel": "mock",
@@ -122,6 +125,7 @@ async def test_list_notifications(live_client):
 async def test_list_notifications_filter_by_channel(live_client):
     """POST a mock notification and filter list by channel=mock."""
     payload = {
+        "incident_id": f"inc-{uuid.uuid4().hex[:8]}",
         "engineer": f"integ-chan-{uuid.uuid4().hex[:6]}@example.com",
         "message": "Channel filter test",
         "channel": "mock",
