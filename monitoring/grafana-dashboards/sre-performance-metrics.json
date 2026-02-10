@@ -1,688 +1,219 @@
 {
-	"annotations": {
-		"list": [
-			{
-				"builtIn": 1,
-				"datasource": {
-					"type": "grafana",
-					"uid": "-- Grafana --"
-				},
-				"enable": true,
-				"hide": true,
-				"iconColor": "rgba(0, 211, 255, 1)",
-				"name": "Annotations & Alerts",
-				"type": "dashboard"
-			}
-		]
-	},
-	"editable": true,
-	"fiscalYearStartMonth": 0,
-	"graphTooltip": 1,
-	"id": null,
-	"links": [],
-	"panels": [
-		{
-			"title": "MTTA Trend (Moving Average 1h)",
-			"type": "timeseries",
-			"gridPos": {
-				"h": 8,
-				"w": 12,
-				"x": 0,
-				"y": 0
-			},
-			"datasource": {
-				"type": "prometheus",
-				"uid": "${DS_PROMETHEUS}"
-			},
-			"fieldConfig": {
-				"defaults": {
-					"custom": {
-						"drawStyle": "line",
-						"lineInterpolation": "smooth",
-						"fillOpacity": 15,
-						"lineWidth": 2,
-						"showPoints": "auto"
-					},
-					"color": {
-						"mode": "palette-classic"
-					},
-					"unit": "s"
-				},
-				"overrides": [
-					{
-						"matcher": {
-							"id": "byName",
-							"options": "p50"
-						},
-						"properties": [
-							{
-								"id": "color",
-								"value": {
-									"fixedColor": "green",
-									"mode": "fixed"
-								}
-							}
-						]
-					},
-					{
-						"matcher": {
-							"id": "byName",
-							"options": "p95"
-						},
-						"properties": [
-							{
-								"id": "color",
-								"value": {
-									"fixedColor": "orange",
-									"mode": "fixed"
-								}
-							}
-						]
-					},
-					{
-						"matcher": {
-							"id": "byName",
-							"options": "p99"
-						},
-						"properties": [
-							{
-								"id": "color",
-								"value": {
-									"fixedColor": "red",
-									"mode": "fixed"
-								}
-							}
-						]
-					}
-				]
-			},
-			"options": {
-				"legend": {
-					"displayMode": "list",
-					"placement": "bottom",
-					"calcs": [
-						"mean",
-						"max"
-					]
-				},
-				"tooltip": {
-					"mode": "multi",
-					"sort": "desc"
-				}
-			},
-			"targets": [
-				{
-					"expr": "histogram_quantile(0.5, rate(incident_mtta_seconds_bucket[1h]))",
-					"legendFormat": "p50",
-					"refId": "A"
-				},
-				{
-					"expr": "histogram_quantile(0.95, rate(incident_mtta_seconds_bucket[1h]))",
-					"legendFormat": "p95",
-					"refId": "B"
-				},
-				{
-					"expr": "histogram_quantile(0.99, rate(incident_mtta_seconds_bucket[1h]))",
-					"legendFormat": "p99",
-					"refId": "C"
-				}
-			]
-		},
-		{
-			"title": "MTTR Trend (Moving Average 1h)",
-			"type": "timeseries",
-			"gridPos": {
-				"h": 8,
-				"w": 12,
-				"x": 12,
-				"y": 0
-			},
-			"datasource": {
-				"type": "prometheus",
-				"uid": "${DS_PROMETHEUS}"
-			},
-			"fieldConfig": {
-				"defaults": {
-					"custom": {
-						"drawStyle": "line",
-						"lineInterpolation": "smooth",
-						"fillOpacity": 15,
-						"lineWidth": 2,
-						"showPoints": "auto"
-					},
-					"color": {
-						"mode": "palette-classic"
-					},
-					"unit": "s"
-				},
-				"overrides": [
-					{
-						"matcher": {
-							"id": "byName",
-							"options": "p50"
-						},
-						"properties": [
-							{
-								"id": "color",
-								"value": {
-									"fixedColor": "green",
-									"mode": "fixed"
-								}
-							}
-						]
-					},
-					{
-						"matcher": {
-							"id": "byName",
-							"options": "p95"
-						},
-						"properties": [
-							{
-								"id": "color",
-								"value": {
-									"fixedColor": "orange",
-									"mode": "fixed"
-								}
-							}
-						]
-					},
-					{
-						"matcher": {
-							"id": "byName",
-							"options": "p99"
-						},
-						"properties": [
-							{
-								"id": "color",
-								"value": {
-									"fixedColor": "red",
-									"mode": "fixed"
-								}
-							}
-						]
-					}
-				]
-			},
-			"options": {
-				"legend": {
-					"displayMode": "list",
-					"placement": "bottom",
-					"calcs": [
-						"mean",
-						"max"
-					]
-				},
-				"tooltip": {
-					"mode": "multi",
-					"sort": "desc"
-				}
-			},
-			"targets": [
-				{
-					"expr": "histogram_quantile(0.5, rate(incident_mttr_seconds_bucket[1h]))",
-					"legendFormat": "p50",
-					"refId": "A"
-				},
-				{
-					"expr": "histogram_quantile(0.95, rate(incident_mttr_seconds_bucket[1h]))",
-					"legendFormat": "p95",
-					"refId": "B"
-				},
-				{
-					"expr": "histogram_quantile(0.99, rate(incident_mttr_seconds_bucket[1h]))",
-					"legendFormat": "p99",
-					"refId": "C"
-				}
-			]
-		},
-		{
-			"title": "Incident Volume by Service",
-			"type": "piechart",
-			"gridPos": {
-				"h": 8,
-				"w": 12,
-				"x": 0,
-				"y": 8
-			},
-			"datasource": {
-				"type": "prometheus",
-				"uid": "${DS_PROMETHEUS}"
-			},
-			"fieldConfig": {
-				"defaults": {
-					"color": {
-						"mode": "palette-classic"
-					}
-				},
-				"overrides": []
-			},
-			"options": {
-				"reduceOptions": {
-					"calcs": [
-						"lastNotNull"
-					],
-					"fields": "",
-					"values": false
-				},
-				"legend": {
-					"displayMode": "list",
-					"placement": "right",
-					"values": [
-						"value",
-						"percent"
-					]
-				},
-				"tooltip": {
-					"mode": "single"
-				},
-				"pieType": "donut"
-			},
-			"targets": [
-				{
-					"expr": "sum by(service)(alerts_received_total)",
-					"legendFormat": "{{ service }}",
-					"refId": "A",
-					"instant": true
-				}
-			]
-		},
-		{
-			"title": "Incident Volume by Severity",
-			"type": "piechart",
-			"gridPos": {
-				"h": 8,
-				"w": 12,
-				"x": 12,
-				"y": 8
-			},
-			"datasource": {
-				"type": "prometheus",
-				"uid": "${DS_PROMETHEUS}"
-			},
-			"fieldConfig": {
-				"defaults": {
-					"color": {
-						"mode": "palette-classic"
-					}
-				},
-				"overrides": [
-					{
-						"matcher": {
-							"id": "byName",
-							"options": "critical"
-						},
-						"properties": [
-							{
-								"id": "color",
-								"value": {
-									"fixedColor": "red",
-									"mode": "fixed"
-								}
-							}
-						]
-					},
-					{
-						"matcher": {
-							"id": "byName",
-							"options": "high"
-						},
-						"properties": [
-							{
-								"id": "color",
-								"value": {
-									"fixedColor": "orange",
-									"mode": "fixed"
-								}
-							}
-						]
-					},
-					{
-						"matcher": {
-							"id": "byName",
-							"options": "medium"
-						},
-						"properties": [
-							{
-								"id": "color",
-								"value": {
-									"fixedColor": "yellow",
-									"mode": "fixed"
-								}
-							}
-						]
-					},
-					{
-						"matcher": {
-							"id": "byName",
-							"options": "low"
-						},
-						"properties": [
-							{
-								"id": "color",
-								"value": {
-									"fixedColor": "blue",
-									"mode": "fixed"
-								}
-							}
-						]
-					}
-				]
-			},
-			"options": {
-				"reduceOptions": {
-					"calcs": [
-						"lastNotNull"
-					],
-					"fields": "",
-					"values": false
-				},
-				"legend": {
-					"displayMode": "list",
-					"placement": "right",
-					"values": [
-						"value",
-						"percent"
-					]
-				},
-				"tooltip": {
-					"mode": "single"
-				},
-				"pieType": "donut"
-			},
-			"targets": [
-				{
-					"expr": "sum by(severity)(incidents_total)",
-					"legendFormat": "{{ severity }}",
-					"refId": "A",
-					"instant": true
-				}
-			]
-		},
-		{
-			"title": "Acknowledgment Time Distribution (MTTA)",
-			"type": "histogram",
-			"gridPos": {
-				"h": 8,
-				"w": 12,
-				"x": 0,
-				"y": 16
-			},
-			"datasource": {
-				"type": "prometheus",
-				"uid": "${DS_PROMETHEUS}"
-			},
-			"fieldConfig": {
-				"defaults": {
-					"color": {
-						"mode": "palette-classic"
-					},
-					"unit": "s"
-				},
-				"overrides": []
-			},
-			"options": {
-				"bucketOffset": 0,
-				"combine": false,
-				"fillOpacity": 80,
-				"gradientMode": "none",
-				"legend": {
-					"displayMode": "list",
-					"placement": "bottom"
-				},
-				"tooltip": {
-					"mode": "single"
-				}
-			},
-			"targets": [
-				{
-					"expr": "increase(incident_mtta_seconds_bucket[1h])",
-					"legendFormat": "{{ le }}",
-					"refId": "A",
-					"format": "heatmap"
-				}
-			]
-		},
-		{
-			"title": "Resolution Time Distribution (MTTR)",
-			"type": "histogram",
-			"gridPos": {
-				"h": 8,
-				"w": 12,
-				"x": 12,
-				"y": 16
-			},
-			"datasource": {
-				"type": "prometheus",
-				"uid": "${DS_PROMETHEUS}"
-			},
-			"fieldConfig": {
-				"defaults": {
-					"color": {
-						"mode": "palette-classic"
-					},
-					"unit": "s"
-				},
-				"overrides": []
-			},
-			"options": {
-				"bucketOffset": 0,
-				"combine": false,
-				"fillOpacity": 80,
-				"gradientMode": "none",
-				"legend": {
-					"displayMode": "list",
-					"placement": "bottom"
-				},
-				"tooltip": {
-					"mode": "single"
-				}
-			},
-			"targets": [
-				{
-					"expr": "increase(incident_mttr_seconds_bucket[1h])",
-					"legendFormat": "{{ le }}",
-					"refId": "A",
-					"format": "heatmap"
-				}
-			]
-		},
-		{
-			"title": "Alerts Received Rate by Severity",
-			"type": "timeseries",
-			"gridPos": {
-				"h": 8,
-				"w": 12,
-				"x": 0,
-				"y": 24
-			},
-			"datasource": {
-				"type": "prometheus",
-				"uid": "${DS_PROMETHEUS}"
-			},
-			"fieldConfig": {
-				"defaults": {
-					"custom": {
-						"drawStyle": "line",
-						"lineInterpolation": "smooth",
-						"fillOpacity": 20,
-						"lineWidth": 2,
-						"stacking": {
-							"mode": "normal",
-							"group": "A"
-						}
-					},
-					"color": {
-						"mode": "palette-classic"
-					},
-					"unit": "ops"
-				},
-				"overrides": [
-					{
-						"matcher": {
-							"id": "byName",
-							"options": "critical"
-						},
-						"properties": [
-							{
-								"id": "color",
-								"value": {
-									"fixedColor": "red",
-									"mode": "fixed"
-								}
-							}
-						]
-					},
-					{
-						"matcher": {
-							"id": "byName",
-							"options": "high"
-						},
-						"properties": [
-							{
-								"id": "color",
-								"value": {
-									"fixedColor": "orange",
-									"mode": "fixed"
-								}
-							}
-						]
-					},
-					{
-						"matcher": {
-							"id": "byName",
-							"options": "medium"
-						},
-						"properties": [
-							{
-								"id": "color",
-								"value": {
-									"fixedColor": "yellow",
-									"mode": "fixed"
-								}
-							}
-						]
-					},
-					{
-						"matcher": {
-							"id": "byName",
-							"options": "low"
-						},
-						"properties": [
-							{
-								"id": "color",
-								"value": {
-									"fixedColor": "blue",
-									"mode": "fixed"
-								}
-							}
-						]
-					}
-				]
-			},
-			"options": {
-				"legend": {
-					"displayMode": "list",
-					"placement": "bottom"
-				},
-				"tooltip": {
-					"mode": "multi",
-					"sort": "desc"
-				}
-			},
-			"targets": [
-				{
-					"expr": "sum by(severity)(rate(alerts_received_total[5m]))",
-					"legendFormat": "{{ severity }}",
-					"refId": "A"
-				}
-			]
-		},
-		{
-			"title": "Escalations Over Time",
-			"type": "timeseries",
-			"gridPos": {
-				"h": 8,
-				"w": 12,
-				"x": 12,
-				"y": 24
-			},
-			"datasource": {
-				"type": "prometheus",
-				"uid": "${DS_PROMETHEUS}"
-			},
-			"fieldConfig": {
-				"defaults": {
-					"custom": {
-						"drawStyle": "bars",
-						"fillOpacity": 50,
-						"lineWidth": 1,
-						"stacking": {
-							"mode": "normal",
-							"group": "A"
-						}
-					},
-					"color": {
-						"mode": "palette-classic"
-					},
-					"unit": "short"
-				},
-				"overrides": []
-			},
-			"options": {
-				"legend": {
-					"displayMode": "list",
-					"placement": "bottom"
-				},
-				"tooltip": {
-					"mode": "multi",
-					"sort": "desc"
-				}
-			},
-			"targets": [
-				{
-					"expr": "increase(escalations_total[5m])",
-					"legendFormat": "{{ team }} - {{ reason }}",
-					"refId": "A"
-				}
-			]
-		}
-	],
-	"refresh": "30s",
-	"schemaVersion": 39,
-	"tags": [
-		"incident-platform",
-		"sre",
-		"performance"
-	],
-	"templating": {
-		"list": [
-			{
-				"current": {
-					"selected": false,
-					"text": "Prometheus",
-					"value": "Prometheus"
-				},
-				"hide": 0,
-				"includeAll": false,
-				"label": "Datasource",
-				"multi": false,
-				"name": "DS_PROMETHEUS",
-				"options": [],
-				"query": "prometheus",
-				"refresh": 1,
-				"regex": "",
-				"skipUrlSync": false,
-				"type": "datasource"
-			}
-		]
-	},
-	"time": {
-		"from": "now-6h",
-		"to": "now"
-	},
-	"timepicker": {},
-	"timezone": "browser",
-	"title": "SRE Performance Metrics",
-	"uid": "sre-performance-metrics",
-	"version": 1
+  "annotations": { "list": [] },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "id": null,
+  "links": [],
+  "liveNow": true,
+  "panels": [
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": { "axisLabel": "seconds", "drawStyle": "line", "fillOpacity": 10, "lineWidth": 2, "pointSize": 5, "showPoints": "auto" },
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+      "id": 1,
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi" } },
+      "title": "MTTA Over Time",
+      "type": "timeseries",
+      "targets": [
+        { "expr": "incident_mtta_seconds_sum / incident_mtta_seconds_count", "legendFormat": "Overall MTTA", "refId": "A" },
+        { "expr": "incident_mtta_seconds_sum{severity=\"critical\"} / incident_mtta_seconds_count{severity=\"critical\"}", "legendFormat": "Critical MTTA", "refId": "B" },
+        { "expr": "incident_mtta_seconds_sum{severity=\"high\"} / incident_mtta_seconds_count{severity=\"high\"}", "legendFormat": "High MTTA", "refId": "C" }
+      ]
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": { "axisLabel": "seconds", "drawStyle": "line", "fillOpacity": 10, "lineWidth": 2, "pointSize": 5, "showPoints": "auto" },
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+      "id": 2,
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi" } },
+      "title": "MTTR Over Time",
+      "type": "timeseries",
+      "targets": [
+        { "expr": "incident_mttr_seconds_sum / incident_mttr_seconds_count", "legendFormat": "Overall MTTR", "refId": "A" },
+        { "expr": "incident_mttr_seconds_sum{severity=\"critical\"} / incident_mttr_seconds_count{severity=\"critical\"}", "legendFormat": "Critical MTTR", "refId": "B" },
+        { "expr": "incident_mttr_seconds_sum{severity=\"high\"} / incident_mttr_seconds_count{severity=\"high\"}", "legendFormat": "High MTTR", "refId": "C" }
+      ]
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": { "axisLabel": "alerts", "drawStyle": "bars", "fillOpacity": 80, "stacking": { "mode": "normal" } },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
+      "id": 3,
+      "options": { "legend": { "displayMode": "list", "placement": "right" }, "tooltip": { "mode": "multi" } },
+      "title": "Alert Volume by Service",
+      "type": "timeseries",
+      "targets": [{ "expr": "sum by (service) (alerts_received_total)", "legendFormat": "{{service}}", "refId": "A" }]
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": { "drawStyle": "bars", "fillOpacity": 50, "stacking": { "mode": "normal" } },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
+      "id": 4,
+      "options": { "legend": { "displayMode": "list", "placement": "right" }, "tooltip": { "mode": "multi" } },
+      "title": "Incidents by Status",
+      "type": "timeseries",
+      "targets": [
+        { "expr": "sum by (status) (incidents_total)", "legendFormat": "{{status}}", "refId": "A" }
+      ]
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "fixed", "fixedColor": "purple" },
+          "unit": "s",
+          "thresholds": { "mode": "absolute", "steps": [{"color":"green","value":null},{"color":"yellow","value":120},{"color":"red","value":600}] }
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 5, "w": 6, "x": 0, "y": 16 },
+      "id": 5,
+      "options": { "colorMode": "background", "graphMode": "none", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "textMode": "auto" },
+      "title": "MTTA - Critical",
+      "type": "stat",
+      "targets": [{ "expr": "incident_mtta_seconds_sum{severity=\"critical\"} / incident_mtta_seconds_count{severity=\"critical\"}", "legendFormat": "", "refId": "A", "instant": true }]
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "fixed", "fixedColor": "orange" },
+          "unit": "s",
+          "thresholds": { "mode": "absolute", "steps": [{"color":"green","value":null},{"color":"yellow","value":120},{"color":"red","value":600}] }
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 5, "w": 6, "x": 6, "y": 16 },
+      "id": 6,
+      "options": { "colorMode": "background", "graphMode": "none", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "textMode": "auto" },
+      "title": "MTTA - High",
+      "type": "stat",
+      "targets": [{ "expr": "incident_mtta_seconds_sum{severity=\"high\"} / incident_mtta_seconds_count{severity=\"high\"}", "legendFormat": "", "refId": "A", "instant": true }]
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "fixed", "fixedColor": "purple" },
+          "unit": "s",
+          "thresholds": { "mode": "absolute", "steps": [{"color":"green","value":null},{"color":"yellow","value":300},{"color":"red","value":1800}] }
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 5, "w": 6, "x": 12, "y": 16 },
+      "id": 7,
+      "options": { "colorMode": "background", "graphMode": "none", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "textMode": "auto" },
+      "title": "MTTR - Critical",
+      "type": "stat",
+      "targets": [{ "expr": "incident_mttr_seconds_sum{severity=\"critical\"} / incident_mttr_seconds_count{severity=\"critical\"}", "legendFormat": "", "refId": "A", "instant": true }]
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "fixed", "fixedColor": "orange" },
+          "unit": "s",
+          "thresholds": { "mode": "absolute", "steps": [{"color":"green","value":null},{"color":"yellow","value":300},{"color":"red","value":1800}] }
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 5, "w": 6, "x": 18, "y": 16 },
+      "id": 8,
+      "options": { "colorMode": "background", "graphMode": "none", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "textMode": "auto" },
+      "title": "MTTR - High",
+      "type": "stat",
+      "targets": [{ "expr": "incident_mttr_seconds_sum{severity=\"high\"} / incident_mttr_seconds_count{severity=\"high\"}", "legendFormat": "", "refId": "A", "instant": true }]
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "mappings": [],
+          "thresholds": { "mode": "absolute", "steps": [{"color":"green","value":null}] }
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 5, "w": 8, "x": 0, "y": 21 },
+      "id": 9,
+      "options": { "colorMode": "value", "graphMode": "area", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "textMode": "auto" },
+      "title": "Acknowledged Incidents",
+      "type": "stat",
+      "targets": [{ "expr": "sum(incidents_total{status=\"acknowledged\"})", "legendFormat": "", "refId": "A", "instant": true }]
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "mappings": [],
+          "thresholds": { "mode": "absolute", "steps": [{"color":"green","value":null}] }
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 5, "w": 8, "x": 8, "y": 21 },
+      "id": 10,
+      "options": { "colorMode": "value", "graphMode": "area", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "textMode": "auto" },
+      "title": "Resolved Incidents",
+      "type": "stat",
+      "targets": [{ "expr": "sum(incidents_total{status=\"resolved\"})", "legendFormat": "", "refId": "A", "instant": true }]
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "mappings": [],
+          "thresholds": { "mode": "absolute", "steps": [{"color":"green","value":null}] }
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 5, "w": 8, "x": 16, "y": 21 },
+      "id": 11,
+      "options": { "colorMode": "value", "graphMode": "area", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "textMode": "auto" },
+      "title": "Total Escalations",
+      "type": "stat",
+      "targets": [{ "expr": "sum(escalations_total)", "legendFormat": "", "refId": "A", "instant": true }]
+    }
+  ],
+  "refresh": "10s",
+  "schemaVersion": 38,
+  "style": "dark",
+  "tags": ["sre", "performance"],
+  "templating": { "list": [] },
+  "time": { "from": "now-6h", "to": "now" },
+  "timepicker": {},
+  "timezone": "browser",
+  "title": "SRE Performance Metrics",
+  "uid": "sre-performance-metrics",
+  "version": 1
 }
