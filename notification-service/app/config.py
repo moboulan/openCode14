@@ -36,9 +36,11 @@ class Settings(BaseSettings):
     ALERT_SERVICE_URL: Optional[str] = "http://alert-ingestion:8001"
     NOTIFICATION_SERVICE_URL: Optional[str] = "http://notification-service:8004"
 
-    # Notification channels
-    SENDGRID_API_KEY: Optional[str] = None
-    SENDGRID_FROM_EMAIL: str = "noreply@incident-platform.local"
+    # Notification channels — SMTP email
+    SMTP_SERVER: str = "smtp.gmail.com"
+    SMTP_PORT: int = 587
+    SMTP_SENDER: str = "noreply@incident-platform.local"
+    SMTP_PASSWORD: str = ""  # App-password / empty = skip email
     WEBHOOK_URLS: str = ""  # Comma-separated webhook URLs
     SLACK_WEBHOOK_URL: Optional[str] = None  # Slack incoming webhook URL
 

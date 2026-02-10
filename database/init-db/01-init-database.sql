@@ -256,18 +256,19 @@ CREATE TRIGGER trg_incidents_updated_at
 
 -- ── Seed data ───────────────────────────────────────────────
 
--- Users for on-call rotations
+-- Engineers for on-call rotations
 INSERT INTO users (name, email, phone, role)
-VALUES 
-    ('Admin User', 'admin@example.com', '+1-555-0100', 'admin'),
-    ('Alice Engineer', 'alice@example.com', '+1-555-0101', 'responder'),
-    ('Bob Developer', 'bob@example.com', '+1-555-0102', 'responder'),
-    ('Charlie SRE', 'charlie@example.com', '+1-555-0103', 'responder'),
-    ('Diana Ops', 'diana@example.com', '+1-555-0104', 'responder'),
-    ('Eve Backend', 'eve@example.com', '+1-555-0105', 'responder'),
-    ('Frank Frontend', 'frank@example.com', '+1-555-0106', 'responder'),
-    ('Grace DevOps', 'grace@example.com', '+1-555-0107', 'responder'),
-    ('Henry Platform', 'henry@example.com', '+1-555-0108', 'responder')
+VALUES
+    ('Admin User', 'omarafidi2005@gmail.com', '+1-555-0100', 'admin'),
+    ('Omar Afidi', 'omarafidi2005@gmail.com', '+1-555-0101', 'responder'),
+    ('Alice Engineer', 'omarafidi2005@gmail.com', '+1-555-0102', 'responder'),
+    ('Bob Developer', 'omarafidi2005@gmail.com', '+1-555-0103', 'responder'),
+    ('Charlie SRE', 'omarafidi2005@gmail.com', '+1-555-0104', 'responder'),
+    ('Diana Ops', 'omarafidi2005@gmail.com', '+1-555-0105', 'responder'),
+    ('Eve Backend', 'omarafidi2005@gmail.com', '+1-555-0106', 'responder'),
+    ('Frank Frontend', 'omarafidi2005@gmail.com, '+1-555-0107', 'responder'),
+    ('Grace DevOps', 'grace@expertmind.local', '+1-555-0108', 'responder'),
+    ('Henry Platform', 'henry@expertmind.local', '+1-555-0109', 'responder')
 ON CONFLICT (email) DO NOTHING;
 
 -- On-call schedules for 3 teams (platform, backend, frontend)
@@ -278,9 +279,9 @@ VALUES
         'weekly',
         '2026-01-01',
         '[
-            {"name": "Alice Engineer", "email": "alice@example.com", "primary": true},
-            {"name": "Bob Developer", "email": "bob@example.com", "primary": false},
-            {"name": "Charlie SRE", "email": "charlie@example.com", "primary": false}
+            {"name": "Omar Afidi", "email": "omarafidi2005@gmail.com", "primary": true},
+            {"name": "Alice Engineer", "email": "alice@expertmind.local", "primary": false},
+            {"name": "Bob Developer", "email": "bob@expertmind.local", "primary": false}
         ]'::jsonb,
         5,
         9,
@@ -291,8 +292,9 @@ VALUES
         'weekly',
         '2026-01-01',
         '[
-            {"name": "Diana Ops", "email": "diana@example.com", "primary": true},
-            {"name": "Eve Backend", "email": "eve@example.com", "primary": false}
+            {"name": "Charlie SRE", "email": "charlie@expertmind.local", "primary": true},
+            {"name": "Diana Ops", "email": "diana@expertmind.local", "primary": false},
+            {"name": "Eve Backend", "email": "eve@expertmind.local", "primary": false}
         ]'::jsonb,
         10,
         8,
@@ -303,9 +305,9 @@ VALUES
         'daily',
         '2026-01-01',
         '[
-            {"name": "Frank Frontend", "email": "frank@example.com", "primary": true},
-            {"name": "Grace DevOps", "email": "grace@example.com", "primary": false},
-            {"name": "Henry Platform", "email": "henry@example.com", "primary": false}
+            {"name": "Frank Frontend", "email": "frank@expertmind.local", "primary": true},
+            {"name": "Grace DevOps", "email": "grace@expertmind.local", "primary": false},
+            {"name": "Henry Platform", "email": "henry@expertmind.local", "primary": false}
         ]'::jsonb,
         5,
         9,
@@ -315,15 +317,15 @@ ON CONFLICT DO NOTHING;
 
 -- Seed schedule_members for platform team
 INSERT INTO oncall.schedule_members (schedule_id, user_name, user_email, position)
-SELECT s.id, 'Alice Engineer', 'alice@example.com', 1
+SELECT s.id, 'Omar Afidi', 'omarafidi2005@gmail.com', 1
 FROM oncall.schedules s WHERE s.team = 'platform'
 ON CONFLICT DO NOTHING;
 INSERT INTO oncall.schedule_members (schedule_id, user_name, user_email, position)
-SELECT s.id, 'Bob Developer', 'bob@example.com', 2
+SELECT s.id, 'Alice Engineer', 'alice@expertmind.local', 2
 FROM oncall.schedules s WHERE s.team = 'platform'
 ON CONFLICT DO NOTHING;
 INSERT INTO oncall.schedule_members (schedule_id, user_name, user_email, position)
-SELECT s.id, 'Charlie SRE', 'charlie@example.com', 3
+SELECT s.id, 'Bob Developer', 'bob@expertmind.local', 3
 FROM oncall.schedules s WHERE s.team = 'platform'
 ON CONFLICT DO NOTHING;
 
@@ -332,13 +334,13 @@ INSERT INTO oncall.escalation_policies (team, level, wait_minutes, notify_target
 VALUES
     -- Platform team: 5 min → secondary, 10 more min → manager
     ('platform', 1, 5,  'secondary'),
-    ('platform', 2, 10, 'manager'),
+    ('platform', 2, 10, 'admin@expertmind.local'),
     -- Backend team: 10 min → secondary, 15 more min → manager
     ('backend',  1, 10, 'secondary'),
-    ('backend',  2, 15, 'manager'),
+    ('backend',  2, 15, 'admin@expertmind.local'),
     -- Frontend team: 5 min → secondary, 10 more min → manager
     ('frontend', 1, 5,  'secondary'),
-    ('frontend', 2, 10, 'manager')
+    ('frontend', 2, 10, 'admin@expertmind.local')
 ON CONFLICT DO NOTHING;
 
 -- ============================================================

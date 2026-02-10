@@ -26,9 +26,7 @@ import json
 import os
 import random
 import signal
-import sys
 import time
-from urllib.error import URLError
 from urllib.request import Request, urlopen
 
 # ── Configuration ────────────────────────────────────────────

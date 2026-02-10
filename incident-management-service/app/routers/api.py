@@ -77,6 +77,7 @@ async def create_incident(payload: IncidentCreate):
 
     # ── 2. Call On-Call Service for assignment ─────────────────
     assigned_to: Optional[str] = None
+    oncall_email: Optional[str] = None
     try:
         client = get_http_client()
         resp = await client.get(
@@ -89,6 +90,7 @@ async def create_incident(payload: IncidentCreate):
             primary = data.get("primary")
             if primary:
                 assigned_to = primary.get("name") or primary.get("email")
+                oncall_email = primary.get("email")
     except Exception as e:
         logger.warning(f"On-Call service unavailable, skipping assignment: {e}")
 
@@ -117,22 +119,24 @@ async def create_incident(payload: IncidentCreate):
         except Exception as e:
             logger.warning(f"Could not start escalation timer for {incident_id}: {e}")
 
-    # ── 3. Call Notification Service ──────────────────────────
+    # ── 3. Call Notification Service (SMTP email to on-call) ──
+    notify_target = oncall_email or assigned_to or "unassigned"
     try:
         client = get_http_client()
         await client.post(
             f"{settings.NOTIFICATION_SERVICE_URL}/api/v1/notify",
             json={
                 "incident_id": incident_id,
-                "engineer": assigned_to or "unassigned",
-                "channel": "mock",
-                "message": f"New incident: {payload.title}",
+                "engineer": notify_target,
+                "channel": "email",
+                "message": f"New incident: {payload.title}\nService: {payload.service}\nSeverity: {payload.severity.value}",
+                "severity": payload.severity.value,
             },
         )
-        notifications_sent_total.labels(channel="mock", status="sent").inc()
+        notifications_sent_total.labels(channel="email", status="sent").inc()
     except Exception as e:
         logger.warning(f"Notification service unavailable: {e}")
-        notifications_sent_total.labels(channel="mock", status="failed").inc()
+        notifications_sent_total.labels(channel="email", status="failed").inc()
 
     # Build response from the DB row
     notes = row["notes"] if isinstance(row["notes"], list) else json.loads(row["notes"] or "[]")

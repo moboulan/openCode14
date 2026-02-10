@@ -1,7 +1,10 @@
 import logging
+import smtplib
 import time
 import uuid
 from datetime import datetime, timezone
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
 from typing import Optional
 
 import httpx
@@ -9,10 +12,7 @@ from fastapi import APIRouter, HTTPException, Query, status
 
 from app.config import settings
 from app.database import get_db_connection
-from app.metrics import (
-    notification_delivery_seconds,
-    oncall_notifications_sent_total,
-)
+from app.metrics import notification_delivery_seconds, oncall_notifications_sent_total
 from app.models import (
     NotificationChannel,
     NotificationListResponse,
@@ -42,37 +42,43 @@ def _send_mock(notification_id: str, request: NotificationRequest) -> Notificati
 
 
 async def _send_email(notification_id: str, request: NotificationRequest) -> NotificationStatus:
-    """Send email via SendGrid API. Falls back to mock if no API key."""
-    if not settings.SENDGRID_API_KEY:
-        logger.info(f"[EMAIL FALLBACK→MOCK] No SENDGRID_API_KEY set. id={notification_id}")
+    """Send email via SMTP (e.g. Gmail app-password). Falls back to mock if SMTP_PASSWORD is empty."""
+    if not settings.SMTP_PASSWORD:
+        logger.info(f"[EMAIL FALLBACK→MOCK] No SMTP_PASSWORD set. id={notification_id}")
         return _send_mock(notification_id, request)
 
     try:
-        async with httpx.AsyncClient(timeout=settings.HTTP_CLIENT_TIMEOUT) as client:
-            resp = await client.post(
-                "https://api.sendgrid.com/v3/mail/send",
-                headers={
-                    "Authorization": f"Bearer {settings.SENDGRID_API_KEY}",
-                    "Content-Type": "application/json",
-                },
-                json={
-                    "personalizations": [{"to": [{"email": request.engineer}]}],
-                    "from": {"email": settings.SENDGRID_FROM_EMAIL},
-                    "subject": f"[Incident Platform] {request.incident_id}",
-                    "content": [
-                        {
-                            "type": "text/plain",
-                            "value": request.message,
-                        }
-                    ],
-                },
-            )
-            if resp.status_code in (200, 201, 202):
-                logger.info(f"[EMAIL SENT] id={notification_id} to={request.engineer}")
-                return NotificationStatus.DELIVERED
-            else:
-                logger.error(f"[EMAIL FAILED] id={notification_id} status={resp.status_code} body={resp.text}")
-                return NotificationStatus.FAILED
+        msg = MIMEMultipart("alternative")
+        msg["From"] = settings.SMTP_SENDER
+        msg["To"] = request.engineer
+        msg["Subject"] = f"[ExpertMind Alert] {request.incident_id}"
+
+        # Plain-text body
+        body_text = (
+            f"Incident: {request.incident_id}\n"
+            f"Severity: {request.severity.value if request.severity else 'N/A'}\n\n"
+            f"{request.message}"
+        )
+        # HTML body
+        body_html = (
+            f"<h2>ExpertMind — Incident Alert</h2>"
+            f"<p><strong>Incident:</strong> {request.incident_id}</p>"
+            f"<p><strong>Severity:</strong> {request.severity.value if request.severity else 'N/A'}</p>"
+            f"<hr><p>{request.message}</p>"
+        )
+
+        msg.attach(MIMEText(body_text, "plain"))
+        msg.attach(MIMEText(body_html, "html"))
+
+        with smtplib.SMTP(settings.SMTP_SERVER, settings.SMTP_PORT, timeout=15) as server:
+            server.ehlo()
+            server.starttls()
+            server.ehlo()
+            server.login(settings.SMTP_SENDER, settings.SMTP_PASSWORD)
+            server.sendmail(settings.SMTP_SENDER, request.engineer, msg.as_string())
+
+        logger.info(f"[EMAIL SENT] id={notification_id} to={request.engineer} via SMTP")
+        return NotificationStatus.DELIVERED
     except Exception as e:
         logger.error(f"[EMAIL ERROR] id={notification_id}: {e}")
         return NotificationStatus.FAILED
