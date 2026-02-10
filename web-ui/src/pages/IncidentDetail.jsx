@@ -1,277 +1,213 @@
-import { useEffect, useCallback, useState } from 'react';
-import { useParams, Link } from 'react-router-dom';
-import { getIncident, getIncidentMetrics, updateIncident, addIncidentNote } from '@/services/api';
-import { formatDateTime, formatDuration } from '@/utils/formatters';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
-import {
-	ChevronRight, CheckCircle2, ShieldAlert, Timer, TrendingUp,
-	Clock, AlertCircle, User, Send,
-} from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { useParams, useNavigate, Link } from 'react-router-dom';
+import { ArrowLeft, AlertTriangle, Circle, Send, RefreshCw } from 'lucide-react';
+import { getIncident, updateIncident } from '../services/api';
+import { timeAgo, formatDate, formatSeconds } from '../utils/formatters';
+import { cn } from '../lib/utils';
 
-function Timeline({ events = [] }) {
-	if (!events.length) return <p className="text-sm text-muted-foreground py-4">No timeline yet.</p>;
-	return (
-		<div className="relative space-y-4 pl-6 pt-2">
-			<div className="absolute left-2 top-3 bottom-3 w-px bg-border" />
-			{events.map((item, idx) => (
-				<div key={`${item.event}-${idx}`} className="relative flex items-start gap-3">
-					<div className="absolute -left-4 top-1 flex h-4 w-4 items-center justify-center rounded-full border bg-background">
-						<div className="h-1.5 w-1.5 rounded-full bg-foreground" />
-					</div>
-					<div className="flex flex-col">
-						<span className="text-sm font-medium capitalize">{item.event}</span>
-						<span className="text-xs text-muted-foreground">{formatDateTime(item.timestamp)}</span>
-					</div>
-				</div>
-			))}
-		</div>
-	);
-}
+const sevDotColor = {
+	critical: 'bg-red-500',
+	high: 'bg-orange-500',
+	medium: 'bg-amber-400',
+	low: 'bg-blue-400',
+};
 
-function AlertList({ alerts = [] }) {
-	if (!alerts.length) return <p className="text-sm text-muted-foreground py-4">No linked alerts.</p>;
-	return (
-		<div className="space-y-2 pt-2">
-			{alerts.map((alert) => (
-				<div key={alert.alert_id} className="flex flex-col gap-0.5 rounded-md border border-border p-3">
-					<span className="text-sm font-medium">{alert.message}</span>
-					<div className="flex items-center gap-2 text-xs text-muted-foreground">
-						<code>{alert.service}</code>
-						<Badge variant={alert.severity} className="text-[10px] px-1.5 py-0">{alert.severity}</Badge>
-						<span>{formatDateTime(alert.timestamp)}</span>
-					</div>
-				</div>
-			))}
-		</div>
-	);
-}
+const statusTextColor = {
+	open: 'text-red-600',
+	acknowledged: 'text-amber-600',
+	investigating: 'text-purple-600',
+	mitigated: 'text-blue-600',
+	resolved: 'text-emerald-600',
+	closed: 'text-zinc-400',
+};
 
-function NotesList({ notes = [] }) {
-	if (!notes.length) return <p className="text-sm text-muted-foreground py-4">No notes yet.</p>;
-	return (
-		<div className="space-y-2 pt-2">
-			{notes.map((note, idx) => (
-				<div key={idx} className="rounded-md border border-border p-3">
-					<p className="text-sm">{note.content}</p>
-					<span className="text-xs text-muted-foreground">{note.author} · {formatDateTime(note.created_at)}</span>
-				</div>
-			))}
-		</div>
-	);
+function buildTimeline(incident) {
+	const events = [];
+	if (incident.created_at) {
+		events.push({ label: 'Created', detail: `Alert fired for ${incident.service}`, time: incident.created_at });
+	}
+	if (incident.assigned_to) {
+		events.push({ label: `Paged ${incident.assigned_to}`, detail: 'On-call notified', time: incident.created_at });
+	}
+	if (incident.acknowledged_at) {
+		events.push({ label: 'Acknowledged', detail: `${incident.assigned_to || 'Engineer'} responded`, time: incident.acknowledged_at });
+	}
+	if (incident.notes?.length) {
+		incident.notes.forEach((note) => {
+			events.push({ label: 'Note', detail: typeof note === 'string' ? note : JSON.stringify(note), time: null });
+		});
+	}
+	if (incident.resolved_at) {
+		events.push({ label: 'Resolved', detail: 'Systems recovered', time: incident.resolved_at });
+	}
+	return events;
 }
 
 export default function IncidentDetail() {
 	const { incidentId } = useParams();
+	const navigate = useNavigate();
 	const [incident, setIncident] = useState(null);
-	const [metrics, setMetrics] = useState(null);
 	const [loading, setLoading] = useState(true);
 	const [error, setError] = useState(null);
-	const [actionStatus, setActionStatus] = useState('');
-	const [activeTab, setActiveTab] = useState('timeline');
 	const [noteText, setNoteText] = useState('');
-
-	const loadIncident = useCallback(async () => {
-		try {
-			setLoading(true);
-			const data = await getIncident(incidentId);
-			setIncident(data);
-			setError(null);
-		} catch {
-			setError('Incident not found');
-		} finally {
-			setLoading(false);
-		}
-	}, [incidentId]);
-
-	const loadMetrics = useCallback(async () => {
-		try {
-			const data = await getIncidentMetrics(incidentId);
-			setMetrics(data);
-		} catch { }
-	}, [incidentId]);
+	const [submitting, setSubmitting] = useState(false);
 
 	useEffect(() => {
-		loadIncident();
-		loadMetrics();
-	}, [loadIncident, loadMetrics]);
+		(async () => {
+			try {
+				setIncident(await getIncident(incidentId));
+			} catch (err) {
+				setError(err.response?.data?.detail || 'Incident not found');
+			} finally {
+				setLoading(false);
+			}
+		})();
+	}, [incidentId]);
 
-	const handleUpdate = async (status) => {
-		try {
-			setActionStatus('Saving…');
-			const updated = await updateIncident(incidentId, { status });
-			setIncident(updated);
-			loadMetrics();
-			setActionStatus('');
-		} catch {
-			setActionStatus('Failed to update');
-		}
+	const handleStatusChange = async (newStatus) => {
+		try { setIncident(await updateIncident(incidentId, { status: newStatus })); } catch (e) { console.error(e); }
 	};
 
 	const handleAddNote = async () => {
 		if (!noteText.trim()) return;
-		try {
-			await addIncidentNote(incidentId, { content: noteText.trim(), author: 'operator' });
-			setNoteText('');
-			loadIncident();
-		} catch { }
+		setSubmitting(true);
+		try { setIncident(await updateIncident(incidentId, { note: noteText.trim() })); setNoteText(''); } finally { setSubmitting(false); }
 	};
 
-	if (loading && !incident) {
-		return <p className="text-sm text-muted-foreground animate-pulse">Loading incident…</p>;
-	}
-	if (error) {
-		return (
-			<div className="rounded-md border border-destructive/50 bg-destructive/10 p-3 text-sm text-destructive">
-				{error}
-			</div>
-		);
-	}
-	if (!incident) return null;
+	if (loading) return <div className="flex h-[60vh] items-center justify-center"><RefreshCw className="h-5 w-5 animate-spin text-zinc-300" /></div>;
+	if (error || !incident) return (
+		<div className="flex h-[60vh] flex-col items-center justify-center gap-2">
+			<AlertTriangle className="h-8 w-8 text-zinc-300" />
+			<p className="text-sm text-zinc-500">{error || 'Not found'}</p>
+			<button onClick={() => navigate('/incidents')} className="text-sm text-blue-600 hover:underline">Back to Incidents</button>
+		</div>
+	);
 
-	const metricCards = metrics ? [
-		{ label: 'MTTA', value: formatDuration(metrics.mtta_seconds), icon: Timer, color: 'text-cyan-500' },
-		{ label: 'MTTR', value: formatDuration(metrics.mttr_seconds), icon: TrendingUp, color: 'text-yellow-500' },
-		{ label: 'Created', value: formatDateTime(metrics.created_at), icon: Clock, color: 'text-muted-foreground' },
-		{ label: 'Resolved', value: formatDateTime(metrics.resolved_at), icon: CheckCircle2, color: 'text-status-resolved' },
-	] : [];
-
-	const tabs = [
-		{ key: 'timeline', label: 'Timeline', count: incident.timeline?.length },
-		{ key: 'alerts', label: 'Alerts', count: incident.alerts?.length },
-		{ key: 'notes', label: 'Notes', count: incident.notes?.length },
-	];
+	const timeline = buildTimeline(incident);
+	const mtta = incident.acknowledged_at && incident.created_at ? (new Date(incident.acknowledged_at) - new Date(incident.created_at)) / 1000 : null;
+	const mttr = incident.resolved_at && incident.created_at ? (new Date(incident.resolved_at) - new Date(incident.created_at)) / 1000 : null;
 
 	return (
-		<div className="space-y-6">
-			{/* Breadcrumb */}
-			<nav className="flex items-center gap-1 text-sm text-muted-foreground">
-				<Link to="/" className="hover:text-foreground transition-colors">Dashboard</Link>
-				<ChevronRight className="h-3.5 w-3.5" />
-				<span className="font-mono text-foreground">{incident.incident_id}</span>
-			</nav>
+		<div className="fade-in space-y-5">
+			<Link to="/incidents" className="inline-flex items-center gap-1 text-sm text-zinc-400 hover:text-zinc-600 transition-colors">
+				<ArrowLeft className="h-3.5 w-3.5" /> Incidents
+			</Link>
 
-			{/* Header card */}
-			<Card>
-				<CardContent className="p-5">
-					<div className="flex flex-wrap items-start justify-between gap-4">
-						<div className="space-y-2">
-							<h2 className="text-lg font-bold">{incident.title}</h2>
-							<div className="flex flex-wrap items-center gap-2">
-								<Badge variant={incident.severity}>{incident.severity}</Badge>
-								<Badge variant={incident.status}>{incident.status}</Badge>
-								<code className="text-xs text-muted-foreground">{incident.service}</code>
-							</div>
-						</div>
-						<div className="flex gap-2">
-							<Button
-								variant="outline"
-								size="sm"
-								onClick={() => handleUpdate('acknowledged')}
-								disabled={incident.status === 'acknowledged' || incident.status === 'resolved'}
-							>
-								<ShieldAlert className="mr-1.5 h-3.5 w-3.5" />
-								Acknowledge
-							</Button>
-							<Button
-								variant="destructive"
-								size="sm"
-								onClick={() => handleUpdate('resolved')}
-								disabled={incident.status === 'resolved'}
-							>
-								<CheckCircle2 className="mr-1.5 h-3.5 w-3.5" />
-								Resolve
-							</Button>
-						</div>
+			{/* Header row */}
+			<div className="flex items-start justify-between">
+				<div className="space-y-1">
+					<div className="flex items-center gap-2">
+						<span className={cn('inline-block h-2.5 w-2.5 rounded-full', sevDotColor[incident.severity] || 'bg-zinc-300')} />
+						<span className="font-mono text-xs text-zinc-400">{incident.incident_id.slice(0, 8).toUpperCase()}</span>
+						<span className={cn('inline-flex items-center gap-1 text-xs font-medium capitalize', statusTextColor[incident.status] || 'text-zinc-500')}>
+							<Circle className="h-1.5 w-1.5 fill-current" /> {incident.status}
+						</span>
 					</div>
-
-					<div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-4">
-						<div>
-							<span className="text-xs text-muted-foreground flex items-center gap-1"><User className="h-3 w-3" /> Assigned</span>
-							<span className="text-sm font-medium">{incident.assigned_to || 'Unassigned'}</span>
-						</div>
-						<div>
-							<span className="text-xs text-muted-foreground flex items-center gap-1"><Clock className="h-3 w-3" /> Created</span>
-							<span className="text-sm font-medium">{formatDateTime(incident.created_at)}</span>
-						</div>
-						<div>
-							<span className="text-xs text-muted-foreground flex items-center gap-1"><AlertCircle className="h-3 w-3" /> Acknowledged</span>
-							<span className="text-sm font-medium">{formatDateTime(incident.acknowledged_at)}</span>
-						</div>
-						<div>
-							<span className="text-xs text-muted-foreground flex items-center gap-1"><CheckCircle2 className="h-3 w-3" /> Resolved</span>
-							<span className="text-sm font-medium">{formatDateTime(incident.resolved_at)}</span>
-						</div>
-					</div>
-
-					{actionStatus && (
-						<p className="mt-2 text-xs text-muted-foreground">{actionStatus}</p>
-					)}
-				</CardContent>
-			</Card>
-
-			{/* Metrics */}
-			{metricCards.length > 0 && (
-				<div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-					{metricCards.map((m) => (
-						<Card key={m.label}>
-							<CardContent className="flex items-center justify-between p-4">
-								<div>
-									<p className="text-xs text-muted-foreground">{m.label}</p>
-									<p className={`text-sm font-bold font-mono ${m.color}`}>{m.value}</p>
-								</div>
-								<m.icon className={`h-4 w-4 ${m.color}`} />
-							</CardContent>
-						</Card>
-					))}
+					<h1 className="text-lg font-semibold text-zinc-900">{incident.title}</h1>
+					<p className="text-sm text-zinc-500">{incident.description || 'No description'}</p>
 				</div>
-			)}
+				<div className="flex gap-2">
+					{incident.status === 'open' && (
+						<button onClick={() => handleStatusChange('acknowledged')} className="rounded-md border border-amber-200 bg-amber-50 px-3 py-1.5 text-xs font-medium text-amber-700 hover:bg-amber-100 transition-colors">Acknowledge</button>
+					)}
+					{['open', 'acknowledged', 'investigating'].includes(incident.status) && (
+						<button onClick={() => handleStatusChange('resolved')} className="rounded-md bg-emerald-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-emerald-700 transition-colors">Resolve</button>
+					)}
+				</div>
+			</div>
 
-			{/* Tabbed content */}
-			<Card>
-				<CardHeader className="pb-0">
-					<Tabs>
-						<TabsList>
-							{tabs.map(t => (
-								<TabsTrigger
-									key={t.key}
-									active={activeTab === t.key}
-									onClick={() => setActiveTab(t.key)}
-								>
-									{t.label}
-									{t.count != null && (
-										<span className="ml-1 font-mono text-[10px] opacity-60">({t.count})</span>
-									)}
-								</TabsTrigger>
+			{/* Two-column layout */}
+			<div className="grid grid-cols-[1fr_280px] gap-6">
+				{/* Left: timeline + notes */}
+				<div className="space-y-5">
+					<div className="rounded-lg border border-zinc-200 bg-white p-5">
+						<h2 className="mb-4 text-sm font-medium text-zinc-900">Activity</h2>
+						<div className="space-y-0">
+							{timeline.map((ev, idx) => (
+								<div key={idx} className="relative flex gap-3 pb-5 last:pb-0">
+									{idx < timeline.length - 1 && <div className="absolute left-[5px] top-[14px] h-[calc(100%-6px)] w-px bg-zinc-200" />}
+									<div className="relative z-10 mt-1 h-[10px] w-[10px] shrink-0 rounded-full border-2 border-zinc-300 bg-white" />
+									<div className="min-w-0 flex-1">
+										<p className="text-sm font-medium text-zinc-800">{ev.label}</p>
+										<p className="mt-0.5 text-xs text-zinc-500 break-all">{ev.detail}</p>
+										{ev.time && <p className="mt-0.5 text-[11px] text-zinc-400">{formatDate(ev.time)}</p>}
+									</div>
+								</div>
 							))}
-						</TabsList>
-					</Tabs>
-				</CardHeader>
-				<CardContent>
-					{activeTab === 'timeline' && <Timeline events={incident.timeline} />}
-					{activeTab === 'alerts' && <AlertList alerts={incident.alerts} />}
-					{activeTab === 'notes' && (
-						<div className="space-y-3">
-							<NotesList notes={incident.notes} />
-							<div className="flex gap-2">
-								<Input
-									value={noteText}
-									onChange={(e) => setNoteText(e.target.value)}
-									onKeyDown={(e) => e.key === 'Enter' && handleAddNote()}
-									placeholder="Add a note…"
-								/>
-								<Button size="sm" onClick={handleAddNote} disabled={!noteText.trim()}>
-									<Send className="mr-1.5 h-3.5 w-3.5" />
-									Add
-								</Button>
+						</div>
+					</div>
+
+					{/* Note input */}
+					<div className="flex gap-2">
+						<input
+							type="text"
+							placeholder="Add a note..."
+							value={noteText}
+							onChange={(e) => setNoteText(e.target.value)}
+							onKeyDown={(e) => e.key === 'Enter' && handleAddNote()}
+							className="flex-1 rounded-md border border-zinc-200 bg-white px-3 py-1.5 text-sm text-zinc-700 placeholder-zinc-400 outline-none focus:border-zinc-400 focus:ring-1 focus:ring-zinc-200"
+						/>
+						<button
+							onClick={handleAddNote}
+							disabled={submitting || !noteText.trim()}
+							className="flex items-center gap-1 rounded-md bg-zinc-800 px-3 py-1.5 text-xs font-medium text-white hover:bg-zinc-700 disabled:opacity-40"
+						>
+							<Send className="h-3 w-3" /> Send
+						</button>
+					</div>
+				</div>
+
+				{/* Right: metadata */}
+				<div className="space-y-4">
+					{/* Response metrics */}
+					<div className="rounded-lg border border-zinc-200 bg-white p-4">
+						<h3 className="mb-3 text-xs font-medium text-zinc-500">Response</h3>
+						<div className="grid grid-cols-2 gap-3">
+							<div>
+								<p className="text-[11px] text-zinc-400">MTTA</p>
+								<p className="text-base font-semibold text-zinc-900 tabular-nums">{formatSeconds(mtta)}</p>
+							</div>
+							<div>
+								<p className="text-[11px] text-zinc-400">MTTR</p>
+								<p className="text-base font-semibold text-zinc-900 tabular-nums">{formatSeconds(mttr)}</p>
+							</div>
+						</div>
+					</div>
+
+					{/* Properties */}
+					<div className="rounded-lg border border-zinc-200 bg-white p-4">
+						<h3 className="mb-3 text-xs font-medium text-zinc-500">Properties</h3>
+						<dl className="space-y-2.5 text-sm">
+							{[
+								['Severity', <span className="flex items-center gap-1.5 capitalize"><span className={cn('h-2 w-2 rounded-full', sevDotColor[incident.severity])} />{incident.severity}</span>],
+								['Service', incident.service],
+								['Assignee', incident.assigned_to || <span className="text-zinc-300">—</span>],
+								['Created', formatDate(incident.created_at)],
+							].map(([label, value]) => (
+								<div key={label} className="flex items-center justify-between">
+									<dt className="text-zinc-400">{label}</dt>
+									<dd className="font-medium text-zinc-700">{value}</dd>
+								</div>
+							))}
+						</dl>
+					</div>
+
+					{/* Linked Alerts */}
+					{incident.alerts?.length > 0 && (
+						<div className="rounded-lg border border-zinc-200 bg-white p-4">
+							<h3 className="mb-2 text-xs font-medium text-zinc-500">Linked alerts ({incident.alerts.length})</h3>
+							<div className="space-y-1.5 max-h-40 overflow-y-auto">
+								{incident.alerts.map((alert, idx) => (
+									<div key={idx} className="rounded border border-zinc-100 px-2.5 py-1.5">
+										<p className="text-xs font-medium text-zinc-700 truncate">{alert.message}</p>
+										<p className="text-[11px] text-zinc-400">{alert.service} · {alert.severity}</p>
+									</div>
+								))}
 							</div>
 						</div>
 					)}
-				</CardContent>
-			</Card>
+				</div>
+			</div>
 		</div>
 	);
 }
