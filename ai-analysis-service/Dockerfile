@@ -6,7 +6,21 @@ RUN apt-get update && \
 	rm -rf /var/lib/apt/lists/*
 
 COPY requirements.txt /tmp/requirements.txt
-RUN pip install --no-cache-dir --prefix=/install -r /tmp/requirements.txt
+RUN pip install --no-cache-dir --prefix=/install -r /tmp/requirements.txt && \
+	find /install -type d -name '__pycache__' -exec rm -rf {} + 2>/dev/null; \
+	find /install -type d -name 'tests' -exec rm -rf {} + 2>/dev/null; \
+	find /install -type d -name 'test' -exec rm -rf {} + 2>/dev/null; \
+	find /install -type f -name '*.pyc' -delete 2>/dev/null; \
+	find /install -type f -name '*.pyo' -delete 2>/dev/null; \
+	rm -rf /install/lib/python3.11/site-packages/numpy/tests \
+	/install/lib/python3.11/site-packages/numpy/*/tests \
+	/install/lib/python3.11/site-packages/sklearn/tests \
+	/install/lib/python3.11/site-packages/sklearn/*/tests \
+	/install/lib/python3.11/site-packages/sklearn/datasets/data \
+	/install/lib/python3.11/site-packages/sklearn/datasets/descr \
+	/install/lib/python3.11/site-packages/scipy/*/tests \
+	/install/lib/python3.11/site-packages/scipy/linalg/tests \
+	2>/dev/null; true
 
 # ── runtime stage ────────────────────────────────────────────
 FROM python:3.11-slim
