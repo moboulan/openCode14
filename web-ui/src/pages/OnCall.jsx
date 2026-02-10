@@ -49,7 +49,7 @@ export default function OnCall() {
 					[1, 2].map(i => <div key={i} className="shimmer h-40 rounded-lg" />)
 				) : oncallList.length > 0 ? (
 					oncallList.map((oc, i) => (
-						<Card key={oc._team || i} className="border-primary/20 bg-primary/[0.02]">
+						<Card key={oc._team || i} className="border-primary/20 bg-primary/2">
 							<CardHeader className="pb-2">
 								<div className="flex items-center justify-between">
 									<CardTitle className="text-sm capitalize">{oc.team || oc._team} Team</CardTitle>

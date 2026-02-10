@@ -19,9 +19,11 @@ async def test_liveness_returns_alive(client):
 
 @pytest.mark.asyncio
 async def test_health_healthy(client):
-    with patch("app.routers.health.check_database_health", return_value=True), patch(
-        "psutil.virtual_memory"
-    ) as mock_mem, patch("psutil.disk_usage") as mock_disk:
+    with (
+        patch("app.routers.health.check_database_health", return_value=True),
+        patch("psutil.virtual_memory") as mock_mem,
+        patch("psutil.disk_usage") as mock_disk,
+    ):
         mock_mem.return_value.percent = 50.0
         mock_disk.return_value.percent = 40.0
 
@@ -43,9 +45,11 @@ async def test_health_healthy(client):
 
 @pytest.mark.asyncio
 async def test_health_degraded_when_db_down(client):
-    with patch("app.routers.health.check_database_health", return_value=False), patch(
-        "psutil.virtual_memory"
-    ) as mock_mem, patch("psutil.disk_usage") as mock_disk:
+    with (
+        patch("app.routers.health.check_database_health", return_value=False),
+        patch("psutil.virtual_memory") as mock_mem,
+        patch("psutil.disk_usage") as mock_disk,
+    ):
         mock_mem.return_value.percent = 50.0
         mock_disk.return_value.percent = 40.0
 
@@ -61,9 +65,11 @@ async def test_health_degraded_when_db_down(client):
 
 @pytest.mark.asyncio
 async def test_health_degraded_high_memory(client):
-    with patch("app.routers.health.check_database_health", return_value=True), patch(
-        "psutil.virtual_memory"
-    ) as mock_mem, patch("psutil.disk_usage") as mock_disk:
+    with (
+        patch("app.routers.health.check_database_health", return_value=True),
+        patch("psutil.virtual_memory") as mock_mem,
+        patch("psutil.disk_usage") as mock_disk,
+    ):
         mock_mem.return_value.percent = 95.0
         mock_disk.return_value.percent = 40.0
 
@@ -79,9 +85,11 @@ async def test_health_degraded_high_memory(client):
 
 @pytest.mark.asyncio
 async def test_health_degraded_high_disk(client):
-    with patch("app.routers.health.check_database_health", return_value=True), patch(
-        "psutil.virtual_memory"
-    ) as mock_mem, patch("psutil.disk_usage") as mock_disk:
+    with (
+        patch("app.routers.health.check_database_health", return_value=True),
+        patch("psutil.virtual_memory") as mock_mem,
+        patch("psutil.disk_usage") as mock_disk,
+    ):
         mock_mem.return_value.percent = 50.0
         mock_disk.return_value.percent = 95.0
 

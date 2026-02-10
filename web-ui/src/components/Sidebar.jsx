@@ -45,7 +45,7 @@ export default function Sidebar() {
 					'group flex items-center gap-3 rounded-lg px-3 py-2 text-[13px] font-medium transition-all duration-150',
 					isActive
 						? 'bg-primary/10 text-primary'
-						: 'text-sidebar-foreground hover:text-foreground hover:bg-white/[0.04]'
+						: 'text-sidebar-foreground hover:text-foreground hover:bg-white/4'
 				)}
 			>
 				<item.icon
@@ -58,7 +58,7 @@ export default function Sidebar() {
 	};
 
 	return (
-		<aside className="fixed left-0 top-0 z-40 flex h-screen w-[240px] flex-col border-r border-border bg-sidebar">
+		<aside className="fixed left-0 top-0 z-40 flex h-screen w-60 flex-col border-r border-border bg-sidebar">
 			{/* Brand */}
 			<div className="flex h-14 items-center gap-2.5 px-5 shrink-0 border-b border-border">
 				<div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-primary">

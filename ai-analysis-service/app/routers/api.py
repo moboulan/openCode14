@@ -39,6 +39,7 @@ def set_engine(e: SimilarityEngine) -> None:
 
 # ── POST /analyze ────────────────────────────────────────────
 
+
 @router.post("/analyze", response_model=AnalysisResponse)
 async def analyse_alert(req: AnalyseRequest):
     """Run NLP similarity analysis on the given alert message."""
@@ -105,6 +106,7 @@ def _store_suggestions(req: AnalyseRequest, suggestions: list[SuggestionResponse
 
 # ── GET /suggestions ─────────────────────────────────────────
 
+
 @router.get("/suggestions", response_model=list[SuggestionResponse])
 async def list_suggestions(
     alert_id: str | None = Query(None),
@@ -159,6 +161,7 @@ async def list_suggestions(
 
 # ── GET /knowledge-base ─────────────────────────────────────
 
+
 @router.get("/knowledge-base")
 async def list_knowledge_base():
     """Return the static knowledge-base patterns."""
@@ -174,6 +177,7 @@ async def list_knowledge_base():
 
 
 # ── POST /learn ─────────────────────────────────────────────
+
 
 @router.post("/learn", status_code=201)
 async def learn_pattern(

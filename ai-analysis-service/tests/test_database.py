@@ -1,8 +1,6 @@
 """Tests for database module utilities."""
 
-from unittest.mock import MagicMock, patch
-
-import pytest
+from unittest.mock import patch
 
 from helpers import fake_connection, fake_connection_error
 

@@ -14,7 +14,9 @@ from app.metrics import setup_custom_metrics
 from app.routers import api, health
 
 # Configure logging
-logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+)
 logger = logging.getLogger(__name__)
 
 
@@ -23,7 +25,9 @@ async def lifespan(app: FastAPI):
     """Startup and shutdown events"""
     # Startup
     logger.info(f"Starting {settings.SERVICE_NAME} on port {settings.SERVICE_PORT}")
-    logger.info(f"Metrics available at http://localhost:{settings.SERVICE_PORT}/metrics")
+    logger.info(
+        f"Metrics available at http://localhost:{settings.SERVICE_PORT}/metrics"
+    )
     logger.info(f"Health check at http://localhost:{settings.SERVICE_PORT}/health")
     await init_http_client(timeout=settings.HTTP_CLIENT_TIMEOUT)
     yield
@@ -83,7 +87,13 @@ async def global_exception_handler(request: Request, exc: Exception):
     logger.error(f"Global exception handler caught: {exc}", exc_info=True)
     return JSONResponse(
         status_code=500,
-        content={"error": {"message": "Internal server error", "type": type(exc).__name__, "timestamp": time.time()}},
+        content={
+            "error": {
+                "message": "Internal server error",
+                "type": type(exc).__name__,
+                "timestamp": time.time(),
+            }
+        },
     )
 
 
@@ -95,4 +105,8 @@ app.include_router(api.router, prefix="/api/v1", tags=["api"])
 # Root endpoint
 @app.get("/")
 async def root():
-    return {"service": settings.SERVICE_NAME, "version": settings.APP_VERSION, "status": "running"}
+    return {
+        "service": settings.SERVICE_NAME,
+        "version": settings.APP_VERSION,
+        "status": "running",
+    }

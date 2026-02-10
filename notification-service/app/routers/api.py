@@ -30,7 +30,9 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 
 
-def _send_mock(notification_id: str, request: NotificationRequest) -> NotificationStatus:
+def _send_mock(
+    notification_id: str, request: NotificationRequest
+) -> NotificationStatus:
     """Mock notification — log to stdout."""
     logger.info(
         f"[MOCK NOTIFICATION] id={notification_id} "
@@ -41,10 +43,14 @@ def _send_mock(notification_id: str, request: NotificationRequest) -> Notificati
     return NotificationStatus.DELIVERED
 
 
-async def _send_email(notification_id: str, request: NotificationRequest) -> NotificationStatus:
+async def _send_email(
+    notification_id: str, request: NotificationRequest
+) -> NotificationStatus:
     """Send email via SendGrid API. Falls back to mock if no API key."""
     if not settings.SENDGRID_API_KEY:
-        logger.info(f"[EMAIL FALLBACK→MOCK] No SENDGRID_API_KEY set. id={notification_id}")
+        logger.info(
+            f"[EMAIL FALLBACK→MOCK] No SENDGRID_API_KEY set. id={notification_id}"
+        )
         return _send_mock(notification_id, request)
 
     try:
@@ -71,18 +77,24 @@ async def _send_email(notification_id: str, request: NotificationRequest) -> Not
                 logger.info(f"[EMAIL SENT] id={notification_id} to={request.engineer}")
                 return NotificationStatus.DELIVERED
             else:
-                logger.error(f"[EMAIL FAILED] id={notification_id} status={resp.status_code} body={resp.text}")
+                logger.error(
+                    f"[EMAIL FAILED] id={notification_id} status={resp.status_code} body={resp.text}"
+                )
                 return NotificationStatus.FAILED
     except Exception as e:
         logger.error(f"[EMAIL ERROR] id={notification_id}: {e}")
         return NotificationStatus.FAILED
 
 
-async def _send_slack(notification_id: str, request: NotificationRequest) -> NotificationStatus:
+async def _send_slack(
+    notification_id: str, request: NotificationRequest
+) -> NotificationStatus:
     """Send notification to Slack via incoming webhook. Falls back to mock if no URL."""
     slack_url = settings.SLACK_WEBHOOK_URL
     if not slack_url:
-        logger.info(f"[SLACK FALLBACK→MOCK] No SLACK_WEBHOOK_URL set. id={notification_id}")
+        logger.info(
+            f"[SLACK FALLBACK→MOCK] No SLACK_WEBHOOK_URL set. id={notification_id}"
+        )
         return _send_mock(notification_id, request)
 
     severity_emoji = {
@@ -91,10 +103,16 @@ async def _send_slack(notification_id: str, request: NotificationRequest) -> Not
         "medium": ":warning:",
         "low": ":information_source:",
     }
-    emoji = severity_emoji.get(request.severity.value, ":bell:") if request.severity else ":bell:"
+    emoji = (
+        severity_emoji.get(request.severity.value, ":bell:")
+        if request.severity
+        else ":bell:"
+    )
 
     payload = {
-        "text": f"{emoji} *Incident {request.incident_id}*\n" f"Engineer: {request.engineer}\n" f"{request.message}",
+        "text": f"{emoji} *Incident {request.incident_id}*\n"
+        f"Engineer: {request.engineer}\n"
+        f"{request.message}",
         "username": "Incident Platform",
         "icon_emoji": ":rotating_light:",
     }
@@ -106,14 +124,18 @@ async def _send_slack(notification_id: str, request: NotificationRequest) -> Not
                 logger.info(f"[SLACK SENT] id={notification_id}")
                 return NotificationStatus.DELIVERED
             else:
-                logger.error(f"[SLACK FAILED] id={notification_id} status={resp.status_code}")
+                logger.error(
+                    f"[SLACK FAILED] id={notification_id} status={resp.status_code}"
+                )
                 return NotificationStatus.FAILED
     except Exception as e:
         logger.error(f"[SLACK ERROR] id={notification_id}: {e}")
         return NotificationStatus.FAILED
 
 
-async def _send_webhook(notification_id: str, request: NotificationRequest) -> NotificationStatus:
+async def _send_webhook(
+    notification_id: str, request: NotificationRequest
+) -> NotificationStatus:
     """Send notification to webhook URL(s)."""
     urls = []
     if request.webhook_url:
@@ -140,10 +162,14 @@ async def _send_webhook(notification_id: str, request: NotificationRequest) -> N
                 try:
                     resp = await client.post(url, json=payload)
                     if resp.status_code < 400:
-                        logger.info(f"[WEBHOOK SENT] id={notification_id} url={url} status={resp.status_code}")
+                        logger.info(
+                            f"[WEBHOOK SENT] id={notification_id} url={url} status={resp.status_code}"
+                        )
                         delivered = True
                     else:
-                        logger.warning(f"[WEBHOOK FAILED] id={notification_id} url={url} status={resp.status_code}")
+                        logger.warning(
+                            f"[WEBHOOK FAILED] id={notification_id} url={url} status={resp.status_code}"
+                        )
                 except Exception as e:
                     logger.error(f"[WEBHOOK ERROR] id={notification_id} url={url}: {e}")
     except Exception as e:
@@ -155,7 +181,9 @@ async def _send_webhook(notification_id: str, request: NotificationRequest) -> N
 # ---------------------------------------------------------------------------
 # POST /notify — send a notification
 # ---------------------------------------------------------------------------
-@router.post("/notify", response_model=NotificationResponse, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/notify", response_model=NotificationResponse, status_code=status.HTTP_201_CREATED
+)
 async def send_notification(request: NotificationRequest):
     """
     Send a notification via the specified channel.
@@ -179,7 +207,9 @@ async def send_notification(request: NotificationRequest):
         delivery_status = _send_mock(notification_id, request)
 
     duration = time.time() - start
-    notification_delivery_seconds.labels(channel=request.channel.value).observe(duration)
+    notification_delivery_seconds.labels(channel=request.channel.value).observe(
+        duration
+    )
 
     # ── 2. Store in DB ────────────────────────────────────────
     try:

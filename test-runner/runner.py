@@ -190,6 +190,7 @@ ws_clients: set[WebSocket] = set()
 
 # ── Models ───────────────────────────────────────────────────
 
+
 class CustomAlert(BaseModel):
     service: str
     severity: str
@@ -203,6 +204,7 @@ class ContinuousConfig(BaseModel):
 
 
 # ── Helpers ──────────────────────────────────────────────────
+
 
 async def broadcast(event: dict):
     """Send event to all connected WebSocket clients."""
@@ -295,11 +297,14 @@ async def setup_oncall() -> list[dict]:
                 resp = await client.post(f"{ONCALL_URL}/schedule", json=sched)
                 results.append({"team": sched["team"], "user": sched["user_name"], "status": resp.status_code})
             except Exception as e:
-                results.append({"team": sched["team"], "user": sched["user_name"], "status": "error", "error": str(e)[:60]})
+                results.append(
+                    {"team": sched["team"], "user": sched["user_name"], "status": "error", "error": str(e)[:60]}
+                )
     return results
 
 
 # ── Continuous mode ──────────────────────────────────────────
+
 
 async def _continuous_loop(interval: int, categories: list[str]):
     """Background loop sending random alerts."""
@@ -341,6 +346,7 @@ async def health():
 
 # ── API ──────────────────────────────────────────────────────
 
+
 @app.get("/api/scenarios")
 async def list_scenarios():
     """List all available test scenarios."""
@@ -349,13 +355,15 @@ async def list_scenarios():
         cat = s["category"]
         if cat not in categories:
             categories[cat] = []
-        categories[cat].append({
-            "id": s["id"],
-            "service": s["service"],
-            "severity": s["severity"],
-            "message": s["message"],
-            "labels": s.get("labels", {}),
-        })
+        categories[cat].append(
+            {
+                "id": s["id"],
+                "service": s["service"],
+                "severity": s["severity"],
+                "message": s["message"],
+                "labels": s.get("labels", {}),
+            }
+        )
     return {"total": len(ALERT_SCENARIOS), "categories": categories}
 
 
@@ -389,14 +397,16 @@ async def send_all():
 @app.post("/api/send-custom")
 async def send_custom(alert: CustomAlert):
     """Send a custom alert."""
-    return await send_alert({
-        "id": "custom",
-        "category": "Custom",
-        "service": alert.service,
-        "severity": alert.severity,
-        "message": alert.message,
-        "labels": alert.labels,
-    })
+    return await send_alert(
+        {
+            "id": "custom",
+            "category": "Custom",
+            "service": alert.service,
+            "severity": alert.severity,
+            "message": alert.message,
+            "labels": alert.labels,
+        }
+    )
 
 
 @app.post("/api/continuous/start")
@@ -453,6 +463,7 @@ async def clear_history():
 
 # ── WebSocket (live results) ─────────────────────────────────
 
+
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
     await websocket.accept()
@@ -468,4 +479,5 @@ async def websocket_endpoint(websocket: WebSocket):
 
 if __name__ == "__main__":
     import uvicorn
+
     uvicorn.run(app, host="0.0.0.0", port=SERVICE_PORT)

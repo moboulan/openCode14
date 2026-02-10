@@ -151,7 +151,9 @@ def test_escalation_policy_response():
     """EscalationPolicyResponse serializes correctly."""
     resp = EscalationPolicyResponse(
         team="platform",
-        levels=[EscalationPolicyLevel(level=1, wait_minutes=5, notify_target="secondary")],
+        levels=[
+            EscalationPolicyLevel(level=1, wait_minutes=5, notify_target="secondary")
+        ],
     )
     assert resp.team == "platform"
     assert resp.levels[0].notify_target == "secondary"

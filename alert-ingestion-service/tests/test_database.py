@@ -76,7 +76,7 @@ class TestGetDbConnection:
         with patch("app.database.get_pool", return_value=mock_pool):
             from app.database import get_db_connection
 
-            with get_db_connection(autocommit=True) as conn:
+            with get_db_connection(autocommit=True) as _conn:
                 pass
 
             mock_conn.commit.assert_called_once()
@@ -91,7 +91,7 @@ class TestGetDbConnection:
             from app.database import get_db_connection
 
             with pytest.raises(ValueError):
-                with get_db_connection() as conn:
+                with get_db_connection() as _conn:
                     raise ValueError("boom")
 
             mock_conn.rollback.assert_called_once()

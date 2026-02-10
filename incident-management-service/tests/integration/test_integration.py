@@ -20,7 +20,9 @@ from httpx import ASGITransport, AsyncClient
 DATABASE_URL = os.getenv("DATABASE_URL")
 pytestmark = [
     pytest.mark.integration,
-    pytest.mark.skipif(not DATABASE_URL, reason="DATABASE_URL not set — skip integration tests"),
+    pytest.mark.skipif(
+        not DATABASE_URL, reason="DATABASE_URL not set — skip integration tests"
+    ),
 ]
 
 
@@ -165,8 +167,12 @@ async def test_resolve_and_mttr(live_client):
     )
     incident_id = post_resp.json()["incident_id"]
 
-    await live_client.patch(f"/api/v1/incidents/{incident_id}", json={"status": "acknowledged"})
-    await live_client.patch(f"/api/v1/incidents/{incident_id}", json={"status": "resolved"})
+    await live_client.patch(
+        f"/api/v1/incidents/{incident_id}", json={"status": "acknowledged"}
+    )
+    await live_client.patch(
+        f"/api/v1/incidents/{incident_id}", json={"status": "resolved"}
+    )
 
     met_resp = await live_client.get(f"/api/v1/incidents/{incident_id}/metrics")
     assert met_resp.status_code == 200

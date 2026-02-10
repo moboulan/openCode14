@@ -19,7 +19,9 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 # POST /alerts — receive, store, correlate
 # ---------------------------------------------------------------------------
-@router.post("/alerts", response_model=AlertResponse, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/alerts", response_model=AlertResponse, status_code=status.HTTP_201_CREATED
+)
 async def create_alert(alert: Alert):
     """
     Receive and process an alert.
@@ -48,7 +50,14 @@ async def create_alert(alert: Alert):
                 VALUES (%s, %s, %s::severity_level, %s, %s::jsonb, %s)
                 RETURNING id
                 """,
-                (alert_id, alert.service, alert.severity.value, alert.message, labels_json, ts),
+                (
+                    alert_id,
+                    alert.service,
+                    alert.severity.value,
+                    alert.message,
+                    labels_json,
+                    ts,
+                ),
             )
             row = cur.fetchone()
             alert_db_id = row["id"]  # UUID PK for FK references
@@ -72,7 +81,11 @@ async def create_alert(alert: Alert):
                 ORDER BY created_at DESC
                 LIMIT 1
                 """,
-                (alert.service, alert.severity.value, settings.CORRELATION_WINDOW_MINUTES),
+                (
+                    alert.service,
+                    alert.severity.value,
+                    settings.CORRELATION_WINDOW_MINUTES,
+                ),
             )
             match = cur.fetchone()
 
@@ -307,4 +320,6 @@ async def delete_alert(alert_id: str):
             row = cur.fetchone()
 
     if not row:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Alert not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Alert not found"
+        )

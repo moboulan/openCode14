@@ -71,7 +71,9 @@ async def test_create_alert_correlated_to_existing(client, sample_alert_payload)
         "app.routers.api.get_db_connection",
         side_effect=[
             fake_connection([{"id": fake_alert_db_id}])(autocommit=True),
-            fake_connection([{"incident_id": fake_incident_id, "id": fake_incident_db_id}])(),
+            fake_connection(
+                [{"incident_id": fake_incident_id, "id": fake_incident_db_id}]
+            )(),
             fake_connection([None])(autocommit=True),
         ],
     ):

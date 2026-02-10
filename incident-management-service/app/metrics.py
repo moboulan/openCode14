@@ -11,10 +11,14 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 
 # Total incidents by status and severity
-incidents_total = Counter("incidents_total", "Total number of incidents", ["status", "severity"])
+incidents_total = Counter(
+    "incidents_total", "Total number of incidents", ["status", "severity"]
+)
 
 # Notifications sent (used when this service triggers a notification)
-notifications_sent_total = Counter("oncall_notifications_sent_total", "Total notifications sent", ["channel", "status"])
+notifications_sent_total = Counter(
+    "oncall_notifications_sent_total", "Total notifications sent", ["channel", "status"]
+)
 
 # ---------------------------------------------------------------------------
 # Histograms
@@ -40,7 +44,9 @@ incident_mttr_seconds = Histogram(
 # Gauges
 # ---------------------------------------------------------------------------
 
-open_incidents = Gauge("open_incidents", "Current number of open incidents", ["severity"])
+open_incidents = Gauge(
+    "open_incidents", "Current number of open incidents", ["severity"]
+)
 
 
 def setup_custom_metrics():
@@ -65,7 +71,9 @@ def setup_custom_metrics():
                 rows = cur.fetchall()
                 for row in rows:
                     open_incidents.labels(severity=row["severity"]).set(row["cnt"])
-                    logger.info(f"Gauge open_incidents[{row['severity']}] = {row['cnt']}")
+                    logger.info(
+                        f"Gauge open_incidents[{row['severity']}] = {row['cnt']}"
+                    )
     except Exception as e:
         logger.warning(f"Could not sync open_incidents gauge from DB: {e}")
 

@@ -64,7 +64,10 @@ def _patch_engine(request):
     mock_engine._corpus_size = 20
     mock_engine._hist_entries = []
 
-    with patch("app.routers.api.engine", mock_engine), patch("app.main.engine", mock_engine):
+    with (
+        patch("app.routers.api.engine", mock_engine),
+        patch("app.main.engine", mock_engine),
+    ):
         yield mock_engine
 
 

@@ -241,8 +241,10 @@ async def test_alerts_received_metric_incremented(client, sample_alert_payload):
     ):
         with patch("httpx.AsyncClient", FakeAsyncClient):
             with patch("app.routers.api.alerts_received_total") as mock_recv:
-                resp = await client.post("/api/v1/alerts", json=sample_alert_payload)
-                mock_recv.labels.assert_called_with(severity="low", service="test-service")
+                await client.post("/api/v1/alerts", json=sample_alert_payload)
+                mock_recv.labels.assert_called_with(
+                    severity="low", service="test-service"
+                )
 
 
 @pytest.mark.asyncio
@@ -295,7 +297,9 @@ async def test_two_alerts_same_service_severity_deduplicate(client):
 
 
 @pytest.mark.asyncio
-async def test_correlation_outside_window_creates_new_incident(client, sample_alert_payload):
+async def test_correlation_outside_window_creates_new_incident(
+    client, sample_alert_payload
+):
     """An alert arriving AFTER the correlation window has elapsed should NOT
     match any existing incident and should create a new one instead.
 
@@ -375,8 +379,6 @@ async def test_concurrent_alerts_correlation(client):
         "message": "Concurrent test",
     }
 
-    call_count = {"n": 0}
-
     # Build side_effect lists: first request gets no match, second gets match
     def _side_effects_first():
         return [
@@ -388,7 +390,9 @@ async def test_concurrent_alerts_correlation(client):
     def _side_effects_second():
         return [
             fake_connection([{"id": alert_db_id_2}])(autocommit=True),
-            fake_connection([{"incident_id": incident_id, "id": incident_db_id}])(),  # match
+            fake_connection(
+                [{"incident_id": incident_id, "id": incident_db_id}]
+            )(),  # match
             fake_connection([None])(autocommit=True),
         ]
 

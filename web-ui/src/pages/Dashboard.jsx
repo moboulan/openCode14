@@ -108,9 +108,9 @@ export default function Dashboard() {
 								<TableHeader>
 									<TableRow>
 										<TableHead>Title</TableHead>
-										<TableHead className="w-[90px]">Severity</TableHead>
-										<TableHead className="w-[100px]">Status</TableHead>
-										<TableHead className="w-[120px] text-right">When</TableHead>
+										<TableHead className="w-22.5">Severity</TableHead>
+										<TableHead className="w-25">Status</TableHead>
+										<TableHead className="w-30 text-right">When</TableHead>
 									</TableRow>
 								</TableHeader>
 								<TableBody>
@@ -119,7 +119,7 @@ export default function Dashboard() {
 											<TableCell>
 												<div className="flex items-center gap-2">
 													<ShieldAlert className={cn('h-3.5 w-3.5 shrink-0', severityColor[inc.severity]?.text || 'text-zinc-400')} />
-													<span className="font-medium text-sm truncate max-w-[300px]">{inc.title}</span>
+													<span className="font-medium text-sm truncate max-w-75">{inc.title}</span>
 												</div>
 											</TableCell>
 											<TableCell><span className={cn('inline-flex items-center rounded-md border px-2 py-0.5 text-[10px] font-semibold uppercase', severityColor[inc.severity]?.badge)}>{inc.severity}</span></TableCell>

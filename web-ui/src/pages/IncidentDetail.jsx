@@ -71,7 +71,7 @@ export default function IncidentDetail() {
 		return (
 			<div className="space-y-4 fade-in">
 				<div className="shimmer h-8 w-64" />
-				<div className="shimmer h-[400px] w-full" />
+				<div className="shimmer h-100 w-full" />
 			</div>
 		);
 	}
@@ -151,7 +151,7 @@ export default function IncidentDetail() {
 					)}
 
 					{/* AI Suggestions */}
-					<Card className="border-primary/20 bg-primary/[0.02]">
+					<Card className="border-primary/20 bg-primary/2">
 						<CardHeader className="pb-2">
 							<div className="flex items-center justify-between">
 								<div className="flex items-center gap-2">

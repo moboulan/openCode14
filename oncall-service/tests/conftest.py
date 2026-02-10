@@ -33,7 +33,10 @@ def _patch_db_pool(request):
         yield  # real DB
         return
 
-    with patch("app.database._connection_pool", _mock_pool), patch("app.database.get_pool", return_value=_mock_pool):
+    with (
+        patch("app.database._connection_pool", _mock_pool),
+        patch("app.database.get_pool", return_value=_mock_pool),
+    ):
         yield
 
 

@@ -64,7 +64,7 @@ export default function Incidents() {
 			<Card>
 				<CardContent className="p-4">
 					<div className="flex flex-wrap items-center gap-3">
-						<div className="relative flex-1 min-w-[200px]">
+						<div className="relative flex-1 min-w-50">
 							<Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
 							<Input
 								placeholder="Search incidents..."
@@ -121,13 +121,13 @@ export default function Incidents() {
 						<Table>
 							<TableHeader>
 								<TableRow>
-									<TableHead className="w-[40px]"></TableHead>
+									<TableHead className="w-10"></TableHead>
 									<TableHead>Title</TableHead>
-									<TableHead className="w-[100px]">Severity</TableHead>
-									<TableHead className="w-[110px]">Status</TableHead>
-									<TableHead className="w-[120px]">Service</TableHead>
-									<TableHead className="w-[120px]">Created</TableHead>
-									<TableHead className="w-[160px] text-right">Actions</TableHead>
+									<TableHead className="w-25">Severity</TableHead>
+									<TableHead className="w-27.5">Status</TableHead>
+									<TableHead className="w-30">Service</TableHead>
+									<TableHead className="w-30">Created</TableHead>
+									<TableHead className="w-40 text-right">Actions</TableHead>
 								</TableRow>
 							</TableHeader>
 							<TableBody>

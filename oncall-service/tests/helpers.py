@@ -35,7 +35,9 @@ def fake_connection(cursor_sides: list[dict | None]):
             if i < len(cursor_sides):
                 val = cursor_sides[i]
                 cur.fetchone.return_value = val
-                cur.fetchall.return_value = val if isinstance(val, list) else [val] if val else []
+                cur.fetchall.return_value = (
+                    val if isinstance(val, list) else [val] if val else []
+                )
             else:
                 cur.fetchone.return_value = None
                 cur.fetchall.return_value = []
@@ -95,7 +97,9 @@ class FakeResponse:
         return self._json
 
 
-def make_fake_async_client(get_status=200, get_json=None, post_status=200, post_json=None):
+def make_fake_async_client(
+    get_status=200, get_json=None, post_status=200, post_json=None
+):
     """Factory that returns a FakeAsyncClient class with configurable responses."""
 
     class _Client:

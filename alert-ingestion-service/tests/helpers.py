@@ -27,7 +27,9 @@ def fake_connection(cursor_sides: list[dict | None]):
             if idx < len(cursor_sides):
                 val = cursor_sides[idx]
                 cur.fetchone.return_value = val
-                cur.fetchall.return_value = val if isinstance(val, list) else [val] if val else []
+                cur.fetchall.return_value = (
+                    val if isinstance(val, list) else [val] if val else []
+                )
             else:
                 cur.fetchone.return_value = None
                 cur.fetchall.return_value = []

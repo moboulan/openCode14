@@ -23,7 +23,9 @@ from httpx import ASGITransport, AsyncClient
 DATABASE_URL = os.getenv("DATABASE_URL")
 pytestmark = [
     pytest.mark.integration,
-    pytest.mark.skipif(not DATABASE_URL, reason="DATABASE_URL not set — skip integration tests"),
+    pytest.mark.skipif(
+        not DATABASE_URL, reason="DATABASE_URL not set — skip integration tests"
+    ),
 ]
 
 
@@ -74,7 +76,10 @@ async def test_post_alert_stores_in_database(live_client, db_conn):
 
     # Verify in database
     cur = db_conn.cursor()
-    cur.execute("SELECT service, severity, message FROM alerts.alerts WHERE alert_id = %s", (alert_id,))
+    cur.execute(
+        "SELECT service, severity, message FROM alerts.alerts WHERE alert_id = %s",
+        (alert_id,),
+    )
     row = cur.fetchone()
     cur.close()
 
@@ -108,8 +113,12 @@ async def test_list_alerts_filter_by_service(live_client):
     svc_a = f"integ-list-a-{uuid.uuid4().hex[:6]}"
     svc_b = f"integ-list-b-{uuid.uuid4().hex[:6]}"
 
-    await live_client.post("/api/v1/alerts", json={"service": svc_a, "severity": "low", "message": "A"})
-    await live_client.post("/api/v1/alerts", json={"service": svc_b, "severity": "low", "message": "B"})
+    await live_client.post(
+        "/api/v1/alerts", json={"service": svc_a, "severity": "low", "message": "A"}
+    )
+    await live_client.post(
+        "/api/v1/alerts", json={"service": svc_b, "severity": "low", "message": "B"}
+    )
 
     resp = await live_client.get(f"/api/v1/alerts?service={svc_a}")
     assert resp.status_code == 200
@@ -123,8 +132,13 @@ async def test_list_alerts_filter_by_severity(live_client):
     """Filter alerts by severity level."""
     svc = f"integ-sev-{uuid.uuid4().hex[:6]}"
 
-    await live_client.post("/api/v1/alerts", json={"service": svc, "severity": "critical", "message": "Crit"})
-    await live_client.post("/api/v1/alerts", json={"service": svc, "severity": "low", "message": "Low"})
+    await live_client.post(
+        "/api/v1/alerts",
+        json={"service": svc, "severity": "critical", "message": "Crit"},
+    )
+    await live_client.post(
+        "/api/v1/alerts", json={"service": svc, "severity": "low", "message": "Low"}
+    )
 
     resp = await live_client.get(f"/api/v1/alerts?service={svc}&severity=critical")
     assert resp.status_code == 200
@@ -193,10 +207,12 @@ async def test_correlation_two_alerts_same_service_severity(live_client, db_conn
     svc = f"integ-corr-{uuid.uuid4().hex[:6]}"
 
     resp1 = await live_client.post(
-        "/api/v1/alerts", json={"service": svc, "severity": "high", "message": "Correlation test 1"}
+        "/api/v1/alerts",
+        json={"service": svc, "severity": "high", "message": "Correlation test 1"},
     )
     resp2 = await live_client.post(
-        "/api/v1/alerts", json={"service": svc, "severity": "high", "message": "Correlation test 2"}
+        "/api/v1/alerts",
+        json={"service": svc, "severity": "high", "message": "Correlation test 2"},
     )
 
     assert resp1.status_code == 201

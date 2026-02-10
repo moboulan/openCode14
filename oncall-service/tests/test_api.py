@@ -6,7 +6,12 @@ from datetime import date, datetime, timezone
 from unittest.mock import patch
 
 import pytest
-from helpers import FakeAsyncClient, FakeAsyncClientDown, fake_connection, make_fake_async_client
+from helpers import (
+    FakeAsyncClient,
+    FakeAsyncClientDown,
+    fake_connection,
+    make_fake_async_client,
+)
 
 # ── POST /api/v1/schedules -- create schedule ─────────────────
 
@@ -70,7 +75,9 @@ async def test_list_schedules(client):
             "team": "platform",
             "rotation_type": "weekly",
             "start_date": date(2026, 1, 1),
-            "engineers": [{"name": "Alice", "email": "alice@example.com", "primary": True}],
+            "engineers": [
+                {"name": "Alice", "email": "alice@example.com", "primary": True}
+            ],
             "escalation_minutes": 5,
             "created_at": datetime(2026, 1, 1, tzinfo=timezone.utc),
         }
@@ -94,7 +101,9 @@ async def test_list_schedules_with_team_filter(client):
             "team": "backend",
             "rotation_type": "weekly",
             "start_date": date(2026, 1, 1),
-            "engineers": [{"name": "Diana", "email": "diana@example.com", "primary": True}],
+            "engineers": [
+                {"name": "Diana", "email": "diana@example.com", "primary": True}
+            ],
             "escalation_minutes": 10,
             "created_at": datetime(2026, 1, 1, tzinfo=timezone.utc),
         }
@@ -189,7 +198,10 @@ async def test_escalate_incident(client, sample_escalate_payload):
 
     # DB calls: 1) lookup schedule, 2) insert escalation, 3) deactivate timer,
     # 4) lookup policy for timer, 5) insert timer
-    with patch("app.routers.api.get_db_connection", fake_connection([fake_schedule, None, None, None, None])):
+    with patch(
+        "app.routers.api.get_db_connection",
+        fake_connection([fake_schedule, None, None, None, None]),
+    ):
         with patch("app.routers.api.httpx.AsyncClient", FakeAsyncClient):
             resp = await client.post("/api/v1/escalate", json=sample_escalate_payload)
 
@@ -227,7 +239,10 @@ async def test_escalate_single_engineer(client):
         "created_at": datetime(2026, 1, 1, tzinfo=timezone.utc),
     }
 
-    with patch("app.routers.api.get_db_connection", fake_connection([fake_schedule, None, None, None, None])):
+    with patch(
+        "app.routers.api.get_db_connection",
+        fake_connection([fake_schedule, None, None, None, None]),
+    ):
         with patch("app.routers.api.httpx.AsyncClient", FakeAsyncClient):
             resp = await client.post(
                 "/api/v1/escalate",
@@ -282,7 +297,9 @@ async def test_create_escalation_policy(client):
         ],
     }
 
-    with patch("app.routers.api.get_db_connection", fake_connection([None, None, None])):
+    with patch(
+        "app.routers.api.get_db_connection", fake_connection([None, None, None])
+    ):
         resp = await client.post("/api/v1/escalation-policies", json=payload)
 
     assert resp.status_code == 201
@@ -307,8 +324,18 @@ async def test_create_escalation_policy_validation_error(client):
 async def test_list_escalation_policies(client):
     """GET /api/v1/escalation-policies returns policy list."""
     fake_rows = [
-        {"team": "platform", "level": 1, "wait_minutes": 5, "notify_target": "secondary"},
-        {"team": "platform", "level": 2, "wait_minutes": 10, "notify_target": "manager"},
+        {
+            "team": "platform",
+            "level": 1,
+            "wait_minutes": 5,
+            "notify_target": "secondary",
+        },
+        {
+            "team": "platform",
+            "level": 2,
+            "wait_minutes": 10,
+            "notify_target": "manager",
+        },
     ]
 
     with patch("app.routers.api.get_db_connection", fake_connection([fake_rows])):
@@ -327,7 +354,12 @@ async def test_list_escalation_policies(client):
 async def test_get_escalation_policy(client):
     """GET /api/v1/escalation-policies/platform returns the team policy."""
     fake_rows = [
-        {"team": "platform", "level": 1, "wait_minutes": 5, "notify_target": "secondary"},
+        {
+            "team": "platform",
+            "level": 1,
+            "wait_minutes": 5,
+            "notify_target": "secondary",
+        },
     ]
 
     with patch("app.routers.api.get_db_connection", fake_connection([fake_rows])):
@@ -419,7 +451,9 @@ async def test_get_oncall_metrics(client):
 
     with patch(
         "app.routers.api.get_db_connection",
-        fake_connection([fake_esc_count, fake_esc_by_team, fake_incident_summary, fake_load]),
+        fake_connection(
+            [fake_esc_count, fake_esc_by_team, fake_incident_summary, fake_load]
+        ),
     ):
         resp = await client.get("/api/v1/metrics/oncall")
 
@@ -449,7 +483,10 @@ async def test_escalate_level_2_to_manager(client):
         "created_at": datetime(2026, 1, 1, tzinfo=timezone.utc),
     }
 
-    with patch("app.routers.api.get_db_connection", fake_connection([fake_schedule, None, None, None, None])):
+    with patch(
+        "app.routers.api.get_db_connection",
+        fake_connection([fake_schedule, None, None, None, None]),
+    ):
         with patch("app.routers.api.httpx.AsyncClient", FakeAsyncClient):
             resp = await client.post(
                 "/api/v1/escalate",
@@ -494,7 +531,11 @@ async def test_create_schedule_string_engineers(client, sample_schedule_payload)
         "start_date": date(2026, 1, 1),
         "engineers": json.dumps(
             [
-                {"name": "Alice Engineer", "email": "alice@example.com", "primary": True},
+                {
+                    "name": "Alice Engineer",
+                    "email": "alice@example.com",
+                    "primary": True,
+                },
             ]
         ),
         "escalation_minutes": 5,
@@ -517,7 +558,9 @@ async def test_list_schedules_string_engineers(client):
             "team": "platform",
             "rotation_type": "weekly",
             "start_date": date(2026, 1, 1),
-            "engineers": json.dumps([{"name": "Alice", "email": "alice@example.com", "primary": True}]),
+            "engineers": json.dumps(
+                [{"name": "Alice", "email": "alice@example.com", "primary": True}]
+            ),
             "escalation_minutes": 5,
             "created_at": datetime(2026, 1, 1, tzinfo=timezone.utc),
         }
@@ -639,7 +682,10 @@ async def test_escalate_no_team_defaults_to_platform(client):
         "created_at": datetime(2026, 1, 1, tzinfo=timezone.utc),
     }
 
-    with patch("app.routers.api.get_db_connection", fake_connection([fake_schedule, None, None, None, None])):
+    with patch(
+        "app.routers.api.get_db_connection",
+        fake_connection([fake_schedule, None, None, None, None]),
+    ):
         with patch("app.routers.api.httpx.AsyncClient", FakeAsyncClient):
             resp = await client.post(
                 "/api/v1/escalate",
@@ -665,7 +711,10 @@ async def test_escalate_db_error_recording(client, sample_escalate_payload):
     }
 
     # 1) schedule lookup OK, 2) insert escalation FAIL
-    with patch("app.routers.api.get_db_connection", fake_connection([fake_schedule, Exception("DB down")])):
+    with patch(
+        "app.routers.api.get_db_connection",
+        fake_connection([fake_schedule, Exception("DB down")]),
+    ):
         with patch("app.routers.api.httpx.AsyncClient", FakeAsyncClient):
             resp = await client.post("/api/v1/escalate", json=sample_escalate_payload)
     assert resp.status_code == 500
@@ -739,7 +788,10 @@ async def test_escalate_notification_failure(client, sample_escalate_payload):
         "created_at": datetime(2026, 1, 1, tzinfo=timezone.utc),
     }
 
-    with patch("app.routers.api.get_db_connection", fake_connection([fake_schedule, None, None, None, None])):
+    with patch(
+        "app.routers.api.get_db_connection",
+        fake_connection([fake_schedule, None, None, None, None]),
+    ):
         with patch("app.routers.api.httpx.AsyncClient", FakeAsyncClientDown):
             resp = await client.post("/api/v1/escalate", json=sample_escalate_payload)
     assert resp.status_code == 201
@@ -762,7 +814,10 @@ async def test_escalate_notification_bad_response(client, sample_escalate_payloa
     }
 
     BadClient = make_fake_async_client(post_status=500)
-    with patch("app.routers.api.get_db_connection", fake_connection([fake_schedule, None, None, None, None])):
+    with patch(
+        "app.routers.api.get_db_connection",
+        fake_connection([fake_schedule, None, None, None, None]),
+    ):
         with patch("app.routers.api.httpx.AsyncClient", BadClient):
             resp = await client.post("/api/v1/escalate", json=sample_escalate_payload)
     assert resp.status_code == 201
@@ -805,7 +860,9 @@ async def test_list_escalations_with_incident_filter(client):
 async def test_create_policy_db_error(client, sample_policy_payload):
     """POST /api/v1/escalation-policies returns 500 on DB error."""
     with patch("app.routers.api.get_db_connection", side_effect=Exception("DB down")):
-        resp = await client.post("/api/v1/escalation-policies", json=sample_policy_payload)
+        resp = await client.post(
+            "/api/v1/escalation-policies", json=sample_policy_payload
+        )
     assert resp.status_code == 500
 
 
@@ -821,7 +878,12 @@ async def test_list_policies_db_error(client):
 async def test_list_policies_with_team_filter(client):
     """GET /api/v1/escalation-policies?team=backend filters by team."""
     fake_rows = [
-        {"team": "backend", "level": 1, "wait_minutes": 10, "notify_target": "secondary"},
+        {
+            "team": "backend",
+            "level": 1,
+            "wait_minutes": 10,
+            "notify_target": "secondary",
+        },
     ]
 
     with patch("app.routers.api.get_db_connection", fake_connection([fake_rows])):
@@ -869,7 +931,9 @@ async def test_check_escalations_incident_acknowledged(client):
     AckClient = make_fake_async_client(get_json={"status": "acknowledged"})
 
     # 1) get timers, 2) deactivate timer (for acknowledged)
-    with patch("app.routers.api.get_db_connection", fake_connection([fake_timers, None])):
+    with patch(
+        "app.routers.api.get_db_connection", fake_connection([fake_timers, None])
+    ):
         with patch("app.routers.api.httpx.AsyncClient", AckClient):
             resp = await client.post("/api/v1/check-escalations")
 
@@ -897,7 +961,10 @@ async def test_check_escalations_incident_ack_deactivate_error(client):
     AckClient = make_fake_async_client(get_json={"status": "resolved"})
 
     # 1) get timers OK, 2) deactivate timer FAIL (non-critical)
-    with patch("app.routers.api.get_db_connection", fake_connection([fake_timers, Exception("DB")])):
+    with patch(
+        "app.routers.api.get_db_connection",
+        fake_connection([fake_timers, Exception("DB")]),
+    ):
         with patch("app.routers.api.httpx.AsyncClient", AckClient):
             resp = await client.post("/api/v1/check-escalations")
 
@@ -961,7 +1028,9 @@ async def test_check_escalations_no_schedule(client):
     ]
 
     # 1) get timers, 2) schedule lookup returns None
-    with patch("app.routers.api.get_db_connection", fake_connection([fake_timers, None])):
+    with patch(
+        "app.routers.api.get_db_connection", fake_connection([fake_timers, None])
+    ):
         with patch("app.routers.api.httpx.AsyncClient", FakeAsyncClient):
             resp = await client.post("/api/v1/check-escalations")
 
@@ -987,7 +1056,10 @@ async def test_check_escalations_schedule_lookup_error(client):
     ]
 
     # 1) get timers OK, 2) schedule lookup FAIL → schedule=None → skip
-    with patch("app.routers.api.get_db_connection", fake_connection([fake_timers, Exception("DB")])):
+    with patch(
+        "app.routers.api.get_db_connection",
+        fake_connection([fake_timers, Exception("DB")]),
+    ):
         with patch("app.routers.api.httpx.AsyncClient", FakeAsyncClient):
             resp = await client.post("/api/v1/check-escalations")
 
@@ -1185,7 +1257,9 @@ async def test_check_escalations_policy_lookup_error(client):
     # 1) timers, 2) schedule, 3) policy FAIL → policy_row=None, 4) record, 5) timer policy, 6) timer insert
     with patch(
         "app.routers.api.get_db_connection",
-        fake_connection([fake_timers, fake_schedule, Exception("DB"), None, None, None]),
+        fake_connection(
+            [fake_timers, fake_schedule, Exception("DB"), None, None, None]
+        ),
     ):
         with patch("app.routers.api.httpx.AsyncClient", FakeAsyncClient):
             resp = await client.post("/api/v1/check-escalations")
@@ -1546,7 +1620,9 @@ async def test_create_schedule_invalid_timezone(client, sample_schedule_payload)
 
 
 @pytest.mark.asyncio
-async def test_create_schedule_with_handoff_and_timezone(client, sample_schedule_payload):
+async def test_create_schedule_with_handoff_and_timezone(
+    client, sample_schedule_payload
+):
     """POST /api/v1/schedules with handoff_hour and timezone returns both fields."""
     payload = {**sample_schedule_payload, "handoff_hour": 8, "timezone": "US/Eastern"}
     fake_row = {
@@ -1638,7 +1714,9 @@ async def test_start_timer_policy_db_error(client):
 
     # Call 1: policy lookup raises exception → falls back to default
     # Call 2: timer INSERT
-    with patch("app.routers.api.get_db_connection", fake_connection([Exception("DB"), None])):
+    with patch(
+        "app.routers.api.get_db_connection", fake_connection([Exception("DB"), None])
+    ):
         resp = await client.post("/api/v1/timers/start", json=timer_payload)
 
     assert resp.status_code == 201
@@ -1655,7 +1733,9 @@ async def test_start_timer_insert_db_error(client):
 
     # Call 1: policy lookup ok
     # Call 2: timer INSERT fails
-    with patch("app.routers.api.get_db_connection", fake_connection([None, Exception("DB")])):
+    with patch(
+        "app.routers.api.get_db_connection", fake_connection([None, Exception("DB")])
+    ):
         resp = await client.post("/api/v1/timers/start", json=timer_payload)
 
     assert resp.status_code == 500
@@ -1794,8 +1874,13 @@ async def test_add_schedule_member_success(client):
     }
 
     # Call 1: check schedule exists (fetchone), Call 2: INSERT member (fetchone)
-    with patch("app.routers.api.get_db_connection", fake_connection([fake_schedule, fake_member_row])):
-        resp = await client.post(f"/api/v1/schedules/{schedule_id}/members", json=member_payload)
+    with patch(
+        "app.routers.api.get_db_connection",
+        fake_connection([fake_schedule, fake_member_row]),
+    ):
+        resp = await client.post(
+            f"/api/v1/schedules/{schedule_id}/members", json=member_payload
+        )
 
     assert resp.status_code == 201
     body = resp.json()
@@ -1816,7 +1901,9 @@ async def test_add_schedule_member_schedule_not_found(client):
 
     # fetchone returns None (schedule not found)
     with patch("app.routers.api.get_db_connection", fake_connection([None])):
-        resp = await client.post(f"/api/v1/schedules/{schedule_id}/members", json=member_payload)
+        resp = await client.post(
+            f"/api/v1/schedules/{schedule_id}/members", json=member_payload
+        )
 
     assert resp.status_code == 404
 
@@ -1832,7 +1919,9 @@ async def test_add_schedule_member_db_error(client):
     }
 
     with patch("app.routers.api.get_db_connection", fake_connection([Exception("DB")])):
-        resp = await client.post(f"/api/v1/schedules/{schedule_id}/members", json=member_payload)
+        resp = await client.post(
+            f"/api/v1/schedules/{schedule_id}/members", json=member_payload
+        )
 
     assert resp.status_code == 500
 

@@ -14,7 +14,6 @@ import asyncio
 import logging
 from contextlib import asynccontextmanager
 
-import httpx
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from prometheus_fastapi_instrumentator import Instrumentator
@@ -37,6 +36,7 @@ _refresh_task: asyncio.Task | None = None
 
 
 # ── historical refresh ───────────────────────────────────────
+
 
 def _fetch_historical_from_db() -> list[HistoricalEntry]:
     """Query resolved incidents directly from the database."""
@@ -100,6 +100,7 @@ async def _periodic_refresh():
 
 # ── lifespan ─────────────────────────────────────────────────
 
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     global engine, _refresh_task
@@ -152,6 +153,7 @@ app.include_router(api_router.router)
 
 
 # ── health ───────────────────────────────────────────────────
+
 
 @app.get("/health", response_model=HealthCheck)
 async def health():

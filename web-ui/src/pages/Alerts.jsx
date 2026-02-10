@@ -61,7 +61,7 @@ export default function Alerts() {
 			<Card>
 				<CardContent className="p-4">
 					<div className="flex flex-wrap items-center gap-3">
-						<div className="relative flex-1 min-w-[200px]">
+						<div className="relative flex-1 min-w-50">
 							<Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
 							<Input placeholder="Search alerts..." value={search} onChange={e => { setSearch(e.target.value); setPage(1); }} className="pl-9" />
 						</div>
@@ -92,11 +92,11 @@ export default function Alerts() {
 							<TableHeader>
 								<TableRow>
 									<TableHead>Alert Name</TableHead>
-									<TableHead className="w-[100px]">Severity</TableHead>
-									<TableHead className="w-[120px]">Source</TableHead>
-									<TableHead className="w-[120px]">Service</TableHead>
-									<TableHead className="w-[100px]">Status</TableHead>
-									<TableHead className="w-[130px] text-right">Received</TableHead>
+									<TableHead className="w-25">Severity</TableHead>
+									<TableHead className="w-30">Source</TableHead>
+									<TableHead className="w-30">Service</TableHead>
+									<TableHead className="w-25">Status</TableHead>
+									<TableHead className="w-32.5 text-right">Received</TableHead>
 								</TableRow>
 							</TableHeader>
 							<TableBody>
@@ -105,7 +105,7 @@ export default function Alerts() {
 										<TableCell>
 											<div className="flex items-center gap-2">
 												<Zap className={cn('h-3.5 w-3.5 shrink-0', severityColor[a.severity]?.text || 'text-yellow-400')} />
-												<span className="font-medium text-sm truncate max-w-[360px]">{a.alert_name || a.message || 'Unnamed alert'}</span>
+												<span className="font-medium text-sm truncate max-w-90">{a.alert_name || a.message || 'Unnamed alert'}</span>
 											</div>
 										</TableCell>
 										<TableCell>

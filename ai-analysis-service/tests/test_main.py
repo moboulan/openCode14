@@ -1,7 +1,6 @@
 """Tests for the main FastAPI application setup."""
 
 import pytest
-from unittest.mock import patch
 
 
 @pytest.mark.asyncio
@@ -9,7 +8,10 @@ async def test_app_has_cors(client):
     """CORS middleware is attached."""
     resp = await client.options(
         "/health",
-        headers={"Origin": "http://localhost:8080", "Access-Control-Request-Method": "GET"},
+        headers={
+            "Origin": "http://localhost:8080",
+            "Access-Control-Request-Method": "GET",
+        },
     )
     assert resp.status_code in (200, 405)
 

@@ -38,6 +38,7 @@ def _normalise(text: str) -> str:
 
 # ── data classes ─────────────────────────────────────────────
 
+
 @dataclass
 class Suggestion:
     root_cause: str
@@ -59,6 +60,7 @@ class HistoricalEntry:
 
 
 # ── engine ───────────────────────────────────────────────────
+
 
 class SimilarityEngine:
     """
@@ -143,10 +145,10 @@ class SimilarityEngine:
                 hist_idx = idx - kb_len
                 if hist_idx < len(self._hist_entries):
                     hist = self._hist_entries[hist_idx]
-                    resolution_text = hist.resolution or "See incident notes for resolution details."
-                    root_cause = (
-                        f"Similar to historical incident #{hist.incident_id}: {hist.title}"
+                    resolution_text = (
+                        hist.resolution or "See incident notes for resolution details."
                     )
+                    root_cause = f"Similar to historical incident #{hist.incident_id}: {hist.title}"
                     suggestions.append(
                         Suggestion(
                             root_cause=root_cause,

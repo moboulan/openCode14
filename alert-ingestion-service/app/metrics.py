@@ -7,11 +7,15 @@ logger = logging.getLogger(__name__)
 # Custom metrics for incident platform
 
 # Counter: Total alerts received
-alerts_received_total = Counter("alerts_received_total", "Total number of alerts received", ["severity", "service"])
+alerts_received_total = Counter(
+    "alerts_received_total", "Total number of alerts received", ["severity", "service"]
+)
 
 # Counter: Alerts correlated to incidents
 alerts_correlated_total = Counter(
-    "alerts_correlated_total", "Total number of alerts correlated to incidents", ["result"]
+    "alerts_correlated_total",
+    "Total number of alerts correlated to incidents",
+    ["result"],
 )
 
 

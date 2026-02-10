@@ -6,7 +6,11 @@ from unittest.mock import patch
 
 def test_settings_defaults():
     """Settings should have correct defaults for notification service."""
-    with patch.dict(os.environ, {"DATABASE_URL": "postgresql://test:test@localhost/test"}, clear=False):
+    with patch.dict(
+        os.environ,
+        {"DATABASE_URL": "postgresql://test:test@localhost/test"},
+        clear=False,
+    ):
         # Force reimport to pick up env
         import importlib
 

@@ -35,7 +35,7 @@ export default function App() {
 		<TooltipProvider delayDuration={200}>
 			<div className="flex min-h-screen">
 				<Sidebar />
-				<main className="ml-[240px] flex-1 min-h-screen transition-[margin] duration-150">
+				<main className="ml-60 flex-1 min-h-screen transition-[margin] duration-150">
 					<div className="mx-auto max-w-[1400px] px-8 py-6">
 						<Routes>
 							<Route path="/" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />

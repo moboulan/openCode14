@@ -19,8 +19,10 @@ class SeverityLevel(str, Enum):
 
 # ── Request models ───────────────────────────────────────────
 
+
 class AnalyseRequest(BaseModel):
     """Payload sent by alert-ingestion (or manually) to trigger analysis."""
+
     alert_id: Optional[str] = None
     incident_id: Optional[str] = None
     message: str = Field(..., min_length=1)
@@ -29,6 +31,7 @@ class AnalyseRequest(BaseModel):
 
 
 # ── Response models ──────────────────────────────────────────
+
 
 class SuggestionResponse(BaseModel):
     root_cause: str

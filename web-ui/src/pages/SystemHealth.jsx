@@ -39,7 +39,7 @@ export default function SystemHealth() {
 			</div>
 
 			{/* Overall Status */}
-			<Card className={cn('border-2', allUp ? 'border-emerald-500/30 bg-emerald-500/[0.03]' : 'border-red-500/30 bg-red-500/[0.03]')}>
+			<Card className={cn('border-2', allUp ? 'border-emerald-500/30 bg-emerald-500/3' : 'border-red-500/30 bg-red-500/3')}>
 				<CardContent className="p-6 text-center">
 					{allUp ? (
 						<>

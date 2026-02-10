@@ -44,7 +44,7 @@ Open the **Test Runner UI** at <http://localhost:8006> to:
 
 ## Architecture
 
-```
+```text
 ┌─────────────────────────────────────────────────────────────────────┐
 │                        Web UI (:8080)                               │
 │                     React + Nginx Proxy                             │
@@ -96,7 +96,7 @@ Open the **Test Runner UI** at <http://localhost:8006> to:
 ## Services
 
 | Service | Port | Description |
-|---------|------|-------------|
+| --------- | ------ | ------------- |
 | **Alert Ingestion** | 8001 | Receives, validates, stores, and correlates alerts |
 | **Incident Management** | 8002 | CRUD for incidents, status transitions, MTTA/MTTR |
 | **On-Call & Escalation** | 8003 | Rotation schedules, current on-call, auto-escalation |
@@ -115,7 +115,7 @@ Open the **Test Runner UI** at <http://localhost:8006> to:
 Each service auto-generates interactive API docs via FastAPI:
 
 | Service | Swagger UI |
-|---------|-----------|
+| --------- | ----------- |
 | Alert Ingestion | <http://localhost:8001/docs> |
 | Incident Management | <http://localhost:8002/docs> |
 | On-Call Service | <http://localhost:8003/docs> |
@@ -152,12 +152,12 @@ curl http://localhost:8001/health
 
 ## CI/CD Pipeline (7 Stages)
 
-```
+```text
 make all → quality → security → build → scan → test → deploy → verify
 ```
 
 | Stage | What | Tools |
-|-------|------|-------|
+| ------- | ------ | ------- |
 | 1. Quality | Linting & formatting | flake8, pylint, black, isort |
 | 2. Security | Credential scanning | gitleaks, trufflehog |
 | 3. Build | Docker images | docker compose build |
@@ -187,7 +187,7 @@ GitHub Actions CI runs automatically on push to `master` and on PRs.
 All services expose `/metrics` in Prometheus format:
 
 | Metric | Type | Description |
-|--------|------|-------------|
+| -------- | ------ | ------------- |
 | `alerts_received_total` | Counter | Total alerts by severity & service |
 | `alerts_correlated_total` | Counter | Correlation results (new/existing incident) |
 | `incidents_total` | Counter | Incidents by status & severity |
@@ -207,7 +207,7 @@ All services expose `/metrics` in Prometheus format:
 
 ## Project Structure
 
-```
+```text
 incident-platform/
 ├── alert-ingestion-service/    # FastAPI :8001
 ├── incident-management-service/# FastAPI :8002
@@ -235,7 +235,7 @@ incident-platform/
 All services are configured via environment variables. See [`.env.example`](.env.example) for the full list.
 
 | Variable | Default | Description |
-|----------|---------|-------------|
+| ---------- | --------- | ------------- |
 | `DATABASE_URL` | `postgresql://postgres:${POSTGRES_PASSWORD}@database:5432/incident_platform` | PostgreSQL connection |
 | `CORRELATION_WINDOW_MINUTES` | `5` | Alert deduplication window |
 | `INCIDENT_SERVICE_URL` | `http://incident-management:8002` | Incident service URL |

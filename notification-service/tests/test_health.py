@@ -65,9 +65,10 @@ async def test_health_high_memory(client):
     mock_vm = MagicMock()
     mock_vm.percent = 95.0  # Above 90% threshold
 
-    with patch("app.routers.health.check_database_health", return_value=True), patch(
-        "app.routers.health.psutil"
-    ) as mock_psutil:
+    with (
+        patch("app.routers.health.check_database_health", return_value=True),
+        patch("app.routers.health.psutil") as mock_psutil,
+    ):
         mock_psutil.virtual_memory.return_value = mock_vm
         mock_disk = MagicMock()
         mock_disk.percent = 50.0
@@ -87,9 +88,10 @@ async def test_health_high_disk(client):
     mock_vm = MagicMock()
     mock_vm.percent = 50.0
 
-    with patch("app.routers.health.check_database_health", return_value=True), patch(
-        "app.routers.health.psutil"
-    ) as mock_psutil:
+    with (
+        patch("app.routers.health.check_database_health", return_value=True),
+        patch("app.routers.health.psutil") as mock_psutil,
+    ):
         mock_psutil.virtual_memory.return_value = mock_vm
         mock_disk = MagicMock()
         mock_disk.percent = 95.0  # Above 90% threshold

@@ -8,6 +8,7 @@ from helpers import fake_connection, fake_connection_error
 
 # ── GET /suggestions ──────────────────────────────────────────
 
+
 @pytest.mark.asyncio
 async def test_suggestions_by_incident(client):
     """Fetch suggestions for a specific incident_id."""
@@ -15,8 +16,12 @@ async def test_suggestions_by_incident(client):
         ("Root cause A", "Solution A", 0.92, "knowledge_base", "pattern A"),
         ("Root cause B", "Solution B", 0.65, "historical", "pattern B"),
     ]
-    with patch("app.routers.api.get_db_connection", side_effect=fake_connection([rows])):
-        resp = await client.get("/api/v1/suggestions", params={"incident_id": "inc-123"})
+    with patch(
+        "app.routers.api.get_db_connection", side_effect=fake_connection([rows])
+    ):
+        resp = await client.get(
+            "/api/v1/suggestions", params={"incident_id": "inc-123"}
+        )
 
     assert resp.status_code == 200
     body = resp.json()
@@ -30,7 +35,9 @@ async def test_suggestions_by_incident(client):
 async def test_suggestions_by_alert(client):
     """Fetch suggestions by alert_id."""
     rows = [("Root cause X", "Solution X", 0.78, "knowledge_base", "pattern X")]
-    with patch("app.routers.api.get_db_connection", side_effect=fake_connection([rows])):
+    with patch(
+        "app.routers.api.get_db_connection", side_effect=fake_connection([rows])
+    ):
         resp = await client.get("/api/v1/suggestions", params={"alert_id": "alert-999"})
 
     assert resp.status_code == 200
@@ -48,7 +55,9 @@ async def test_suggestions_missing_params(client):
 @pytest.mark.asyncio
 async def test_suggestions_db_error(client):
     """DB error returns 500."""
-    with patch("app.routers.api.get_db_connection", side_effect=fake_connection_error()):
+    with patch(
+        "app.routers.api.get_db_connection", side_effect=fake_connection_error()
+    ):
         resp = await client.get("/api/v1/suggestions", params={"incident_id": "inc-1"})
     assert resp.status_code == 500
 
@@ -57,12 +66,15 @@ async def test_suggestions_db_error(client):
 async def test_suggestions_empty(client):
     """Empty result set returns empty list."""
     with patch("app.routers.api.get_db_connection", side_effect=fake_connection([[]])):
-        resp = await client.get("/api/v1/suggestions", params={"incident_id": "inc-none"})
+        resp = await client.get(
+            "/api/v1/suggestions", params={"incident_id": "inc-none"}
+        )
     assert resp.status_code == 200
     assert resp.json() == []
 
 
 # ── GET /knowledge-base ──────────────────────────────────────
+
 
 @pytest.mark.asyncio
 async def test_knowledge_base_returns_patterns(client):
@@ -82,10 +94,13 @@ async def test_knowledge_base_returns_patterns(client):
 
 # ── POST /learn ──────────────────────────────────────────────
 
+
 @pytest.mark.asyncio
 async def test_learn_success(client):
     """Learn stores a new pattern and returns its ID."""
-    with patch("app.routers.api.get_db_connection", side_effect=fake_connection([(42,)])):
+    with patch(
+        "app.routers.api.get_db_connection", side_effect=fake_connection([(42,)])
+    ):
         resp = await client.post(
             "/api/v1/learn",
             params={
@@ -105,14 +120,18 @@ async def test_learn_success(client):
 @pytest.mark.asyncio
 async def test_learn_missing_required_fields(client):
     """Learn rejects empty message_pattern or root_cause."""
-    resp = await client.post("/api/v1/learn", params={"message_pattern": "", "root_cause": ""})
+    resp = await client.post(
+        "/api/v1/learn", params={"message_pattern": "", "root_cause": ""}
+    )
     assert resp.status_code == 400
 
 
 @pytest.mark.asyncio
 async def test_learn_db_error(client):
     """Learn returns 500 on DB failure."""
-    with patch("app.routers.api.get_db_connection", side_effect=fake_connection_error()):
+    with patch(
+        "app.routers.api.get_db_connection", side_effect=fake_connection_error()
+    ):
         resp = await client.post(
             "/api/v1/learn",
             params={

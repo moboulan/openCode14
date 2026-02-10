@@ -31,7 +31,6 @@ KNOWN_PATTERNS = [
         ),
         "tags": ["cpu", "container", "throttling"],
     },
-
     # ── Memory ───────────────────────────────────────────────
     {
         "pattern": "high memory usage memory utilization above threshold out of memory oom",
@@ -57,7 +56,6 @@ KNOWN_PATTERNS = [
         ),
         "tags": ["memory", "oom", "kernel"],
     },
-
     # ── Disk ─────────────────────────────────────────────────
     {
         "pattern": "disk space low disk usage above threshold filesystem full",
@@ -71,7 +69,6 @@ KNOWN_PATTERNS = [
         ),
         "tags": ["disk", "storage", "filesystem"],
     },
-
     # ── Network / Connectivity ───────────────────────────────
     {
         "pattern": "connection timeout request timeout upstream timeout gateway timeout",
@@ -121,7 +118,6 @@ KNOWN_PATTERNS = [
         ),
         "tags": ["latency", "performance", "slow"],
     },
-
     # ── Database ─────────────────────────────────────────────
     {
         "pattern": "database connection pool exhausted too many connections max connections",
@@ -159,7 +155,6 @@ KNOWN_PATTERNS = [
         ),
         "tags": ["database", "query", "performance"],
     },
-
     # ── Application Errors ───────────────────────────────────
     {
         "pattern": "http 500 internal server error 5xx error rate increased",
@@ -199,7 +194,6 @@ KNOWN_PATTERNS = [
         ),
         "tags": ["crash", "restart", "container"],
     },
-
     # ── SSL / TLS / Auth ─────────────────────────────────────
     {
         "pattern": "ssl certificate expired tls handshake failed certificate invalid",
@@ -225,7 +219,6 @@ KNOWN_PATTERNS = [
         ),
         "tags": ["auth", "token", "security"],
     },
-
     # ── Kubernetes / Container Orchestration ─────────────────
     {
         "pattern": "pod pending insufficient resources unschedulable no nodes available",
@@ -251,7 +244,6 @@ KNOWN_PATTERNS = [
         ),
         "tags": ["health", "probe", "kubernetes"],
     },
-
     # ── Queue / Messaging ────────────────────────────────────
     {
         "pattern": "queue depth growing message backlog consumer lag kafka rabbitmq",

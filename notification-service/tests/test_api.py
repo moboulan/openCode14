@@ -216,7 +216,9 @@ async def test_list_notifications_with_filters(client):
             _list_connection(total=0, rows=[])(),
         ],
     ):
-        resp = await client.get("/api/v1/notifications?incident_id=inc-test&channel=mock")
+        resp = await client.get(
+            "/api/v1/notifications?incident_id=inc-test&channel=mock"
+        )
 
     assert resp.status_code == 200
     assert resp.json()["total"] == 0
@@ -285,12 +287,14 @@ async def test_send_email_with_api_key_success(client):
     mock_response = MagicMock()
     mock_response.status_code = 202
 
-    with patch(
-        "app.routers.api.get_db_connection",
-        side_effect=[_fake_connection([row])(autocommit=True)],
-    ), patch(
-        "app.routers.api.settings"
-    ) as mock_settings, patch("app.routers.api.httpx.AsyncClient") as MockClient:
+    with (
+        patch(
+            "app.routers.api.get_db_connection",
+            side_effect=[_fake_connection([row])(autocommit=True)],
+        ),
+        patch("app.routers.api.settings") as mock_settings,
+        patch("app.routers.api.httpx.AsyncClient") as MockClient,
+    ):
         mock_settings.SENDGRID_API_KEY = "SG.test-key"
         mock_settings.HTTP_CLIENT_TIMEOUT = 10.0
         mock_settings.SENDGRID_FROM_EMAIL = "noreply@test.local"
@@ -325,12 +329,14 @@ async def test_send_email_with_api_key_failure(client):
     mock_response.status_code = 500
     mock_response.text = "Internal Server Error"
 
-    with patch(
-        "app.routers.api.get_db_connection",
-        side_effect=[_fake_connection([row])(autocommit=True)],
-    ), patch(
-        "app.routers.api.settings"
-    ) as mock_settings, patch("app.routers.api.httpx.AsyncClient") as MockClient:
+    with (
+        patch(
+            "app.routers.api.get_db_connection",
+            side_effect=[_fake_connection([row])(autocommit=True)],
+        ),
+        patch("app.routers.api.settings") as mock_settings,
+        patch("app.routers.api.httpx.AsyncClient") as MockClient,
+    ):
         mock_settings.SENDGRID_API_KEY = "SG.test-key"
         mock_settings.HTTP_CLIENT_TIMEOUT = 10.0
         mock_settings.SENDGRID_FROM_EMAIL = "noreply@test.local"
@@ -361,12 +367,14 @@ async def test_send_email_with_api_key_exception(client):
     """Email with API key — httpx raises exception → failed."""
     row = _make_notification_row(channel="email", status="failed")
 
-    with patch(
-        "app.routers.api.get_db_connection",
-        side_effect=[_fake_connection([row])(autocommit=True)],
-    ), patch(
-        "app.routers.api.settings"
-    ) as mock_settings, patch("app.routers.api.httpx.AsyncClient") as MockClient:
+    with (
+        patch(
+            "app.routers.api.get_db_connection",
+            side_effect=[_fake_connection([row])(autocommit=True)],
+        ),
+        patch("app.routers.api.settings") as mock_settings,
+        patch("app.routers.api.httpx.AsyncClient") as MockClient,
+    ):
         mock_settings.SENDGRID_API_KEY = "SG.test-key"
         mock_settings.HTTP_CLIENT_TIMEOUT = 10.0
         mock_settings.SENDGRID_FROM_EMAIL = "noreply@test.local"
@@ -407,12 +415,14 @@ async def test_send_webhook_with_urls_success(client):
     mock_response = MagicMock()
     mock_response.status_code = 200
 
-    with patch(
-        "app.routers.api.get_db_connection",
-        side_effect=[_fake_connection([row])(autocommit=True)],
-    ), patch(
-        "app.routers.api.settings"
-    ) as mock_settings, patch("app.routers.api.httpx.AsyncClient") as MockClient:
+    with (
+        patch(
+            "app.routers.api.get_db_connection",
+            side_effect=[_fake_connection([row])(autocommit=True)],
+        ),
+        patch("app.routers.api.settings") as mock_settings,
+        patch("app.routers.api.httpx.AsyncClient") as MockClient,
+    ):
         mock_settings.webhook_url_list = ["http://hook1.test/hook"]
         mock_settings.HTTP_CLIENT_TIMEOUT = 10.0
 
@@ -445,12 +455,14 @@ async def test_send_webhook_with_urls_failure(client):
     mock_response = MagicMock()
     mock_response.status_code = 500
 
-    with patch(
-        "app.routers.api.get_db_connection",
-        side_effect=[_fake_connection([row])(autocommit=True)],
-    ), patch(
-        "app.routers.api.settings"
-    ) as mock_settings, patch("app.routers.api.httpx.AsyncClient") as MockClient:
+    with (
+        patch(
+            "app.routers.api.get_db_connection",
+            side_effect=[_fake_connection([row])(autocommit=True)],
+        ),
+        patch("app.routers.api.settings") as mock_settings,
+        patch("app.routers.api.httpx.AsyncClient") as MockClient,
+    ):
         mock_settings.webhook_url_list = ["http://hook1.test/hook"]
         mock_settings.HTTP_CLIENT_TIMEOUT = 10.0
 
@@ -479,12 +491,14 @@ async def test_send_webhook_per_url_exception(client):
     """Webhook — individual URL raises error but doesn't crash."""
     row = _make_notification_row(channel="webhook", status="failed")
 
-    with patch(
-        "app.routers.api.get_db_connection",
-        side_effect=[_fake_connection([row])(autocommit=True)],
-    ), patch(
-        "app.routers.api.settings"
-    ) as mock_settings, patch("app.routers.api.httpx.AsyncClient") as MockClient:
+    with (
+        patch(
+            "app.routers.api.get_db_connection",
+            side_effect=[_fake_connection([row])(autocommit=True)],
+        ),
+        patch("app.routers.api.settings") as mock_settings,
+        patch("app.routers.api.httpx.AsyncClient") as MockClient,
+    ):
         mock_settings.webhook_url_list = ["http://hook1.test/hook"]
         mock_settings.HTTP_CLIENT_TIMEOUT = 10.0
 
@@ -517,12 +531,14 @@ async def test_send_webhook_client_exception(client):
     """Webhook — httpx.AsyncClient itself raises → failed."""
     row = _make_notification_row(channel="webhook", status="failed")
 
-    with patch(
-        "app.routers.api.get_db_connection",
-        side_effect=[_fake_connection([row])(autocommit=True)],
-    ), patch(
-        "app.routers.api.settings"
-    ) as mock_settings, patch("app.routers.api.httpx.AsyncClient") as MockClient:
+    with (
+        patch(
+            "app.routers.api.get_db_connection",
+            side_effect=[_fake_connection([row])(autocommit=True)],
+        ),
+        patch("app.routers.api.settings") as mock_settings,
+        patch("app.routers.api.httpx.AsyncClient") as MockClient,
+    ):
         mock_settings.webhook_url_list = ["http://hook1.test/hook"]
         mock_settings.HTTP_CLIENT_TIMEOUT = 10.0
 
@@ -557,10 +573,13 @@ async def test_send_slack_no_url_falls_back_to_mock(client):
     """Slack with no SLACK_WEBHOOK_URL → falls back to mock → delivered."""
     row = _make_notification_row(channel="slack", status="delivered")
 
-    with patch(
-        "app.routers.api.get_db_connection",
-        side_effect=[_fake_connection([row])(autocommit=True)],
-    ), patch("app.routers.api.settings") as mock_settings:
+    with (
+        patch(
+            "app.routers.api.get_db_connection",
+            side_effect=[_fake_connection([row])(autocommit=True)],
+        ),
+        patch("app.routers.api.settings") as mock_settings,
+    ):
         mock_settings.SLACK_WEBHOOK_URL = None
         mock_settings.HTTP_CLIENT_TIMEOUT = 10.0
 
@@ -591,11 +610,13 @@ async def test_send_slack_with_url_success(client):
     mock_client_instance.__aexit__ = lambda self, *a: _async_return(None)
     mock_client_instance.post = lambda *a, **kw: _async_return(mock_resp)
 
-    with patch(
-        "app.routers.api.get_db_connection",
-        side_effect=[_fake_connection([row])(autocommit=True)],
-    ), patch("app.routers.api.settings") as mock_settings, patch(
-        "app.routers.api.httpx.AsyncClient", return_value=mock_client_instance
+    with (
+        patch(
+            "app.routers.api.get_db_connection",
+            side_effect=[_fake_connection([row])(autocommit=True)],
+        ),
+        patch("app.routers.api.settings") as mock_settings,
+        patch("app.routers.api.httpx.AsyncClient", return_value=mock_client_instance),
     ):
         mock_settings.SLACK_WEBHOOK_URL = "https://hooks.slack.com/test"
         mock_settings.HTTP_CLIENT_TIMEOUT = 10.0
@@ -628,11 +649,13 @@ async def test_send_slack_with_url_failure(client):
     mock_client_instance.__aexit__ = lambda self, *a: _async_return(None)
     mock_client_instance.post = lambda *a, **kw: _async_return(mock_resp)
 
-    with patch(
-        "app.routers.api.get_db_connection",
-        side_effect=[_fake_connection([row])(autocommit=True)],
-    ), patch("app.routers.api.settings") as mock_settings, patch(
-        "app.routers.api.httpx.AsyncClient", return_value=mock_client_instance
+    with (
+        patch(
+            "app.routers.api.get_db_connection",
+            side_effect=[_fake_connection([row])(autocommit=True)],
+        ),
+        patch("app.routers.api.settings") as mock_settings,
+        patch("app.routers.api.httpx.AsyncClient", return_value=mock_client_instance),
     ):
         mock_settings.SLACK_WEBHOOK_URL = "https://hooks.slack.com/test"
         mock_settings.HTTP_CLIENT_TIMEOUT = 10.0
@@ -664,11 +687,13 @@ async def test_send_slack_exception(client):
     mock_client_instance.__aenter__ = _raise_enter
     mock_client_instance.__aexit__ = lambda self, *a: _async_return(None)
 
-    with patch(
-        "app.routers.api.get_db_connection",
-        side_effect=[_fake_connection([row])(autocommit=True)],
-    ), patch("app.routers.api.settings") as mock_settings, patch(
-        "app.routers.api.httpx.AsyncClient", return_value=mock_client_instance
+    with (
+        patch(
+            "app.routers.api.get_db_connection",
+            side_effect=[_fake_connection([row])(autocommit=True)],
+        ),
+        patch("app.routers.api.settings") as mock_settings,
+        patch("app.routers.api.httpx.AsyncClient", return_value=mock_client_instance),
     ):
         mock_settings.SLACK_WEBHOOK_URL = "https://hooks.slack.com/test"
         mock_settings.HTTP_CLIENT_TIMEOUT = 10.0
