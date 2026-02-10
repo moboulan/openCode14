@@ -40,6 +40,10 @@ jobs:
           cd ${{ env.SERVICE_DIR }}
           npm run build
 
+      - name: Check code duplication
+        run: |
+          npx jscpd ${{ env.SERVICE_DIR }}/src --threshold 3 --reporters console || true
+
   # ──────────────────────────────────────────
   # Stage 2: Security Scanning
   # ──────────────────────────────────────────

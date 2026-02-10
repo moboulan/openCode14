@@ -415,13 +415,115 @@
 			]
 		},
 		{
+			"title": "CPU Usage per Service",
+			"type": "timeseries",
+			"gridPos": {
+				"h": 8,
+				"w": 12,
+				"x": 0,
+				"y": 24
+			},
+			"datasource": {
+				"type": "prometheus",
+				"uid": "${DS_PROMETHEUS}"
+			},
+			"fieldConfig": {
+				"defaults": {
+					"custom": {
+						"drawStyle": "line",
+						"lineInterpolation": "smooth",
+						"fillOpacity": 20,
+						"lineWidth": 2,
+						"showPoints": "auto"
+					},
+					"color": {
+						"mode": "palette-classic"
+					},
+					"unit": "percentunit"
+				},
+				"overrides": []
+			},
+			"options": {
+				"legend": {
+					"displayMode": "list",
+					"placement": "bottom",
+					"calcs": [
+						"mean",
+						"max"
+					]
+				},
+				"tooltip": {
+					"mode": "multi",
+					"sort": "desc"
+				}
+			},
+			"targets": [
+				{
+					"expr": "rate(process_cpu_seconds_total[5m])",
+					"legendFormat": "{{ job }}",
+					"refId": "A"
+				}
+			]
+		},
+		{
+			"title": "Memory Usage per Service",
+			"type": "timeseries",
+			"gridPos": {
+				"h": 8,
+				"w": 12,
+				"x": 12,
+				"y": 24
+			},
+			"datasource": {
+				"type": "prometheus",
+				"uid": "${DS_PROMETHEUS}"
+			},
+			"fieldConfig": {
+				"defaults": {
+					"custom": {
+						"drawStyle": "line",
+						"lineInterpolation": "smooth",
+						"fillOpacity": 20,
+						"lineWidth": 2,
+						"showPoints": "auto"
+					},
+					"color": {
+						"mode": "palette-classic"
+					},
+					"unit": "bytes"
+				},
+				"overrides": []
+			},
+			"options": {
+				"legend": {
+					"displayMode": "list",
+					"placement": "bottom",
+					"calcs": [
+						"mean",
+						"max"
+					]
+				},
+				"tooltip": {
+					"mode": "multi",
+					"sort": "desc"
+				}
+			},
+			"targets": [
+				{
+					"expr": "process_resident_memory_bytes",
+					"legendFormat": "{{ job }}",
+					"refId": "A"
+				}
+			]
+		},
+		{
 			"title": "Prometheus Targets Status",
 			"type": "table",
 			"gridPos": {
 				"h": 8,
 				"w": 12,
 				"x": 12,
-				"y": 24
+				"y": 32
 			},
 			"datasource": {
 				"type": "prometheus",
@@ -508,7 +610,7 @@
 				"h": 8,
 				"w": 12,
 				"x": 0,
-				"y": 28
+				"y": 36
 			},
 			"datasource": {
 				"type": "prometheus",

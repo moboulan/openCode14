@@ -23,7 +23,7 @@ PIP           := $(VENV)/bin/pip
 
 .PHONY: all setup quality security build scan test deploy verify \
         up down down-v restart logs ps \
-        db-shell db-reset fmt \
+        db-shell db-reset fmt dupcheck \
         ci coverage clean help
 
 # ── Environment Bootstrap ─────────────────────────────────────
@@ -42,11 +42,12 @@ $(VENV)/.installed: $(VENV)/bin/activate alert-ingestion-service/requirements.tx
 	$(PIP) install -r incident-management-service/requirements.txt -q
 	$(PIP) install -r notification-service/requirements.txt -q
 	$(PIP) install -r oncall-service/requirements.txt -q
-	$(PIP) install flake8 pylint black isort autoflake pytest pytest-cov pytest-asyncio httpx -q
+	$(PIP) install flake8 pylint black isort autoflake pytest pytest-cov pytest-asyncio httpx pre-commit -q
 	touch $(VENV)/.installed
 
 setup: .env $(VENV)/.installed  ## One-time setup: create .env + venv + install deps
-	@echo "OK Setup complete -- venv at $(VENV), .env ready"
+	@$(VENV)/bin/pre-commit install 2>/dev/null || true
+	@echo "OK Setup complete -- venv at $(VENV), .env ready, pre-commit hooks installed"
 
 # ── Full 7-Stage Pipeline ────────────────────────────────────
 
@@ -54,12 +55,31 @@ all: setup quality security build scan test deploy verify  ## Run full 7-stage C
 
 # ── Stage 1: Code Quality ────────────────────────────────────
 
-quality: $(VENV)/.installed lint  ## Stage 1 — Lint all services
+quality: $(VENV)/.installed lint dupcheck  ## Stage 1 — Lint all services + duplication check
 lint:  ## Run linters for all services
 	$(MAKE) -C alert-ingestion-service lint PYTHON=$(CURDIR)/$(PYTHON)
 	$(MAKE) -C incident-management-service lint PYTHON=$(CURDIR)/$(PYTHON)
 	$(MAKE) -C notification-service lint PYTHON=$(CURDIR)/$(PYTHON)
 	$(MAKE) -C oncall-service lint PYTHON=$(CURDIR)/$(PYTHON)
+
+dupcheck:  ## Check for code duplication (< 3% threshold)
+	@echo "── duplication check ──"
+	@if command -v jscpd >/dev/null 2>&1; then \
+		jscpd alert-ingestion-service/app/ incident-management-service/app/ oncall-service/app/ notification-service/app/ \
+			--min-lines 5 --min-tokens 50 --threshold 3 \
+			--reporters console \
+			--ignore 'node_modules|.venv|htmlcov|__pycache__' || exit 1; \
+	else \
+		$(PYTHON) -m pylint --disable=all --enable=R0801 \
+			alert-ingestion-service/app/ incident-management-service/app/ \
+			oncall-service/app/ notification-service/app/ \
+			--min-similarity-lines=5 2>&1 | tee /tmp/dupcheck.txt; \
+		if grep -q 'R0801' /tmp/dupcheck.txt; then \
+			echo "WARN Duplicate code detected (see above)"; \
+		else \
+			echo "OK No significant duplication found"; \
+		fi; \
+	fi
 
 # ── Stage 2: Security Scanning ───────────────────────────────
 

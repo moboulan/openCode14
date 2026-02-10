@@ -7,11 +7,10 @@
 ## Quick Start (≤5 commands)
 
 ```bash
-git clone <repo-url> && cd incident-platform
-cp .env.example .env          # configure environment
-make build                    # build all Docker images
-make up                       # start all services
-make health                   # verify everything is healthy
+git clone <repo-url>        # clone the repository
+cd incident-platform        # navigate to project root
+cp .env.example .env        # configure environment
+make all                    # build and start all Docker images
 ```
 
 **That's it!** Open:
