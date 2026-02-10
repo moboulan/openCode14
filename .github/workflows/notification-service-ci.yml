@@ -294,7 +294,7 @@ jobs:
           HTTP_CODE=$(curl -sf -o /tmp/resp.json -w "%{http_code}" -X POST \
             http://localhost:8004/api/v1/notify \
             -H "Content-Type: application/json" \
-            -d '{"engineer":"ci@test.com","message":"smoke test","channel":"mock"}')
+            -d '{"engineer":"ci@test.com","message":"smoke test","channel":"mock","incident_id":"inc-smoke-001"}')
           [ "$HTTP_CODE" = "201" ] && echo "201 Created" || (echo "Got $HTTP_CODE" && exit 1)
           cat /tmp/resp.json | jq .
 
