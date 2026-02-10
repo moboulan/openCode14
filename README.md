@@ -17,7 +17,6 @@ make up                     # 5. start all services via Docker Compose
 **That's it!** Open:
 
 - **Web UI** → <http://localhost:8080>
-- **Test Runner UI** → <http://localhost:8006>
 - **Alert Ingestion API** → <http://localhost:8001/docs>
 - **Incident Management API** → <http://localhost:8002/docs>
 - **AI Analysis API** → <http://localhost:8005/docs>
@@ -32,13 +31,15 @@ make up                     # 5. start all services via Docker Compose
 
 ### Send Test Data
 
-Open the **Test Runner UI** at <http://localhost:8006> to:
+```bash
+python3 test-runner.py              # Health check + send all 15 scenarios
+python3 test-runner.py --list        # List scenarios
+python3 test-runner.py --scenario cpu-high
+python3 test-runner.py --setup-oncall
+python3 test-runner.py --continuous 10
+```
 
-- Browse 15 predefined alert scenarios grouped by category
-- Send individual alerts or all at once with one click
-- Create custom alerts with free-form fields
-- Start continuous mode with configurable intervals
-- Monitor service health and view live AI analysis results
+No extra dependencies — uses Python stdlib only.
 
 ---
 
@@ -110,7 +111,6 @@ Open the **Test Runner UI** at <http://localhost:8006> to:
 | **PostgreSQL** | 5432 | Persistent storage (5 schemas) |
 | **Prometheus** | 9090 | Metrics collection (10s scrape) |
 | **Grafana** | 3000 | 3 dashboards (incidents, SRE metrics, system health) |
-| **Test Runner** | 8006 | Interactive web UI for sending test alerts + viewing AI analysis |
 
 ---
 
@@ -251,7 +251,7 @@ incident-platform/
 ├── notification-service/       # FastAPI :8004
 ├── ai-analysis-service/        # FastAPI :8005 (NLP engine)
 ├── web-ui/                     # React :8080
-├── test-runner/                # Test data generator (Docker)
+├── test-runner.py                  # Test data generator script
 ├── database/                   # PostgreSQL init scripts
 │   └── init-db/
 │       └── 01-init-database.sql
