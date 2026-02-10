@@ -3,20 +3,11 @@
 from datetime import date, datetime, timezone
 
 import pytest
-from app.models import (
-    AutoEscalationResult,
-    CurrentOnCallResponse,
-    Engineer,
-    EscalateRequest,
-    EscalateResponse,
-    EscalationPolicyCreateRequest,
-    EscalationPolicyLevel,
-    EscalationPolicyResponse,
-    OnCallEngineer,
-    OnCallMetrics,
-    ScheduleCreateRequest,
-    ScheduleResponse,
-)
+from app.models import (AutoEscalationResult, CurrentOnCallResponse, Engineer,
+                        EscalateRequest, EscalateResponse,
+                        EscalationPolicyCreateRequest, EscalationPolicyLevel,
+                        EscalationPolicyResponse, OnCallEngineer,
+                        OnCallMetrics, ScheduleCreateRequest, ScheduleResponse)
 from pydantic import ValidationError
 
 

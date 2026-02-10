@@ -16,10 +16,9 @@ from dataclasses import dataclass, field
 from typing import Optional
 
 import numpy as np
+from app.knowledge_base import KNOWN_PATTERNS
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
-
-from app.knowledge_base import KNOWN_PATTERNS
 
 logger = logging.getLogger(__name__)
 

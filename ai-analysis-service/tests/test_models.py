@@ -3,13 +3,8 @@
 from datetime import datetime, timezone
 
 import pytest
-from app.models import (
-    AnalyseRequest,
-    AnalysisResponse,
-    HealthCheck,
-    SeverityLevel,
-    SuggestionResponse,
-)
+from app.models import (AnalyseRequest, AnalysisResponse, HealthCheck,
+                        SeverityLevel, SuggestionResponse)
 from pydantic import ValidationError
 
 

@@ -14,16 +14,16 @@ import asyncio
 import logging
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
-from prometheus_fastapi_instrumentator import Instrumentator
-
 from app.config import settings
-from app.database import check_database_health, close_pool, get_db_connection, init_pool
+from app.database import (check_database_health, close_pool, get_db_connection,
+                          init_pool)
 from app.knowledge_base import KNOWN_PATTERNS
 from app.models import HealthCheck
 from app.nlp_engine import HistoricalEntry, SimilarityEngine
 from app.routers import api as api_router
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+from prometheus_fastapi_instrumentator import Instrumentator
 
 logging.basicConfig(
     level=logging.INFO,

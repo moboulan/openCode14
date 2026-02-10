@@ -2,17 +2,16 @@ import logging
 import time
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, Request
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
-from prometheus_fastapi_instrumentator import Instrumentator
-from fastapi_utils.tasks import repeat_every
-
 from app.config import settings
 from app.database import close_pool
 from app.metrics import setup_custom_metrics
 from app.routers import api, health
 from app.routers.api import check_escalations
+from fastapi import FastAPI, Request
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+from fastapi_utils.tasks import repeat_every
+from prometheus_fastapi_instrumentator import Instrumentator
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
@@ -65,6 +64,7 @@ instrumentator.instrument(app).expose(app, include_in_schema=False, endpoint="/m
 # Setup custom metrics
 setup_custom_metrics()
 
+
 # Background task for auto-escalation
 @app.on_event("startup")
 @repeat_every(seconds=60)  # Run every 60 seconds
@@ -74,6 +74,7 @@ async def run_auto_escalation():
         logger.info("Auto-escalation task executed successfully.")
     except Exception as e:
         logger.error(f"Auto-escalation task failed: {e}")
+
 
 # Middleware for request timing
 @app.middleware("http")

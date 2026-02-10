@@ -7,22 +7,12 @@ from typing import Optional
 from app.config import settings
 from app.database import get_db_connection
 from app.http_client import get_http_client
-from app.metrics import (
-    incident_mtta_seconds,
-    incident_mttr_seconds,
-    incidents_total,
-    notifications_sent_total,
-    open_incidents,
-)
-from app.models import (
-    IncidentAnalyticsResponse,
-    IncidentCreate,
-    IncidentMetrics,
-    IncidentResponse,
-    IncidentStatus,
-    IncidentUpdate,
-    SeverityLevel,
-)
+from app.metrics import (incident_mtta_seconds, incident_mttr_seconds,
+                         incidents_total, notifications_sent_total,
+                         open_incidents)
+from app.models import (IncidentAnalyticsResponse, IncidentCreate,
+                        IncidentMetrics, IncidentResponse, IncidentStatus,
+                        IncidentUpdate, SeverityLevel)
 from app.ws import manager as ws_manager
 from fastapi import APIRouter, HTTPException, Query, status
 

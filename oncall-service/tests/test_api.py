@@ -6,12 +6,8 @@ from datetime import date, datetime, timezone
 from unittest.mock import patch
 
 import pytest
-from helpers import (
-    FakeAsyncClient,
-    FakeAsyncClientDown,
-    fake_connection,
-    make_fake_async_client,
-)
+from helpers import (FakeAsyncClient, FakeAsyncClientDown, fake_connection,
+                     make_fake_async_client)
 
 # ── POST /api/v1/schedules -- create schedule ─────────────────
 

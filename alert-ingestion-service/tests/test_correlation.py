@@ -12,11 +12,7 @@ import uuid
 from unittest.mock import MagicMock, patch
 
 import pytest
-from helpers import (
-    FakeAsyncClient,
-    FakeAsyncClientDown,
-    fake_connection,
-)
+from helpers import FakeAsyncClient, FakeAsyncClientDown, fake_connection
 
 # ── Correlation: match found → attach to existing incident ───
 

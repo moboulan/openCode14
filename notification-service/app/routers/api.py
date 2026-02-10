@@ -8,18 +8,14 @@ from email.mime.text import MIMEText
 from typing import Optional
 
 import httpx
-from fastapi import APIRouter, HTTPException, Query, status
-
 from app.config import settings
 from app.database import get_db_connection
-from app.metrics import notification_delivery_seconds, oncall_notifications_sent_total
-from app.models import (
-    NotificationChannel,
-    NotificationListResponse,
-    NotificationRequest,
-    NotificationResponse,
-    NotificationStatus,
-)
+from app.metrics import (notification_delivery_seconds,
+                         oncall_notifications_sent_total)
+from app.models import (NotificationChannel, NotificationListResponse,
+                        NotificationRequest, NotificationResponse,
+                        NotificationStatus)
+from fastapi import APIRouter, HTTPException, Query, status
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
