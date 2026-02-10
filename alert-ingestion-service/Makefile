@@ -9,7 +9,7 @@ PIP           := pip
 APP_MODULE    := app
 TESTS_DIR     := tests
 IMAGE_NAME    := expertmind-alert-ingestion
-COVERAGE_MIN  := 60
+COVERAGE_MIN  := 100
 
 .PHONY: all lint security build scan test deploy verify clean help
 
@@ -123,9 +123,9 @@ fmt:  ## Auto-format code
 	cd $(SERVICE_DIR) && $(PYTHON) -m black --line-length=120 $(APP_MODULE)/ $(TESTS_DIR)/
 	cd $(SERVICE_DIR) && $(PYTHON) -m isort --profile=black $(APP_MODULE)/ $(TESTS_DIR)/
 
+format: fmt  ## Alias for fmt
+
 clean:  ## Remove build artifacts
-	rm -rf htmlcov .coverage .pytest_cache __pycache__
-	find . -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null || true
 
 help:  ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*##' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*## "}; {printf "  \033[36m%-15s\033[0m %s\n", $$1, $$2}'

@@ -9,7 +9,7 @@ PIP           := pip
 APP_MODULE    := app
 TESTS_DIR     := tests
 IMAGE_NAME    := expertmind-notification-service
-COVERAGE_MIN  := 60
+COVERAGE_MIN  := 100
 
 .PHONY: all lint security build scan test deploy verify clean help
 
@@ -99,6 +99,8 @@ clean:  ## Remove build artifacts
 format:  ## Auto-format code
 	cd $(SERVICE_DIR) && $(PYTHON) -m black --line-length=120 $(APP_MODULE)/ $(TESTS_DIR)/
 	cd $(SERVICE_DIR) && $(PYTHON) -m isort --profile=black $(APP_MODULE)/ $(TESTS_DIR)/
+
+fmt: format  ## Alias for format
 
 help:  ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | \

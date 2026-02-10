@@ -40,7 +40,7 @@ class IncidentUpdate(BaseModel):
     """Request body for updating an incident (PATCH)."""
 
     status: Optional[IncidentStatus] = Field(None, description="New status")
-    assigned_to: Optional[str] = Field(None, description="Assignee user ID (UUID)")
+    assigned_to: Optional[str] = Field(None, description="Assignee engineer name")
     note: Optional[str] = Field(None, description="Note to append")
 
 

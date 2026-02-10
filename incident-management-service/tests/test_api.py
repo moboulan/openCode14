@@ -837,3 +837,60 @@ async def test_patch_assign(client):
         )
 
     assert resp.status_code == 200
+
+
+# ── DELETE /api/v1/incidents/{incident_id} ────────────────────
+
+
+@pytest.mark.asyncio
+async def test_delete_incident_success(client):
+    """DELETE existing incident → 204."""
+    db_id = uuid.uuid4()
+    find_row = {"id": db_id}
+
+    with patch(
+        "app.routers.api.get_db_connection",
+        side_effect=[_fake_connection([find_row, None, None, None])(autocommit=True)],
+    ):
+        resp = await client.delete("/api/v1/incidents/inc-del123")
+    assert resp.status_code == 204
+
+
+@pytest.mark.asyncio
+async def test_delete_incident_not_found(client):
+    """DELETE non-existent incident → 404."""
+    with patch(
+        "app.routers.api.get_db_connection",
+        side_effect=[_fake_connection([None])(autocommit=True)],
+    ):
+        resp = await client.delete("/api/v1/incidents/inc-nope")
+    assert resp.status_code == 404
+
+
+# ── http_client fallback ─────────────────────────────────────
+
+
+def test_http_client_fallback():
+    """get_http_client() returns a fresh client when not initialised."""
+    import app.http_client as hc
+
+    original = hc._client
+    try:
+        hc._client = None
+        c = hc.get_http_client()
+        assert c is not None
+    finally:
+        hc._client = original
+
+
+def test_http_client_returns_existing():
+    """get_http_client() returns the shared client when initialised."""
+    import app.http_client as hc
+
+    sentinel = object()
+    original = hc._client
+    try:
+        hc._client = sentinel
+        assert hc.get_http_client() is sentinel
+    finally:
+        hc._client = original

@@ -1363,13 +1363,6 @@ async def test_oncall_metrics_full_data(client):
     fake_esc_count = {"cnt": 10}
     fake_esc_by_team = [{"team": "platform", "cnt": 7}]
 
-    fake_incident_summary = {"total": 100, "avg_mtta": 120.5, "avg_mttr": 600.0}
-    fake_load = [{"assigned_to": "alice@example.com", "cnt": 5}]
-
-    # We need a special mock that returns different values for fetchone vs fetchall
-    # within the same cursor. Let's create a custom mock.
-    call_idx = {"i": 0}
-
     from contextlib import contextmanager
     from unittest.mock import MagicMock
 
@@ -1380,23 +1373,31 @@ async def test_oncall_metrics_full_data(client):
         @contextmanager
         def _cur():
             cur = MagicMock()
-            idx = call_idx["i"]
-            if idx == 0:
-                # First cursor: escalation count + by-team
-                cur.fetchone.return_value = fake_esc_count
-                cur.fetchall.return_value = fake_esc_by_team
-            elif idx == 1:
-                # Second cursor: incident summary + load
-                cur.fetchone.return_value = fake_incident_summary
-                cur.fetchall.return_value = fake_load
-            call_idx["i"] += 1
+            # Only one DB block now: escalation count + by-team
+            cur.fetchone.return_value = fake_esc_count
+            cur.fetchall.return_value = fake_esc_by_team
             yield cur
 
         conn.cursor = _cur
         yield conn
 
+    # Mock the httpx.get call to incident analytics API
+    fake_analytics_response = MagicMock()
+    fake_analytics_response.status_code = 200
+    fake_analytics_response.json.return_value = {
+        "total_incidents": 100,
+        "open_count": 10,
+        "acknowledged_count": 5,
+        "resolved_count": 85,
+        "avg_mtta_seconds": 120.5,
+        "avg_mttr_seconds": 600.0,
+        "by_severity": {},
+        "by_service": {},
+    }
+
     with patch("app.routers.api.get_db_connection", _fake_conn):
-        resp = await client.get("/api/v1/metrics/oncall")
+        with patch("httpx.get", return_value=fake_analytics_response):
+            resp = await client.get("/api/v1/metrics/oncall")
 
     assert resp.status_code == 200
     body = resp.json()
@@ -1405,7 +1406,6 @@ async def test_oncall_metrics_full_data(client):
     assert body["avg_mtta_seconds"] == 120.5
     assert body["avg_mttr_seconds"] == 600.0
     assert body["escalation_rate_pct"] == 10.0
-    assert body["oncall_load"]["alice@example.com"] == 5
     assert body["by_team"]["platform"] == 7
 
 
@@ -1415,10 +1415,7 @@ async def test_oncall_metrics_zero_incidents(client):
     from contextlib import contextmanager
     from unittest.mock import MagicMock
 
-    call_idx = {"i": 0}
-
     fake_esc_count = {"cnt": 0}
-    fake_incident_summary = {"total": 0, "avg_mtta": None, "avg_mttr": None}
 
     @contextmanager
     def _fake_conn(autocommit=False):
@@ -1427,21 +1424,30 @@ async def test_oncall_metrics_zero_incidents(client):
         @contextmanager
         def _cur():
             cur = MagicMock()
-            idx = call_idx["i"]
-            if idx == 0:
-                cur.fetchone.return_value = fake_esc_count
-                cur.fetchall.return_value = []
-            elif idx == 1:
-                cur.fetchone.return_value = fake_incident_summary
-                cur.fetchall.return_value = []
-            call_idx["i"] += 1
+            cur.fetchone.return_value = fake_esc_count
+            cur.fetchall.return_value = []
             yield cur
 
         conn.cursor = _cur
         yield conn
 
+    # Mock the httpx.get call to incident analytics API
+    fake_analytics_response = MagicMock()
+    fake_analytics_response.status_code = 200
+    fake_analytics_response.json.return_value = {
+        "total_incidents": 0,
+        "open_count": 0,
+        "acknowledged_count": 0,
+        "resolved_count": 0,
+        "avg_mtta_seconds": None,
+        "avg_mttr_seconds": None,
+        "by_severity": {},
+        "by_service": {},
+    }
+
     with patch("app.routers.api.get_db_connection", _fake_conn):
-        resp = await client.get("/api/v1/metrics/oncall")
+        with patch("httpx.get", return_value=fake_analytics_response):
+            resp = await client.get("/api/v1/metrics/oncall")
 
     assert resp.status_code == 200
     body = resp.json()
@@ -1892,3 +1898,80 @@ async def test_list_schedule_members_db_error(client):
         resp = await client.get(f"/api/v1/schedules/{schedule_id}/members")
 
     assert resp.status_code == 500
+
+
+# ── DELETE /api/v1/schedules/{schedule_id} ────────────────────
+
+
+@pytest.mark.asyncio
+async def test_delete_schedule_success(client):
+    """DELETE existing schedule → 204."""
+    schedule_id = str(uuid.uuid4())
+
+    with patch(
+        "app.routers.api.get_db_connection",
+        fake_connection([{"id": schedule_id}]),
+    ):
+        resp = await client.delete(f"/api/v1/schedules/{schedule_id}")
+    assert resp.status_code == 204
+
+
+@pytest.mark.asyncio
+async def test_delete_schedule_not_found(client):
+    """DELETE non-existent schedule → 404."""
+    schedule_id = str(uuid.uuid4())
+
+    with patch(
+        "app.routers.api.get_db_connection",
+        fake_connection([None]),
+    ):
+        resp = await client.delete(f"/api/v1/schedules/{schedule_id}")
+    assert resp.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_delete_schedule_db_error(client):
+    """DELETE schedule DB error → 500."""
+    schedule_id = str(uuid.uuid4())
+
+    with patch("app.routers.api.get_db_connection", fake_connection([Exception("DB")])):
+        resp = await client.delete(f"/api/v1/schedules/{schedule_id}")
+    assert resp.status_code == 500
+
+
+# ── Metrics: analytics API non-200 ───────────────────────────
+
+
+@pytest.mark.asyncio
+async def test_oncall_metrics_analytics_api_non_200(client):
+    """GET /api/v1/metrics/oncall handles non-200 from incident analytics API."""
+    from contextlib import contextmanager
+    from unittest.mock import MagicMock as _MagicMock
+
+    fake_esc_count = {"cnt": 2}
+
+    @contextmanager
+    def _fake_conn(autocommit=False):
+        conn = _MagicMock()
+
+        @contextmanager
+        def _cur():
+            cur = _MagicMock()
+            cur.fetchone.return_value = fake_esc_count
+            cur.fetchall.return_value = []
+            yield cur
+
+        conn.cursor = _cur
+        yield conn
+
+    fake_resp = _MagicMock()
+    fake_resp.status_code = 500
+
+    with patch("app.routers.api.get_db_connection", _fake_conn):
+        with patch("httpx.get", return_value=fake_resp):
+            resp = await client.get("/api/v1/metrics/oncall")
+
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["total_escalations"] == 2
+    assert body["total_incidents"] == 0

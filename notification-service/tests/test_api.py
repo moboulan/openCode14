@@ -549,6 +549,144 @@ async def test_send_webhook_client_exception(client):
     assert resp.json()["status"] == "failed"
 
 
+# ── Slack channel tests ──────────────────────────────────────
+
+
+@pytest.mark.asyncio
+async def test_send_slack_no_url_falls_back_to_mock(client):
+    """Slack with no SLACK_WEBHOOK_URL → falls back to mock → delivered."""
+    row = _make_notification_row(channel="slack", status="delivered")
+
+    with patch(
+        "app.routers.api.get_db_connection",
+        side_effect=[_fake_connection([row])(autocommit=True)],
+    ), patch("app.routers.api.settings") as mock_settings:
+        mock_settings.SLACK_WEBHOOK_URL = None
+        mock_settings.HTTP_CLIENT_TIMEOUT = 10.0
+
+        resp = await client.post(
+            "/api/v1/notify",
+            json={
+                "incident_id": "inc-slack-mock",
+                "engineer": "alice@example.com",
+                "channel": "slack",
+                "message": "Slack fallback test",
+            },
+        )
+
+    assert resp.status_code == 201
+    assert resp.json()["status"] == "delivered"
+
+
+@pytest.mark.asyncio
+async def test_send_slack_with_url_success(client):
+    """Slack with SLACK_WEBHOOK_URL set → 200 from Slack → delivered."""
+    row = _make_notification_row(channel="slack", status="delivered")
+
+    mock_resp = MagicMock()
+    mock_resp.status_code = 200
+
+    mock_client_instance = MagicMock()
+    mock_client_instance.__aenter__ = lambda self: _async_return(self)
+    mock_client_instance.__aexit__ = lambda self, *a: _async_return(None)
+    mock_client_instance.post = lambda *a, **kw: _async_return(mock_resp)
+
+    with patch(
+        "app.routers.api.get_db_connection",
+        side_effect=[_fake_connection([row])(autocommit=True)],
+    ), patch("app.routers.api.settings") as mock_settings, patch(
+        "app.routers.api.httpx.AsyncClient", return_value=mock_client_instance
+    ):
+        mock_settings.SLACK_WEBHOOK_URL = "https://hooks.slack.com/test"
+        mock_settings.HTTP_CLIENT_TIMEOUT = 10.0
+
+        resp = await client.post(
+            "/api/v1/notify",
+            json={
+                "incident_id": "inc-slack-ok",
+                "engineer": "alice@example.com",
+                "channel": "slack",
+                "message": "Slack success test",
+                "severity": "critical",
+            },
+        )
+
+    assert resp.status_code == 201
+    assert resp.json()["status"] == "delivered"
+
+
+@pytest.mark.asyncio
+async def test_send_slack_with_url_failure(client):
+    """Slack webhook returns non-200 → failed."""
+    row = _make_notification_row(channel="slack", status="failed")
+
+    mock_resp = MagicMock()
+    mock_resp.status_code = 500
+
+    mock_client_instance = MagicMock()
+    mock_client_instance.__aenter__ = lambda self: _async_return(self)
+    mock_client_instance.__aexit__ = lambda self, *a: _async_return(None)
+    mock_client_instance.post = lambda *a, **kw: _async_return(mock_resp)
+
+    with patch(
+        "app.routers.api.get_db_connection",
+        side_effect=[_fake_connection([row])(autocommit=True)],
+    ), patch("app.routers.api.settings") as mock_settings, patch(
+        "app.routers.api.httpx.AsyncClient", return_value=mock_client_instance
+    ):
+        mock_settings.SLACK_WEBHOOK_URL = "https://hooks.slack.com/test"
+        mock_settings.HTTP_CLIENT_TIMEOUT = 10.0
+
+        resp = await client.post(
+            "/api/v1/notify",
+            json={
+                "incident_id": "inc-slack-fail",
+                "engineer": "alice@example.com",
+                "channel": "slack",
+                "message": "Slack failure test",
+            },
+        )
+
+    assert resp.status_code == 201
+    assert resp.json()["status"] == "failed"
+
+
+@pytest.mark.asyncio
+async def test_send_slack_exception(client):
+    """Slack webhook raises exception → failed."""
+    row = _make_notification_row(channel="slack", status="failed")
+
+    mock_client_instance = MagicMock()
+
+    async def _raise_enter(self_):
+        raise ConnectionError("slack down")
+
+    mock_client_instance.__aenter__ = _raise_enter
+    mock_client_instance.__aexit__ = lambda self, *a: _async_return(None)
+
+    with patch(
+        "app.routers.api.get_db_connection",
+        side_effect=[_fake_connection([row])(autocommit=True)],
+    ), patch("app.routers.api.settings") as mock_settings, patch(
+        "app.routers.api.httpx.AsyncClient", return_value=mock_client_instance
+    ):
+        mock_settings.SLACK_WEBHOOK_URL = "https://hooks.slack.com/test"
+        mock_settings.HTTP_CLIENT_TIMEOUT = 10.0
+
+        resp = await client.post(
+            "/api/v1/notify",
+            json={
+                "incident_id": "inc-slack-exc",
+                "engineer": "alice@example.com",
+                "channel": "slack",
+                "message": "Slack exception test",
+            },
+        )
+
+    assert resp.status_code == 201
+    assert resp.json()["status"] == "failed"
+
+
 # ── async helper ──────────────────────────────────────────────
 
 

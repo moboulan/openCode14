@@ -230,6 +230,28 @@ def list_schedules(
 
 
 # ---------------------------------------------------------------------------
+# DELETE /schedules/{schedule_id} -- delete a schedule and its members
+# ---------------------------------------------------------------------------
+
+
+@router.delete("/schedules/{schedule_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_schedule(schedule_id: str):
+    """Delete an on-call schedule and its members."""
+    try:
+        with get_db_connection(autocommit=True) as conn:
+            with conn.cursor() as cur:
+                cur.execute("DELETE FROM oncall.schedule_members WHERE schedule_id = %s", (schedule_id,))
+                cur.execute("DELETE FROM oncall.schedules WHERE id = %s RETURNING id", (schedule_id,))
+                row = cur.fetchone()
+    except Exception as exc:
+        logger.error(f"Failed to delete schedule: {exc}")
+        raise HTTPException(status_code=500, detail="Failed to delete schedule") from exc
+
+    if not row:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Schedule not found")
+
+
+# ---------------------------------------------------------------------------
 # GET /oncall/current -- who is on-call right now?
 # ---------------------------------------------------------------------------
 
@@ -842,16 +864,13 @@ def get_oncall_metrics():
                 cur.execute("SELECT COUNT(*) AS cnt FROM oncall.escalations")
                 metrics["total_escalations"] = cur.fetchone()["cnt"]
 
-                # Escalations by team (inferred from schedules + from_engineer)
+                # Escalations by team (via escalation timers which store team)
                 cur.execute("""
-                    SELECT s.team, COUNT(e.id) AS cnt
+                    SELECT t.team, COUNT(e.id) AS cnt
                     FROM oncall.escalations e
-                    LEFT JOIN oncall.schedules s ON s.team = (
-                        SELECT s2.team FROM oncall.schedules s2
-                        WHERE s2.engineers::text LIKE '%%' || e.from_engineer || '%%'
-                        LIMIT 1
-                    )
-                    GROUP BY s.team
+                    LEFT JOIN oncall.escalation_timers t
+                        ON t.incident_id = e.incident_id
+                    GROUP BY t.team
                 """)
                 for r in cur.fetchall():
                     if r["team"]:
@@ -859,46 +878,29 @@ def get_oncall_metrics():
     except Exception as e:
         logger.warning(f"Failed to query escalation metrics: {e}")
 
-    # Incident metrics from incident-management service (cross-service query)
+    # Incident metrics via incident-management service API (proper service boundary)
     try:
-        with get_db_connection() as conn:
-            with conn.cursor() as cur:
-                cur.execute("""
-                    SELECT
-                        COUNT(*) AS total,
-                        AVG(EXTRACT(EPOCH FROM (acknowledged_at - created_at)))
-                            FILTER (WHERE acknowledged_at IS NOT NULL) AS avg_mtta,
-                        AVG(EXTRACT(EPOCH FROM (resolved_at - created_at)))
-                            FILTER (WHERE resolved_at IS NOT NULL) AS avg_mttr
-                    FROM incidents.incidents
-                """)
-                row = cur.fetchone()
-                if row:
-                    metrics["total_incidents"] = row["total"]
-                    if row["avg_mtta"]:
-                        metrics["avg_mtta_seconds"] = round(row["avg_mtta"], 2)
-                    if row["avg_mttr"]:
-                        metrics["avg_mttr_seconds"] = round(row["avg_mttr"], 2)
+        import httpx
 
-                # Escalation rate
-                if row and row["total"] > 0:
-                    rate = (metrics["total_escalations"] / row["total"]) * 100
-                    metrics["escalation_rate_pct"] = round(rate, 2)
-                    escalation_rate.set(rate)
+        resp = httpx.get(
+            f"{settings.INCIDENT_SERVICE_URL}/api/v1/incidents/analytics",
+            timeout=settings.HTTP_CLIENT_TIMEOUT,
+        )
+        if resp.status_code == 200:
+            data = resp.json()
+            metrics["total_incidents"] = data.get("total_incidents", 0)
+            metrics["avg_mtta_seconds"] = data.get("avg_mtta_seconds")
+            metrics["avg_mttr_seconds"] = data.get("avg_mttr_seconds")
 
-                # On-call load (incidents assigned per engineer this week)
-                cur.execute("""
-                    SELECT assigned_to::text, COUNT(*) AS cnt
-                    FROM incidents.incidents
-                    WHERE created_at >= now() - interval '7 days'
-                      AND assigned_to IS NOT NULL
-                    GROUP BY assigned_to
-                """)
-                for r in cur.fetchall():
-                    if r["assigned_to"]:
-                        metrics["oncall_load"][r["assigned_to"]] = r["cnt"]
+            # Escalation rate
+            if metrics["total_incidents"] > 0:
+                rate = (metrics["total_escalations"] / metrics["total_incidents"]) * 100
+                metrics["escalation_rate_pct"] = round(rate, 2)
+                escalation_rate.set(rate)
+        else:
+            logger.warning(f"Incident analytics API returned {resp.status_code}")
     except Exception as e:
-        logger.warning(f"Failed to query incident metrics: {e}")
+        logger.warning(f"Failed to query incident analytics API: {e}")
 
     return OnCallMetrics(**metrics)
 

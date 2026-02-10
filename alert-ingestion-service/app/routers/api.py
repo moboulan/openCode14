@@ -4,11 +4,11 @@ import uuid
 from datetime import datetime, timezone
 from typing import Optional
 
-import httpx
 from fastapi import APIRouter, HTTPException, Query, status
 
 from app.config import settings
 from app.database import get_db_connection
+from app.http_client import get_http_client
 from app.metrics import alerts_correlated_total, alerts_received_total
 from app.models import Alert, AlertResponse, SeverityLevel
 
@@ -103,50 +103,55 @@ async def create_alert(alert: Alert):
     else:
         # ── 2b. Create new incident via Incident Management ───
         try:
-            async with httpx.AsyncClient(timeout=settings.HTTP_CLIENT_TIMEOUT) as client:
-                resp = await client.post(
-                    f"{settings.INCIDENT_SERVICE_URL}/api/v1/incidents",
-                    json={
-                        "title": f"[{alert.severity.value.upper()}] {alert.service}: {alert.message[:120]}",
-                        "service": alert.service,
-                        "severity": alert.severity.value,
-                        "description": alert.message,
-                    },
-                )
-                resp.raise_for_status()
-                data = resp.json()
-                incident_id = data.get("incident_id")
-                incident_db_id = data.get("id")  # UUID PK if returned
+            client = get_http_client()
+            resp = await client.post(
+                f"{settings.INCIDENT_SERVICE_URL}/api/v1/incidents",
+                json={
+                    "title": f"[{alert.severity.value.upper()}] {alert.service}: {alert.message[:120]}",
+                    "service": alert.service,
+                    "severity": alert.severity.value,
+                    "description": alert.message,
+                },
+            )
+            resp.raise_for_status()
+            data = resp.json()
+            incident_id = data.get("incident_id")
+            incident_db_id = data.get("id")  # UUID PK if returned
 
-                # Link alert <-> incident
-                if incident_db_id:
-                    with get_db_connection(autocommit=True) as conn:
-                        with conn.cursor() as cur:
-                            cur.execute(
-                                """
-                                INSERT INTO incidents.incident_alerts (incident_id, alert_id)
-                                VALUES (%s, %s)
-                                ON CONFLICT DO NOTHING
-                                """,
-                                (incident_db_id, alert_db_id),
-                            )
-                            cur.execute(
-                                "UPDATE alerts.alerts SET incident_id = %s WHERE id = %s",
-                                (incident_db_id, alert_db_id),
-                            )
+            # Link alert <-> incident
+            if incident_db_id:
+                with get_db_connection(autocommit=True) as conn:
+                    with conn.cursor() as cur:
+                        cur.execute(
+                            """
+                            INSERT INTO incidents.incident_alerts (incident_id, alert_id)
+                            VALUES (%s, %s)
+                            ON CONFLICT DO NOTHING
+                            """,
+                            (incident_db_id, alert_db_id),
+                        )
+                        cur.execute(
+                            "UPDATE alerts.alerts SET incident_id = %s WHERE id = %s",
+                            (incident_db_id, alert_db_id),
+                        )
 
             logger.info(f"Alert {alert_id} → new incident {incident_id}")
         except Exception as e:
             # Graceful degradation: alert is stored, incident_id stays null
             logger.error(f"Failed to create incident for alert {alert_id}: {e}")
             incident_id = None
-            action = "new_incident"
+            action = "incident_creation_failed"
 
     # ── 3. Update correlation metric ──────────────────────────
     alerts_correlated_total.labels(result=action).inc()
 
     # Map internal metric label → user-facing action string
-    display_action = "attached_to_existing_incident" if action == "existing_incident" else "created_new_incident"
+    action_map = {
+        "existing_incident": "attached_to_existing_incident",
+        "new_incident": "created_new_incident",
+        "incident_creation_failed": "alert_stored_incident_creation_failed",
+    }
+    display_action = action_map.get(action, action)
     resp_status = "correlated" if incident_id else "created"
 
     return AlertResponse(
@@ -261,3 +266,26 @@ async def list_alerts(
         "limit": limit,
         "offset": offset,
     }
+
+
+# ---------------------------------------------------------------------------
+# DELETE /alerts/{alert_id} — delete an alert
+# ---------------------------------------------------------------------------
+@router.delete("/alerts/{alert_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_alert(alert_id: str):
+    """Delete an alert by its alert_id."""
+    with get_db_connection(autocommit=True) as conn:
+        with conn.cursor() as cur:
+            # Remove from join table first (FK constraint)
+            cur.execute(
+                "DELETE FROM incidents.incident_alerts WHERE alert_id IN (SELECT id FROM alerts.alerts WHERE alert_id = %s)",
+                (alert_id,),
+            )
+            cur.execute(
+                "DELETE FROM alerts.alerts WHERE alert_id = %s RETURNING id",
+                (alert_id,),
+            )
+            row = cur.fetchone()
+
+    if not row:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Alert not found")

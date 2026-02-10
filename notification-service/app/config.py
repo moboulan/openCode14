@@ -40,6 +40,7 @@ class Settings(BaseSettings):
     SENDGRID_API_KEY: Optional[str] = None
     SENDGRID_FROM_EMAIL: str = "noreply@incident-platform.local"
     WEBHOOK_URLS: str = ""  # Comma-separated webhook URLs
+    SLACK_WEBHOOK_URL: Optional[str] = None  # Slack incoming webhook URL
 
     # Logging
     LOG_LEVEL: str = "INFO"

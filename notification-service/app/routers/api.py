@@ -78,6 +78,41 @@ async def _send_email(notification_id: str, request: NotificationRequest) -> Not
         return NotificationStatus.FAILED
 
 
+async def _send_slack(notification_id: str, request: NotificationRequest) -> NotificationStatus:
+    """Send notification to Slack via incoming webhook. Falls back to mock if no URL."""
+    slack_url = settings.SLACK_WEBHOOK_URL
+    if not slack_url:
+        logger.info(f"[SLACK FALLBACK→MOCK] No SLACK_WEBHOOK_URL set. id={notification_id}")
+        return _send_mock(notification_id, request)
+
+    severity_emoji = {
+        "critical": ":rotating_light:",
+        "high": ":fire:",
+        "medium": ":warning:",
+        "low": ":information_source:",
+    }
+    emoji = severity_emoji.get(request.severity.value, ":bell:") if request.severity else ":bell:"
+
+    payload = {
+        "text": f"{emoji} *Incident {request.incident_id}*\n" f"Engineer: {request.engineer}\n" f"{request.message}",
+        "username": "Incident Platform",
+        "icon_emoji": ":rotating_light:",
+    }
+
+    try:
+        async with httpx.AsyncClient(timeout=settings.HTTP_CLIENT_TIMEOUT) as client:
+            resp = await client.post(slack_url, json=payload)
+            if resp.status_code == 200:
+                logger.info(f"[SLACK SENT] id={notification_id}")
+                return NotificationStatus.DELIVERED
+            else:
+                logger.error(f"[SLACK FAILED] id={notification_id} status={resp.status_code}")
+                return NotificationStatus.FAILED
+    except Exception as e:
+        logger.error(f"[SLACK ERROR] id={notification_id}: {e}")
+        return NotificationStatus.FAILED
+
+
 async def _send_webhook(notification_id: str, request: NotificationRequest) -> NotificationStatus:
     """Send notification to webhook URL(s)."""
     urls = []
@@ -138,6 +173,8 @@ async def send_notification(request: NotificationRequest):
         delivery_status = await _send_email(notification_id, request)
     elif request.channel == NotificationChannel.WEBHOOK:
         delivery_status = await _send_webhook(notification_id, request)
+    elif request.channel == NotificationChannel.SLACK:
+        delivery_status = await _send_slack(notification_id, request)
     else:
         delivery_status = _send_mock(notification_id, request)
 

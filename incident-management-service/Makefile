@@ -9,7 +9,7 @@ PIP           := pip
 APP_MODULE    := app
 TESTS_DIR     := tests
 IMAGE_NAME    := expertmind-incident-management
-COVERAGE_MIN  := 60
+COVERAGE_MIN  := 100
 
 .PHONY: all lint security build scan test deploy verify clean help
 
@@ -122,6 +122,8 @@ install-dev:  ## Install dev / test dependencies
 fmt:  ## Auto-format code
 	cd $(SERVICE_DIR) && $(PYTHON) -m black --line-length=120 $(APP_MODULE)/ $(TESTS_DIR)/
 	cd $(SERVICE_DIR) && $(PYTHON) -m isort --profile=black $(APP_MODULE)/ $(TESTS_DIR)/
+
+format: fmt  ## Alias for fmt
 
 clean:  ## Remove build artifacts
 	rm -rf htmlcov .coverage .pytest_cache __pycache__

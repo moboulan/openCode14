@@ -122,7 +122,7 @@ async def test_correlation_graceful_degradation(client, sample_alert_payload):
     assert resp.status_code == 201
     body = resp.json()
     assert body["incident_id"] is None
-    assert body["action"] == "created_new_incident"
+    assert body["action"] == "alert_stored_incident_creation_failed"
     assert body["status"] == "created"
 
 

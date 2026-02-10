@@ -9,7 +9,7 @@ PIP           := pip
 APP_MODULE    := app
 TESTS_DIR     := tests
 IMAGE_NAME    := expertmind-oncall-service
-COVERAGE_MIN  := 60
+COVERAGE_MIN  := 100
 
 .PHONY: all lint security build scan test deploy verify clean help
 
@@ -96,9 +96,11 @@ clean:  ## Remove build artifacts
 	rm -rf __pycache__ .pytest_cache htmlcov .coverage
 	find . -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true
 
-format:  ## Auto-format code
+format: ## Auto-format code
 	cd $(SERVICE_DIR) && $(PYTHON) -m black --line-length=120 $(APP_MODULE)/ $(TESTS_DIR)/
 	cd $(SERVICE_DIR) && $(PYTHON) -m isort --profile=black $(APP_MODULE)/ $(TESTS_DIR)/
+
+fmt: format  ## Alias for format
 
 help:  ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | \

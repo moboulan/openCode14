@@ -105,7 +105,7 @@ CREATE TABLE IF NOT EXISTS incidents.incidents (
     service         VARCHAR(255) NOT NULL,
     severity        severity_level  NOT NULL,
     status          incident_status NOT NULL DEFAULT 'open',
-    assigned_to     UUID            REFERENCES users(id),
+    assigned_to     TEXT,
     notes           JSONB           NOT NULL DEFAULT '[]',
     created_at      TIMESTAMPTZ     NOT NULL DEFAULT now(),
     acknowledged_at TIMESTAMPTZ,

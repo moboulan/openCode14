@@ -255,11 +255,8 @@ async def test_create_alert_incident_service_failure(client, sample_alert_payloa
     assert resp.status_code == 201
     body = resp.json()
     assert body["incident_id"] is None
-    assert body["action"] == "created_new_incident"
+    assert body["action"] == "alert_stored_incident_creation_failed"
     assert body["status"] == "created"
-
-
-# ── POST /api/v1/alerts — new incident WITH link step ───────
 
 
 @pytest.mark.asyncio
@@ -351,3 +348,57 @@ async def test_metrics_endpoint(client):
     text = resp.text
     assert "alerts_received_total" in text
     assert "alerts_correlated_total" in text
+
+
+# ── DELETE /api/v1/alerts/{alert_id} ─────────────────────────
+
+
+@pytest.mark.asyncio
+async def test_delete_alert_success(client):
+    """DELETE existing alert → 204."""
+    with patch(
+        "app.routers.api.get_db_connection",
+        side_effect=[fake_connection([{"id": uuid.uuid4()}])(autocommit=True)],
+    ):
+        resp = await client.delete("/api/v1/alerts/alert-del123")
+    assert resp.status_code == 204
+
+
+@pytest.mark.asyncio
+async def test_delete_alert_not_found(client):
+    """DELETE non-existent alert → 404."""
+    with patch(
+        "app.routers.api.get_db_connection",
+        side_effect=[fake_connection([None])(autocommit=True)],
+    ):
+        resp = await client.delete("/api/v1/alerts/alert-nope")
+    assert resp.status_code == 404
+
+
+# ── http_client fallback ─────────────────────────────────────
+
+
+def test_http_client_fallback():
+    """get_http_client() returns a fresh client when not initialised."""
+    import app.http_client as hc
+
+    original = hc._client
+    try:
+        hc._client = None
+        c = hc.get_http_client()
+        assert c is not None
+    finally:
+        hc._client = original
+
+
+def test_http_client_returns_existing():
+    """get_http_client() returns the shared client when initialised."""
+    import app.http_client as hc
+
+    sentinel = object()
+    original = hc._client
+    try:
+        hc._client = sentinel
+        assert hc.get_http_client() is sentinel
+    finally:
+        hc._client = original

@@ -75,13 +75,11 @@ jobs:
 
       - name: Run Gitleaks
         uses: gitleaks/gitleaks-action@v2
-        continue-on-error: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Run TruffleHog
         uses: trufflesecurity/trufflehog@main
-        continue-on-error: true
         with:
           extra_args: --only-verified
 
@@ -236,7 +234,7 @@ jobs:
             --cov=app \
             --cov-report=term-missing \
             --cov-report=html:htmlcov \
-            --cov-fail-under=60
+            --cov-fail-under=100
 
       - name: Upload coverage report
         if: always()

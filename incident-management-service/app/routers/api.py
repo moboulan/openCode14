@@ -4,11 +4,11 @@ import uuid
 from datetime import datetime, timezone
 from typing import Optional
 
-import httpx
 from fastapi import APIRouter, HTTPException, Query, status
 
 from app.config import settings
 from app.database import get_db_connection
+from app.http_client import get_http_client
 from app.metrics import (
     incident_mtta_seconds,
     incident_mttr_seconds,
@@ -69,17 +69,17 @@ async def create_incident(payload: IncidentCreate):
     # ── 2. Call On-Call Service for assignment ─────────────────
     assigned_to: Optional[str] = None
     try:
-        async with httpx.AsyncClient(timeout=settings.HTTP_CLIENT_TIMEOUT) as client:
-            resp = await client.get(
-                f"{settings.ONCALL_SERVICE_URL}/api/v1/oncall/current",
-                params={"team": payload.service},
-            )
-            if resp.status_code == 200:
-                data = resp.json()
-                # Expect {"primary": {"name": ..., "email": ...}, ...}
-                primary = data.get("primary")
-                if primary:
-                    assigned_to = primary.get("name") or primary.get("email")
+        client = get_http_client()
+        resp = await client.get(
+            f"{settings.ONCALL_SERVICE_URL}/api/v1/oncall/current",
+            params={"team": payload.service},
+        )
+        if resp.status_code == 200:
+            data = resp.json()
+            # Expect {"primary": {"name": ..., "email": ...}, ...}
+            primary = data.get("primary")
+            if primary:
+                assigned_to = primary.get("name") or primary.get("email")
     except Exception as e:
         logger.warning(f"On-Call service unavailable, skipping assignment: {e}")
 
@@ -95,31 +95,31 @@ async def create_incident(payload: IncidentCreate):
     # ── 2b. Start escalation timer in On-Call Service ─────────
     if assigned_to:
         try:
-            async with httpx.AsyncClient(timeout=settings.HTTP_CLIENT_TIMEOUT) as client:
-                await client.post(
-                    f"{settings.ONCALL_SERVICE_URL}/api/v1/timers/start",
-                    json={
-                        "incident_id": incident_id,
-                        "team": payload.service,
-                        "assigned_to": assigned_to,
-                    },
-                )
+            client = get_http_client()
+            await client.post(
+                f"{settings.ONCALL_SERVICE_URL}/api/v1/timers/start",
+                json={
+                    "incident_id": incident_id,
+                    "team": payload.service,
+                    "assigned_to": assigned_to,
+                },
+            )
             logger.info(f"Escalation timer started for {incident_id}")
         except Exception as e:
             logger.warning(f"Could not start escalation timer for {incident_id}: {e}")
 
     # ── 3. Call Notification Service ──────────────────────────
     try:
-        async with httpx.AsyncClient(timeout=settings.HTTP_CLIENT_TIMEOUT) as client:
-            await client.post(
-                f"{settings.NOTIFICATION_SERVICE_URL}/api/v1/notify",
-                json={
-                    "incident_id": incident_id,
-                    "engineer": assigned_to or "unassigned",
-                    "channel": "mock",
-                    "message": f"New incident: {payload.title}",
-                },
-            )
+        client = get_http_client()
+        await client.post(
+            f"{settings.NOTIFICATION_SERVICE_URL}/api/v1/notify",
+            json={
+                "incident_id": incident_id,
+                "engineer": assigned_to or "unassigned",
+                "channel": "mock",
+                "message": f"New incident: {payload.title}",
+            },
+        )
         notifications_sent_total.labels(channel="mock", status="sent").inc()
     except Exception as e:
         logger.warning(f"Notification service unavailable: {e}")
@@ -383,11 +383,11 @@ async def update_incident(incident_id: str, payload: IncidentUpdate):
         # Cancel escalation timer on acknowledge or resolve
         if new_status in ("acknowledged", "resolved", "closed", "mitigated"):
             try:
-                async with httpx.AsyncClient(timeout=settings.HTTP_CLIENT_TIMEOUT) as client:
-                    await client.post(
-                        f"{settings.ONCALL_SERVICE_URL}/api/v1/timers/cancel",
-                        json={"incident_id": incident_id},
-                    )
+                client = get_http_client()
+                await client.post(
+                    f"{settings.ONCALL_SERVICE_URL}/api/v1/timers/cancel",
+                    json={"incident_id": incident_id},
+                )
                 logger.info(f"Escalation timer cancelled for {incident_id}")
             except Exception as e:
                 logger.warning(f"Could not cancel escalation timer for {incident_id}: {e}")
@@ -485,3 +485,29 @@ async def get_incident_metrics(incident_id: str):
         mttr_seconds=mttr,
         status=row["status"],
     )
+
+
+# ---------------------------------------------------------------------------
+# DELETE /incidents/{incident_id} — delete an incident
+# ---------------------------------------------------------------------------
+@router.delete("/incidents/{incident_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_incident(incident_id: str):
+    """Delete an incident and its linked alert associations."""
+    with get_db_connection(autocommit=True) as conn:
+        with conn.cursor() as cur:
+            # Get DB id first
+            cur.execute(
+                "SELECT id FROM incidents.incidents WHERE incident_id = %s",
+                (incident_id,),
+            )
+            row = cur.fetchone()
+            if not row:
+                raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Incident not found")
+
+            db_id = row["id"]
+            # Remove join table entries
+            cur.execute("DELETE FROM incidents.incident_alerts WHERE incident_id = %s", (db_id,))
+            # Remove notification log entries
+            cur.execute("DELETE FROM incidents.notification_log WHERE incident_id = %s", (db_id,))
+            # Remove the incident
+            cur.execute("DELETE FROM incidents.incidents WHERE id = %s", (db_id,))

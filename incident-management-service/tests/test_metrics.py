@@ -39,3 +39,46 @@ class TestMetrics:
         open_incidents.labels(severity="high").dec()
         val2 = open_incidents.labels(severity="high")._value.get()
         assert val2 == 0.0
+
+    def test_setup_syncs_from_db(self):
+        """setup_custom_metrics syncs open_incidents from DB when available."""
+        from contextlib import contextmanager
+        from unittest.mock import MagicMock, patch
+
+        @contextmanager
+        def _fake_conn(autocommit=False):
+            conn = MagicMock()
+
+            @contextmanager
+            def _cur():
+                cur = MagicMock()
+                cur.fetchall.return_value = [
+                    {"severity": "critical", "cnt": 3},
+                    {"severity": "high", "cnt": 7},
+                ]
+                yield cur
+
+            conn.cursor = _cur
+            yield conn
+
+        with patch("app.database.get_db_connection", _fake_conn):
+            setup_custom_metrics()
+
+        assert open_incidents.labels(severity="critical")._value.get() == 3.0
+        assert open_incidents.labels(severity="high")._value.get() == 7.0
+
+    def test_setup_handles_db_failure(self):
+        """setup_custom_metrics handles DB failure gracefully (except branch)."""
+        from contextlib import contextmanager
+        from unittest.mock import patch
+
+        @contextmanager
+        def _fail_conn(autocommit=False):
+            raise ConnectionError("DB unavailable")
+
+        with patch("app.database.get_db_connection", _fail_conn):
+            setup_custom_metrics()  # should not raise
+
+        # Gauges should still be at 0 defaults
+        for severity in ["critical", "high", "medium", "low"]:
+            assert open_incidents.labels(severity=severity)._value.get() == 0.0

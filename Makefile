@@ -85,9 +85,17 @@ dupcheck:  ## Check for code duplication (< 3% threshold)
 
 security:  ## Stage 2 — Scan for leaked secrets (gitleaks + trufflehog)
 	@echo "── gitleaks ──"
-	@gitleaks detect --source=. --config=.gitleaks.toml -v 2>&1 || true
+	@if command -v gitleaks >/dev/null 2>&1; then \
+		gitleaks detect --source=. --config=.gitleaks.toml -v 2>&1; \
+	else \
+		echo "SKIP gitleaks not installed"; \
+	fi
 	@echo "── trufflehog ──"
-	@trufflehog filesystem . --no-update --fail 2>&1 || true
+	@if command -v trufflehog >/dev/null 2>&1; then \
+		trufflehog filesystem . --no-update --fail 2>&1; \
+	else \
+		echo "SKIP trufflehog not installed"; \
+	fi
 
 # ── Stage 3: Build Docker Images ─────────────────────────────
 
@@ -301,8 +309,10 @@ smoke:  ## Quick smoke test (POST + GET alert)
 fmt: $(VENV)/.installed  ## Auto-format all service code
 	$(MAKE) -C alert-ingestion-service fmt PYTHON=$(CURDIR)/$(PYTHON)
 	$(MAKE) -C incident-management-service fmt PYTHON=$(CURDIR)/$(PYTHON)
-	$(MAKE) -C notification-service format PYTHON=$(CURDIR)/$(PYTHON)
-	$(MAKE) -C oncall-service format PYTHON=$(CURDIR)/$(PYTHON)
+	$(MAKE) -C notification-service fmt PYTHON=$(CURDIR)/$(PYTHON)
+	$(MAKE) -C oncall-service fmt PYTHON=$(CURDIR)/$(PYTHON)
+
+format: fmt  ## Alias for fmt
 
 # ── Cleanup ──────────────────────────────────────────────────
 

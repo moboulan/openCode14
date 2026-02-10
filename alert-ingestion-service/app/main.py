@@ -9,6 +9,7 @@ from prometheus_fastapi_instrumentator import Instrumentator
 
 from app.config import settings
 from app.database import close_pool
+from app.http_client import close_http_client, init_http_client
 from app.metrics import setup_custom_metrics
 from app.routers import api, health
 
@@ -24,8 +25,10 @@ async def lifespan(app: FastAPI):
     logger.info(f"Starting {settings.SERVICE_NAME} on port {settings.SERVICE_PORT}")
     logger.info(f"Metrics available at http://localhost:{settings.SERVICE_PORT}/metrics")
     logger.info(f"Health check at http://localhost:{settings.SERVICE_PORT}/health")
+    await init_http_client(timeout=settings.HTTP_CLIENT_TIMEOUT)
     yield
     # Shutdown
+    await close_http_client()
     close_pool()
     logger.info(f"Shutting down {settings.SERVICE_NAME}")
 
