@@ -26,19 +26,20 @@ export function formatSeconds(seconds) {
 }
 
 export const severityColor = {
-	critical: { bg: 'bg-red-50', text: 'text-red-700', border: 'border-red-200', dot: 'bg-red-500', badge: 'bg-red-100 text-red-700' },
-	high: { bg: 'bg-orange-50', text: 'text-orange-700', border: 'border-orange-200', dot: 'bg-orange-500', badge: 'bg-orange-100 text-orange-700' },
-	medium: { bg: 'bg-yellow-50', text: 'text-yellow-700', border: 'border-yellow-200', dot: 'bg-yellow-500', badge: 'bg-amber-100 text-amber-700' },
-	low: { bg: 'bg-blue-50', text: 'text-blue-700', border: 'border-blue-200', dot: 'bg-blue-500', badge: 'bg-blue-100 text-blue-700' },
+	critical: { bg: 'bg-red-500/10', text: 'text-red-400', border: 'border-red-500/20', dot: 'bg-red-500', badge: 'bg-red-500/15 text-red-400 border-red-500/20' },
+	high: { bg: 'bg-orange-500/10', text: 'text-orange-400', border: 'border-orange-500/20', dot: 'bg-orange-500', badge: 'bg-orange-500/15 text-orange-400 border-orange-500/20' },
+	medium: { bg: 'bg-yellow-500/10', text: 'text-yellow-400', border: 'border-yellow-500/20', dot: 'bg-yellow-500', badge: 'bg-amber-500/15 text-amber-400 border-amber-500/20' },
+	low: { bg: 'bg-blue-500/10', text: 'text-blue-400', border: 'border-blue-500/20', dot: 'bg-blue-500', badge: 'bg-blue-500/15 text-blue-400 border-blue-500/20' },
+	info: { bg: 'bg-sky-500/10', text: 'text-sky-400', border: 'border-sky-500/20', dot: 'bg-sky-500', badge: 'bg-sky-500/15 text-sky-400 border-sky-500/20' },
 };
 
 export const statusColor = {
-	open: 'bg-red-100 text-red-700',
-	acknowledged: 'bg-yellow-100 text-yellow-700',
-	investigating: 'bg-purple-100 text-purple-700',
-	mitigated: 'bg-blue-100 text-blue-700',
-	resolved: 'bg-green-100 text-green-700',
-	closed: 'bg-gray-100 text-gray-600',
+	open: 'bg-red-500/15 text-red-400 border-red-500/20',
+	acknowledged: 'bg-yellow-500/15 text-yellow-400 border-yellow-500/20',
+	investigating: 'bg-purple-500/15 text-purple-400 border-purple-500/20',
+	mitigated: 'bg-blue-500/15 text-blue-400 border-blue-500/20',
+	resolved: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/20',
+	closed: 'bg-zinc-500/15 text-zinc-400 border-zinc-500/20',
 };
 
 export const statusDot = {
@@ -46,6 +47,6 @@ export const statusDot = {
 	acknowledged: 'bg-yellow-500',
 	investigating: 'bg-purple-500',
 	mitigated: 'bg-blue-500',
-	resolved: 'bg-green-500',
-	closed: 'bg-gray-400',
+	resolved: 'bg-emerald-500',
+	closed: 'bg-zinc-400',
 };

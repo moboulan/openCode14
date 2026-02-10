@@ -18,7 +18,6 @@ import json
 import logging
 import os
 import random
-import time
 import uuid
 from collections import deque
 from datetime import datetime, timezone
@@ -29,7 +28,6 @@ import httpx
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, HTMLResponse
-from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")

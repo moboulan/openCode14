@@ -1,197 +1,200 @@
-import { useState, useEffect } from 'react';
-import { RefreshCw } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
 import {
-	AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid,
-	Tooltip, ResponsiveContainer, Legend,
+	BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid,
+	Tooltip as RechartsTooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend
 } from 'recharts';
-import { getIncidentAnalytics, listIncidents } from '../services/api';
-import { cn } from '../lib/utils';
+import { BarChart3, TrendingDown, Clock, Timer, AlertTriangle, Zap } from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { getIncidentAnalytics, getCorrelationStats, listIncidents } from '@/services/api';
+import { formatSeconds, severityColor } from '@/utils/formatters';
+import { cn } from '@/lib/utils';
 
-function generateTrendData(incidents) {
-	const days = 30;
-	const now = new Date();
-	const data = [];
-	for (let i = days - 1; i >= 0; i--) {
-		const d = new Date(now);
-		d.setDate(d.getDate() - i);
-		const dateStr = d.toISOString().slice(0, 10);
-		const dayLabel = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-		const dayInc = incidents.filter((inc) => new Date(inc.created_at).toISOString().slice(0, 10) === dateStr);
-		let mttaSum = 0, mttaCount = 0, mttrSum = 0, mttrCount = 0;
-		dayInc.forEach((inc) => {
-			if (inc.acknowledged_at && inc.created_at) { mttaSum += (new Date(inc.acknowledged_at) - new Date(inc.created_at)) / 60000; mttaCount++; }
-			if (inc.resolved_at && inc.created_at) { mttrSum += (new Date(inc.resolved_at) - new Date(inc.created_at)) / 60000; mttrCount++; }
-		});
-		data.push({ date: dayLabel, mtta: mttaCount > 0 ? Math.round(mttaSum / mttaCount) : null, mttr: mttrCount > 0 ? Math.round(mttrSum / mttrCount) : null, incidents: dayInc.length });
-	}
-	return data;
-}
+const CHART_COLORS = {
+	primary: '#6366f1',
+	emerald: '#10b981',
+	amber: '#f59e0b',
+	red: '#ef4444',
+	blue: '#3b82f6',
+	purple: '#a855f7',
+	zinc: '#71717a',
+};
 
-function generateNoiseData(incidents) {
-	const map = {};
-	incidents.forEach((inc) => {
-		if (!map[inc.service]) map[inc.service] = { alerts: 0, incidents: 0 };
-		map[inc.service].incidents++;
-		map[inc.service].alerts += inc.alerts?.length || Math.ceil(Math.random() * 5 + 1);
-	});
-	return Object.entries(map)
-		.map(([service, d]) => ({ service: service.length > 14 ? service.slice(0, 14) + '…' : service, rawAlerts: d.alerts, incidents: d.incidents }))
-		.sort((a, b) => b.rawAlerts - a.rawAlerts)
-		.slice(0, 8);
-}
+const SEVERITY_COLORS = { critical: '#ef4444', high: '#f97316', medium: '#eab308', low: '#3b82f6', info: '#06b6d4' };
+const STATUS_COLORS = { open: '#ef4444', acknowledged: '#eab308', investigating: '#a855f7', mitigated: '#3b82f6', resolved: '#10b981', closed: '#71717a' };
 
-const ChartTooltip = ({ active, payload, label }) => {
+const CustomTooltip = ({ active, payload, label }) => {
 	if (!active || !payload?.length) return null;
 	return (
-		<div className="rounded-md border border-zinc-200 bg-white px-2.5 py-1.5 shadow-sm">
-			<p className="mb-0.5 text-[11px] font-medium text-zinc-700">{label}</p>
-			{payload.map((e, i) => (
-				<div key={i} className="flex items-center gap-1.5 text-[11px]">
-					<span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: e.color }} />
-					<span className="text-zinc-500">{e.name}:</span>
-					<span className="font-medium text-zinc-800">{e.value != null ? (e.name.includes('MTT') ? `${e.value}m` : e.value) : '—'}</span>
-				</div>
+		<div className="rounded-lg border border-border bg-card px-3 py-2 shadow-lg">
+			<p className="text-xs font-medium mb-1">{label}</p>
+			{payload.map((p, i) => (
+				<p key={i} className="text-xs" style={{ color: p.color }}>{p.name}: {typeof p.value === 'number' ? p.value.toLocaleString() : p.value}</p>
 			))}
 		</div>
 	);
 };
 
 export default function Analytics() {
-	const [analytics, setAnalytics] = useState(null);
-	const [incidents, setIncidents] = useState([]);
-	const [loading, setLoading] = useState(true);
+	const { data: analytics, isLoading: analyticsLoading } = useQuery({
+		queryKey: ['analytics'],
+		queryFn: getIncidentAnalytics,
+		refetchInterval: 30000,
+	});
+	const { data: correlationStats } = useQuery({
+		queryKey: ['correlation-stats'],
+		queryFn: getCorrelationStats,
+		refetchInterval: 30000,
+	});
+	const { data: incidents = [] } = useQuery({
+		queryKey: ['all-incidents'],
+		queryFn: () => listIncidents({ limit: 200 }),
+		refetchInterval: 30000,
+	});
 
-	useEffect(() => {
-		(async () => {
-			try {
-				const [a, i] = await Promise.allSettled([getIncidentAnalytics(), listIncidents({ limit: 500 })]);
-				if (a.status === 'fulfilled') setAnalytics(a.value);
-				if (i.status === 'fulfilled') setIncidents(i.value.incidents || []);
-			} finally { setLoading(false); }
-		})();
-	}, []);
+	const incidentList = Array.isArray(incidents) ? incidents : incidents?.incidents || [];
 
-	if (loading) return <div className="flex h-[60vh] items-center justify-center"><RefreshCw className="h-5 w-5 animate-spin text-zinc-300" /></div>;
+	// Severity distribution
+	const severityDist = Object.entries(
+		incidentList.reduce((acc, i) => { acc[i.severity] = (acc[i.severity] || 0) + 1; return acc; }, {})
+	).map(([name, value]) => ({ name, value }));
 
-	const trendData = generateTrendData(incidents);
-	const noiseData = generateNoiseData(incidents);
-	const statusBreakdown = [
-		{ label: 'Open', count: analytics?.open_count || 0, color: 'bg-red-500' },
-		{ label: 'Acked', count: analytics?.acknowledged_count || 0, color: 'bg-amber-500' },
-		{ label: 'Resolved', count: analytics?.resolved_count || 0, color: 'bg-emerald-500' },
-	];
-	const totalForBar = statusBreakdown.reduce((a, b) => a + b.count, 0) || 1;
+	// Status distribution
+	const statusDist = Object.entries(
+		incidentList.reduce((acc, i) => { acc[i.status] = (acc[i.status] || 0) + 1; return acc; }, {})
+	).map(([name, value]) => ({ name, value }));
 
-	const noisiestServices = Object.entries(
-		incidents.reduce((acc, inc) => { acc[inc.service] = (acc[inc.service] || 0) + 1; return acc; }, {})
-	).sort((a, b) => b[1] - a[1]).slice(0, 6);
+	// Service breakdown
+	const serviceDist = Object.entries(
+		incidentList.reduce((acc, i) => { const s = i.service || 'unknown'; acc[s] = (acc[s] || 0) + 1; return acc; }, {})
+	).map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value).slice(0, 10);
+
+	const mtta = analytics?.avg_mtta_seconds;
+	const mttr = analytics?.avg_mttr_seconds;
+	const totalIncidents = analytics?.total_incidents || incidentList.length;
+	const noiseReduction = correlationStats?.noise_reduction_percentage || correlationStats?.dedup_ratio;
 
 	return (
-		<div className="fade-in space-y-5">
+		<div className="space-y-6 fade-in">
 			<div>
-				<h1 className="text-xl font-semibold text-zinc-900">Analytics</h1>
-				<p className="mt-0.5 text-sm text-zinc-400">Performance and incident intelligence</p>
+				<h1 className="text-2xl font-bold tracking-tight">Analytics</h1>
+				<p className="text-sm text-muted-foreground mt-1">Incident trends, response times, and alert correlation insights</p>
 			</div>
 
-			{/* Inline metrics — NOT a 4-card grid */}
-			<div className="flex items-baseline gap-8 border-b border-zinc-200 pb-4">
-				<div>
-					<span className="text-2xl font-semibold text-zinc-900 tabular-nums">{analytics?.total_incidents || 0}</span>
-					<span className="ml-1.5 text-xs text-zinc-400">incidents</span>
-				</div>
-				<div>
-					<span className="text-2xl font-semibold text-amber-600 tabular-nums">
-						{analytics?.avg_mtta_seconds != null ? `${Math.round(analytics.avg_mtta_seconds / 60)}m` : '—'}
-					</span>
-					<span className="ml-1.5 text-xs text-zinc-400">avg MTTA</span>
-				</div>
-				<div>
-					<span className="text-2xl font-semibold text-blue-600 tabular-nums">
-						{analytics?.avg_mttr_seconds != null ? `${Math.round(analytics.avg_mttr_seconds / 60)}m` : '—'}
-					</span>
-					<span className="ml-1.5 text-xs text-zinc-400">avg MTTR</span>
-				</div>
-				{/* Status bar — compact, in the same row */}
-				<div className="ml-auto flex items-center gap-3">
-					<div className="flex h-2 w-28 overflow-hidden rounded-full bg-zinc-100">
-						{statusBreakdown.map((s) => (
-							<div key={s.label} className={cn('h-full', s.color)} style={{ width: `${(s.count / totalForBar) * 100}%` }} />
-						))}
-					</div>
-					<div className="flex gap-2.5">
-						{statusBreakdown.map((s) => (
-							<span key={s.label} className="flex items-center gap-1 text-[11px] text-zinc-400">
-								<span className={cn('h-1.5 w-1.5 rounded-full', s.color)} />{s.label} {s.count}
-							</span>
-						))}
-					</div>
-				</div>
+			{/* KPI Cards */}
+			<div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+				<Card>
+					<CardContent className="p-5">
+						<div className="flex items-center gap-3">
+							<div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-500/10"><Timer className="h-5 w-5 text-blue-400" /></div>
+							<div><p className="text-[11px] text-muted-foreground uppercase tracking-wide">MTTA</p><p className="text-xl font-bold">{formatSeconds(mtta)}</p></div>
+						</div>
+					</CardContent>
+				</Card>
+				<Card>
+					<CardContent className="p-5">
+						<div className="flex items-center gap-3">
+							<div className="flex h-10 w-10 items-center justify-center rounded-xl bg-purple-500/10"><Clock className="h-5 w-5 text-purple-400" /></div>
+							<div><p className="text-[11px] text-muted-foreground uppercase tracking-wide">MTTR</p><p className="text-xl font-bold">{formatSeconds(mttr)}</p></div>
+						</div>
+					</CardContent>
+				</Card>
+				<Card>
+					<CardContent className="p-5">
+						<div className="flex items-center gap-3">
+							<div className="flex h-10 w-10 items-center justify-center rounded-xl bg-red-500/10"><AlertTriangle className="h-5 w-5 text-red-400" /></div>
+							<div><p className="text-[11px] text-muted-foreground uppercase tracking-wide">Total Incidents</p><p className="text-xl font-bold">{totalIncidents}</p></div>
+						</div>
+					</CardContent>
+				</Card>
+				<Card>
+					<CardContent className="p-5">
+						<div className="flex items-center gap-3">
+							<div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-500/10"><TrendingDown className="h-5 w-5 text-emerald-400" /></div>
+							<div><p className="text-[11px] text-muted-foreground uppercase tracking-wide">Noise Reduction</p><p className="text-xl font-bold">{noiseReduction != null ? `${Math.round(noiseReduction)}%` : '—'}</p></div>
+						</div>
+					</CardContent>
+				</Card>
 			</div>
 
-			{/* Charts — keep 2-col but varied sizing */}
-			<div className="grid grid-cols-[1.2fr_1fr] gap-5">
-				<div className="rounded-lg border border-zinc-200 bg-white p-5">
-					<div className="mb-3 flex items-baseline justify-between">
-						<h2 className="text-sm font-medium text-zinc-900">MTTA / MTTR Trends</h2>
-						<span className="text-[11px] text-zinc-400">30 days, minutes</span>
-					</div>
-					<ResponsiveContainer width="100%" height={260}>
-						<AreaChart data={trendData}>
-							<defs>
-								<linearGradient id="gMTTA" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#f59e0b" stopOpacity={0.12} /><stop offset="100%" stopColor="#f59e0b" stopOpacity={0} /></linearGradient>
-								<linearGradient id="gMTTR" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#3b82f6" stopOpacity={0.12} /><stop offset="100%" stopColor="#3b82f6" stopOpacity={0} /></linearGradient>
-							</defs>
-							<CartesianGrid strokeDasharray="3 3" stroke="#f4f4f5" />
-							<XAxis dataKey="date" tick={{ fontSize: 10, fill: '#a1a1aa' }} tickLine={false} axisLine={false} interval="preserveStartEnd" />
-							<YAxis tick={{ fontSize: 10, fill: '#a1a1aa' }} tickLine={false} axisLine={false} />
-							<Tooltip content={<ChartTooltip />} />
-							<Legend iconType="circle" iconSize={6} wrapperStyle={{ fontSize: 11 }} />
-							<Area type="monotone" dataKey="mtta" name="MTTA" stroke="#f59e0b" fill="url(#gMTTA)" strokeWidth={1.5} dot={false} connectNulls />
-							<Area type="monotone" dataKey="mttr" name="MTTR" stroke="#3b82f6" fill="url(#gMTTR)" strokeWidth={1.5} dot={false} connectNulls />
-						</AreaChart>
-					</ResponsiveContainer>
-				</div>
+			{/* Charts Grid */}
+			<div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+				{/* Severity Distribution */}
+				<Card>
+					<CardHeader className="pb-2"><CardTitle className="text-sm">Severity Distribution</CardTitle></CardHeader>
+					<CardContent>
+						{severityDist.length > 0 ? (
+							<ResponsiveContainer width="100%" height={260}>
+								<PieChart>
+									<Pie data={severityDist} cx="50%" cy="50%" innerRadius={55} outerRadius={90} paddingAngle={3} dataKey="value" nameKey="name">
+										{severityDist.map((e, i) => <Cell key={i} fill={SEVERITY_COLORS[e.name] || CHART_COLORS.zinc} stroke="transparent" />)}
+									</Pie>
+									<RechartsTooltip content={<CustomTooltip />} />
+									<Legend wrapperStyle={{ fontSize: '11px', color: '#71717a' }} />
+								</PieChart>
+							</ResponsiveContainer>
+						) : <p className="text-sm text-muted-foreground text-center py-12">No data</p>}
+					</CardContent>
+				</Card>
 
-				<div className="rounded-lg border border-zinc-200 bg-white p-5">
-					<div className="mb-3 flex items-baseline justify-between">
-						<h2 className="text-sm font-medium text-zinc-900">Alert Noise Reduction</h2>
-						<span className="text-[11px] text-zinc-400">Raw vs. correlated</span>
-					</div>
-					<ResponsiveContainer width="100%" height={260}>
-						<BarChart data={noiseData} barGap={2}>
-							<CartesianGrid strokeDasharray="3 3" stroke="#f4f4f5" />
-							<XAxis dataKey="service" tick={{ fontSize: 10, fill: '#a1a1aa' }} tickLine={false} axisLine={false} />
-							<YAxis tick={{ fontSize: 10, fill: '#a1a1aa' }} tickLine={false} axisLine={false} />
-							<Tooltip content={<ChartTooltip />} />
-							<Legend iconType="circle" iconSize={6} wrapperStyle={{ fontSize: 11 }} />
-							<Bar dataKey="rawAlerts" name="Raw Alerts" fill="#e4e4e7" radius={[3, 3, 0, 0]} />
-							<Bar dataKey="incidents" name="Incidents" fill="#3b82f6" radius={[3, 3, 0, 0]} />
-						</BarChart>
-					</ResponsiveContainer>
-				</div>
+				{/* Status Distribution */}
+				<Card>
+					<CardHeader className="pb-2"><CardTitle className="text-sm">Status Distribution</CardTitle></CardHeader>
+					<CardContent>
+						{statusDist.length > 0 ? (
+							<ResponsiveContainer width="100%" height={260}>
+								<PieChart>
+									<Pie data={statusDist} cx="50%" cy="50%" innerRadius={55} outerRadius={90} paddingAngle={3} dataKey="value" nameKey="name">
+										{statusDist.map((e, i) => <Cell key={i} fill={STATUS_COLORS[e.name] || CHART_COLORS.zinc} stroke="transparent" />)}
+									</Pie>
+									<RechartsTooltip content={<CustomTooltip />} />
+									<Legend wrapperStyle={{ fontSize: '11px', color: '#71717a' }} />
+								</PieChart>
+							</ResponsiveContainer>
+						) : <p className="text-sm text-muted-foreground text-center py-12">No data</p>}
+					</CardContent>
+				</Card>
+
+				{/* Top Services */}
+				<Card className="lg:col-span-2">
+					<CardHeader className="pb-2"><CardTitle className="text-sm">Incidents by Service</CardTitle></CardHeader>
+					<CardContent>
+						{serviceDist.length > 0 ? (
+							<ResponsiveContainer width="100%" height={300}>
+								<BarChart data={serviceDist} layout="vertical" margin={{ left: 0, right: 20 }}>
+									<CartesianGrid strokeDasharray="3 3" stroke="#27272a" horizontal={false} />
+									<XAxis type="number" tick={{ fill: '#71717a', fontSize: 11 }} axisLine={{ stroke: '#27272a' }} />
+									<YAxis type="category" dataKey="name" width={140} tick={{ fill: '#a1a1aa', fontSize: 11 }} axisLine={false} tickLine={false} />
+									<RechartsTooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(99,102,241,0.08)' }} />
+									<Bar dataKey="value" name="Incidents" fill={CHART_COLORS.primary} radius={[0, 4, 4, 0]} barSize={20} />
+								</BarChart>
+							</ResponsiveContainer>
+						) : <p className="text-sm text-muted-foreground text-center py-12">No data</p>}
+					</CardContent>
+				</Card>
 			</div>
 
-			{/* Noisiest services — simple table, not card grid */}
-			<div className="rounded-lg border border-zinc-200 bg-white overflow-hidden">
-				<div className="border-b border-zinc-100 px-4 py-3">
-					<h2 className="text-sm font-medium text-zinc-900">Noisiest Services</h2>
-				</div>
-				{noisiestServices.length === 0 ? (
-					<p className="py-10 text-center text-sm text-zinc-400">No data</p>
-				) : (
-					<table className="w-full text-sm">
-						<tbody>
-							{noisiestServices.map(([service, count], idx) => (
-								<tr key={service} className="border-b last:border-0 border-zinc-50 hover:bg-zinc-50/60 transition-colors">
-									<td className="py-2.5 pl-4 pr-3 w-8 text-xs text-zinc-300 tabular-nums">{idx + 1}</td>
-									<td className="py-2.5 px-3 font-medium text-zinc-800">{service}</td>
-									<td className="py-2.5 px-4 text-right tabular-nums text-zinc-500">{count} incident{count !== 1 ? 's' : ''}</td>
-								</tr>
+			{/* Correlation Stats */}
+			{correlationStats && (
+				<Card>
+					<CardHeader className="pb-3">
+						<div className="flex items-center gap-2">
+							<Zap className="h-4 w-4 text-yellow-400" />
+							<CardTitle className="text-sm">Alert Correlation Statistics</CardTitle>
+						</div>
+					</CardHeader>
+					<CardContent>
+						<div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+							{Object.entries(correlationStats).filter(([k]) => !k.startsWith('_')).map(([key, val]) => (
+								<div key={key} className="rounded-lg border border-border p-3 text-center">
+									<p className="text-lg font-bold">{typeof val === 'number' ? (val % 1 !== 0 ? val.toFixed(1) : val) : val}</p>
+									<p className="text-[10px] text-muted-foreground uppercase tracking-wide mt-1">{key.replace(/_/g, ' ')}</p>
+								</div>
 							))}
-						</tbody>
-					</table>
-				)}
-			</div>
+						</div>
+					</CardContent>
+				</Card>
+			)}
 		</div>
 	);
 }

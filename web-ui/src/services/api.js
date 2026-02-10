@@ -48,13 +48,13 @@ export async function listSchedules() {
 	return data;
 }
 
-export async function getCurrentOncall(params = {}) {
-	const { data } = await api.get(`${oncallBase}/oncall/current`, { params });
+export async function getCurrentOncall(team) {
+	const { data } = await api.get(`${oncallBase}/oncall/current`, { params: { team: team || 'platform' } });
 	return data;
 }
 
 export async function getOncallMetrics() {
-	const { data } = await api.get(`${oncallBase}/oncall/metrics`);
+	const { data } = await api.get(`${oncallBase}/metrics/oncall`);
 	return data;
 }
 
@@ -65,14 +65,33 @@ export async function listAlerts(params = {}) {
 }
 
 export async function getCorrelationStats() {
-	const { data } = await api.get(`${alertBase}/alerts/stats`);
-	return data;
+	try {
+		const { data } = await api.get('/api/alert-ingestion/metrics', { timeout: 3000, responseType: 'text' });
+		// Parse Prometheus metrics for correlation stats
+		const lines = data.split('\n');
+		const stats = {};
+		for (const line of lines) {
+			if (line.startsWith('alerts_total ')) stats.total_alerts = parseFloat(line.split(' ')[1]);
+			if (line.startsWith('alerts_correlated_total ')) stats.correlated_alerts = parseFloat(line.split(' ')[1]);
+			if (line.startsWith('alerts_deduplicated_total ')) stats.deduplicated_alerts = parseFloat(line.split(' ')[1]);
+		}
+		if (stats.total_alerts > 0 && stats.correlated_alerts != null) {
+			stats.noise_reduction_percentage = ((stats.correlated_alerts + (stats.deduplicated_alerts || 0)) / stats.total_alerts) * 100;
+		}
+		return stats;
+	} catch {
+		return null;
+	}
 }
 
 // ─── Notifications ─────────────────────────────────────────
 export async function listNotifications(params = {}) {
-	const { data } = await api.get(`${notificationBase}/notifications`, { params });
-	return data;
+	try {
+		const { data } = await api.get(`${notificationBase}/notifications`, { params });
+		return data;
+	} catch {
+		return [];
+	}
 }
 
 // ─── Health Checks ─────────────────────────────────────────

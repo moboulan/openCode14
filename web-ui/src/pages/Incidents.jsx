@@ -1,200 +1,205 @@
-import { useState, useEffect, useCallback } from 'react';
-import { Link } from 'react-router-dom';
-import { Search, RefreshCw, ChevronDown, ExternalLink, Circle } from 'lucide-react';
-import { listIncidents, updateIncident } from '../services/api';
-import { timeAgo } from '../utils/formatters';
-import { cn } from '../lib/utils';
+import { useState } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useNavigate } from 'react-router-dom';
+import { Search, Filter, AlertTriangle, ChevronLeft, ChevronRight, Eye, CheckCircle2, ShieldAlert } from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { listIncidents, updateIncident } from '@/services/api';
+import { timeAgo, severityColor, statusColor, statusDot } from '@/utils/formatters';
+import { cn } from '@/lib/utils';
 
-const SEVERITY_OPTIONS = ['all', 'critical', 'high', 'medium', 'low'];
-const STATUS_OPTIONS = ['all', 'open', 'acknowledged', 'investigating', 'mitigated', 'resolved', 'closed'];
-
-const sevDotColor = {
-	critical: 'bg-red-500',
-	high: 'bg-orange-500',
-	medium: 'bg-amber-400',
-	low: 'bg-blue-400',
-};
-
-const statusTextColor = {
-	open: 'text-red-600',
-	acknowledged: 'text-amber-600',
-	investigating: 'text-purple-600',
-	mitigated: 'text-blue-600',
-	resolved: 'text-emerald-600',
-	closed: 'text-zinc-400',
-};
+const SEVERITIES = ['all', 'critical', 'high', 'medium', 'low'];
+const STATUSES = ['all', 'open', 'acknowledged', 'investigating', 'mitigated', 'resolved', 'closed'];
 
 export default function Incidents() {
-	const [incidents, setIncidents] = useState([]);
-	const [total, setTotal] = useState(0);
-	const [loading, setLoading] = useState(true);
+	const navigate = useNavigate();
+	const queryClient = useQueryClient();
 	const [search, setSearch] = useState('');
-	const [severityFilter, setSeverityFilter] = useState('all');
-	const [statusFilter, setStatusFilter] = useState('all');
-	const [hoveredRow, setHoveredRow] = useState(null);
+	const [severity, setSeverity] = useState('all');
+	const [status, setStatus] = useState('all');
+	const [page, setPage] = useState(1);
+	const pageSize = 20;
 
-	const fetchData = useCallback(async () => {
-		setLoading(true);
-		try {
-			const params = { limit: 100 };
-			if (severityFilter !== 'all') params.severity = severityFilter;
-			if (statusFilter !== 'all') params.status = statusFilter;
-			const res = await listIncidents(params);
-			setIncidents(res.incidents || []);
-			setTotal(res.total || 0);
-		} finally {
-			setLoading(false);
-		}
-	}, [severityFilter, statusFilter]);
-
-	useEffect(() => { fetchData(); }, [fetchData]);
-
-	const handleAck = async (e, incidentId) => {
-		e.preventDefault();
-		try {
-			await updateIncident(incidentId, { status: 'acknowledged' });
-			fetchData();
-		} catch (err) {
-			console.error('Ack failed:', err);
-		}
-	};
-
-	const filtered = incidents.filter((inc) => {
-		if (!search) return true;
-		const q = search.toLowerCase();
-		return (
-			inc.title?.toLowerCase().includes(q) ||
-			inc.incident_id?.toLowerCase().includes(q) ||
-			inc.service?.toLowerCase().includes(q)
-		);
+	const { data, isLoading } = useQuery({
+		queryKey: ['incidents', { severity, status, page }],
+		queryFn: () => listIncidents({
+			limit: 100,
+			...(severity !== 'all' && { severity }),
+			...(status !== 'all' && { status }),
+		}),
+		refetchInterval: 15000,
 	});
 
+	const updateMutation = useMutation({
+		mutationFn: ({ id, payload }) => updateIncident(id, payload),
+		onSuccess: () => queryClient.invalidateQueries({ queryKey: ['incidents'] }),
+	});
+
+	const allIncidents = Array.isArray(data) ? data : data?.incidents || [];
+	const filtered = allIncidents.filter(i =>
+		!search || i.title?.toLowerCase().includes(search.toLowerCase()) ||
+		i.service?.toLowerCase().includes(search.toLowerCase())
+	);
+	const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
+	const paginated = filtered.slice((page - 1) * pageSize, page * pageSize);
+
+	const handleAction = (e, id, payload) => {
+		e.stopPropagation();
+		updateMutation.mutate({ id, payload });
+	};
+
 	return (
-		<div className="fade-in space-y-5">
-			<div className="flex items-end justify-between">
+		<div className="space-y-6 fade-in">
+			<div className="flex items-center justify-between">
 				<div>
-					<h1 className="text-xl font-semibold text-zinc-900">Incidents</h1>
-					<p className="mt-0.5 text-sm text-zinc-400">{total} total</p>
+					<h1 className="text-2xl font-bold tracking-tight">Incidents</h1>
+					<p className="text-sm text-muted-foreground mt-1">{filtered.length} incident{filtered.length !== 1 ? 's' : ''} total</p>
 				</div>
-				<button
-					onClick={fetchData}
-					className="flex items-center gap-1.5 text-xs text-zinc-400 hover:text-zinc-600 transition-colors"
-				>
-					<RefreshCw className={cn('h-3 w-3', loading && 'animate-spin')} />
-					Refresh
-				</button>
 			</div>
 
 			{/* Filters */}
-			<div className="flex items-center gap-3">
-				<div className="relative flex-1 max-w-xs">
-					<Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-zinc-400" />
-					<input
-						type="text"
-						placeholder="Search..."
-						value={search}
-						onChange={(e) => setSearch(e.target.value)}
-						className="w-full rounded-md border border-zinc-200 bg-white py-1.5 pl-8 pr-3 text-sm text-zinc-700 placeholder-zinc-400 outline-none focus:border-zinc-400 focus:ring-1 focus:ring-zinc-200"
-					/>
-				</div>
-				<div className="relative">
-					<select
-						value={severityFilter}
-						onChange={(e) => setSeverityFilter(e.target.value)}
-						className="appearance-none rounded-md border border-zinc-200 bg-white py-1.5 pl-2.5 pr-7 text-xs font-medium text-zinc-600 outline-none focus:border-zinc-400"
-					>
-						{SEVERITY_OPTIONS.map((s) => (
-							<option key={s} value={s}>{s === 'all' ? 'All severities' : s}</option>
-						))}
-					</select>
-					<ChevronDown className="pointer-events-none absolute right-1.5 top-1/2 h-3 w-3 -translate-y-1/2 text-zinc-400" />
-				</div>
-				<div className="relative">
-					<select
-						value={statusFilter}
-						onChange={(e) => setStatusFilter(e.target.value)}
-						className="appearance-none rounded-md border border-zinc-200 bg-white py-1.5 pl-2.5 pr-7 text-xs font-medium text-zinc-600 outline-none focus:border-zinc-400"
-					>
-						{STATUS_OPTIONS.map((s) => (
-							<option key={s} value={s}>{s === 'all' ? 'All statuses' : s}</option>
-						))}
-					</select>
-					<ChevronDown className="pointer-events-none absolute right-1.5 top-1/2 h-3 w-3 -translate-y-1/2 text-zinc-400" />
-				</div>
-			</div>
+			<Card>
+				<CardContent className="p-4">
+					<div className="flex flex-wrap items-center gap-3">
+						<div className="relative flex-1 min-w-[200px]">
+							<Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+							<Input
+								placeholder="Search incidents..."
+								value={search}
+								onChange={e => { setSearch(e.target.value); setPage(1); }}
+								className="pl-9"
+							/>
+						</div>
+						<div className="flex items-center gap-2">
+							<Filter className="h-4 w-4 text-muted-foreground" />
+							<div className="flex gap-1">
+								{SEVERITIES.map(s => (
+									<button
+										key={s}
+										onClick={() => { setSeverity(s); setPage(1); }}
+										className={cn(
+											'rounded-md px-2.5 py-1 text-[11px] font-medium capitalize transition-colors border',
+											severity === s
+												? 'bg-primary/15 text-primary border-primary/30'
+												: 'text-muted-foreground hover:text-foreground border-transparent hover:border-border'
+										)}
+									>
+										{s}
+									</button>
+								))}
+							</div>
+						</div>
+						<div className="flex gap-1">
+							{STATUSES.map(s => (
+								<button
+									key={s}
+									onClick={() => { setStatus(s); setPage(1); }}
+									className={cn(
+										'rounded-md px-2.5 py-1 text-[11px] font-medium capitalize transition-colors border',
+										status === s
+											? 'bg-primary/15 text-primary border-primary/30'
+											: 'text-muted-foreground hover:text-foreground border-transparent hover:border-border'
+									)}
+								>
+									{s}
+								</button>
+							))}
+						</div>
+					</div>
+				</CardContent>
+			</Card>
 
 			{/* Table */}
-			<div className="rounded-lg border border-zinc-200 bg-white overflow-hidden">
-				<table className="w-full text-sm">
-					<thead>
-						<tr className="border-b border-zinc-100 bg-zinc-50/50">
-							<th className="py-2 pl-4 pr-2 text-left text-xs font-medium text-zinc-500 w-8"></th>
-							<th className="py-2 px-3 text-left text-xs font-medium text-zinc-500">Incident</th>
-							<th className="py-2 px-3 text-left text-xs font-medium text-zinc-500">Service</th>
-							<th className="py-2 px-3 text-left text-xs font-medium text-zinc-500">Status</th>
-							<th className="py-2 px-3 text-left text-xs font-medium text-zinc-500">Opened</th>
-							<th className="py-2 px-3 text-left text-xs font-medium text-zinc-500">Assignee</th>
-							<th className="py-2 px-3 w-20"></th>
-						</tr>
-					</thead>
-					<tbody>
-						{loading && filtered.length === 0 ? (
-							<tr>
-								<td colSpan={7} className="py-16 text-center">
-									<RefreshCw className="mx-auto h-5 w-5 animate-spin text-zinc-300" />
-								</td>
-							</tr>
-						) : filtered.length === 0 ? (
-							<tr>
-								<td colSpan={7} className="py-16 text-center text-sm text-zinc-400">
-									No incidents match your filters
-								</td>
-							</tr>
-						) : (
-							filtered.map((inc) => (
-								<tr
-									key={inc.incident_id}
-									className="group border-b last:border-0 border-zinc-50 hover:bg-zinc-50/60 transition-colors"
-									onMouseEnter={() => setHoveredRow(inc.incident_id)}
-									onMouseLeave={() => setHoveredRow(null)}
-								>
-									<td className="py-2.5 pl-4 pr-2">
-										<span className={cn('inline-block h-2 w-2 rounded-full', sevDotColor[inc.severity] || 'bg-zinc-300')} />
-									</td>
-									<td className="py-2.5 px-3">
-										<Link to={`/incidents/${inc.incident_id}`} className="hover:text-blue-600 transition-colors">
-											<span className="font-mono text-[11px] text-zinc-400 mr-1.5">{inc.incident_id.slice(0, 8)}</span>
-											<span className="font-medium text-zinc-800">{inc.title}</span>
-										</Link>
-									</td>
-									<td className="py-2.5 px-3 text-xs text-zinc-500">{inc.service}</td>
-									<td className="py-2.5 px-3">
-										<span className={cn('inline-flex items-center gap-1 text-xs font-medium capitalize', statusTextColor[inc.status] || 'text-zinc-500')}>
-											<Circle className="h-1.5 w-1.5 fill-current" />
-											{inc.status}
-										</span>
-									</td>
-									<td className="py-2.5 px-3 text-xs text-zinc-400 tabular-nums">{timeAgo(inc.created_at)}</td>
-									<td className="py-2.5 px-3 text-xs text-zinc-500">
-										{inc.assigned_to || <span className="text-zinc-300">—</span>}
-									</td>
-									<td className="py-2.5 px-3 text-right">
-										{hoveredRow === inc.incident_id && inc.status === 'open' ? (
-											<button onClick={(e) => handleAck(e, inc.incident_id)} className="text-[11px] font-medium text-amber-600 hover:text-amber-700">
-												Ack
-											</button>
-										) : (
-											<Link to={`/incidents/${inc.incident_id}`} className="text-zinc-300 opacity-0 group-hover:opacity-100 transition-opacity">
-												<ExternalLink className="h-3.5 w-3.5" />
-											</Link>
-										)}
-									</td>
-								</tr>
-							))
-						)}
-					</tbody>
-				</table>
-			</div>
+			<Card>
+				<CardContent className="p-0">
+					{isLoading ? (
+						<div className="space-y-3 p-5">{[1, 2, 3, 4, 5].map(i => <div key={i} className="shimmer h-12 w-full" />)}</div>
+					) : (
+						<Table>
+							<TableHeader>
+								<TableRow>
+									<TableHead className="w-[40px]"></TableHead>
+									<TableHead>Title</TableHead>
+									<TableHead className="w-[100px]">Severity</TableHead>
+									<TableHead className="w-[110px]">Status</TableHead>
+									<TableHead className="w-[120px]">Service</TableHead>
+									<TableHead className="w-[120px]">Created</TableHead>
+									<TableHead className="w-[160px] text-right">Actions</TableHead>
+								</TableRow>
+							</TableHeader>
+							<TableBody>
+								{paginated.map(inc => (
+									<TableRow key={inc.incident_id} className="cursor-pointer group" onClick={() => navigate(`/incidents/${inc.incident_id}`)}>
+										<TableCell>
+											<div className={cn('h-2.5 w-2.5 rounded-full', statusDot[inc.status] || 'bg-zinc-500')} />
+										</TableCell>
+										<TableCell>
+											<div className="flex items-center gap-2">
+												<ShieldAlert className={cn('h-3.5 w-3.5 shrink-0', severityColor[inc.severity]?.text || 'text-zinc-400')} />
+												<span className="font-medium text-sm">{inc.title}</span>
+											</div>
+										</TableCell>
+										<TableCell>
+											<span className={cn('inline-flex items-center rounded-md border px-2 py-0.5 text-[10px] font-semibold uppercase', severityColor[inc.severity]?.badge)}>
+												{inc.severity}
+											</span>
+										</TableCell>
+										<TableCell>
+											<span className={cn('inline-flex items-center rounded-md border px-2 py-0.5 text-[10px] font-semibold capitalize', statusColor[inc.status])}>
+												{inc.status}
+											</span>
+										</TableCell>
+										<TableCell className="text-xs text-muted-foreground">{inc.service || '—'}</TableCell>
+										<TableCell className="text-xs text-muted-foreground">{timeAgo(inc.created_at)}</TableCell>
+										<TableCell className="text-right">
+											<div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+												{inc.status === 'open' && (
+													<Button size="sm" variant="outline" className="h-7 text-[11px]" onClick={e => handleAction(e, inc.incident_id, { status: 'acknowledged' })}>
+														<Eye className="mr-1 h-3 w-3" /> Ack
+													</Button>
+												)}
+												{(inc.status === 'open' || inc.status === 'acknowledged' || inc.status === 'investigating') && (
+													<Button size="sm" variant="outline" className="h-7 text-[11px] text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/10" onClick={e => handleAction(e, inc.incident_id, { status: 'resolved' })}>
+														<CheckCircle2 className="mr-1 h-3 w-3" /> Resolve
+													</Button>
+												)}
+											</div>
+										</TableCell>
+									</TableRow>
+								))}
+								{paginated.length === 0 && (
+									<TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-12">No incidents match your filters</TableCell></TableRow>
+								)}
+							</TableBody>
+						</Table>
+					)}
+				</CardContent>
+			</Card>
+
+			{/* Pagination */}
+			{totalPages > 1 && (
+				<div className="flex items-center justify-between">
+					<p className="text-xs text-muted-foreground">
+						Showing {(page - 1) * pageSize + 1}–{Math.min(page * pageSize, filtered.length)} of {filtered.length}
+					</p>
+					<div className="flex items-center gap-1">
+						<Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage(p => p - 1)}>
+							<ChevronLeft className="h-4 w-4" />
+						</Button>
+						{Array.from({ length: totalPages }, (_, i) => i + 1).slice(Math.max(0, page - 3), page + 2).map(p => (
+							<Button key={p} variant={p === page ? 'default' : 'outline'} size="sm" className="w-8" onClick={() => setPage(p)}>
+								{p}
+							</Button>
+						))}
+						<Button variant="outline" size="sm" disabled={page >= totalPages} onClick={() => setPage(p => p + 1)}>
+							<ChevronRight className="h-4 w-4" />
+						</Button>
+					</div>
+				</div>
+			)}
 		</div>
 	);
 }

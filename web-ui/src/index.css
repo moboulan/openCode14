@@ -1,14 +1,28 @@
 @import "tailwindcss";
 
 @theme {
-	--color-surface: #ffffff;
-	--color-surface-raised: #ffffff;
-	--color-surface-sunken: #f7f7f8;
-	--color-border: #e4e4e7;
-	--color-border-subtle: #f0f0f2;
-	--color-sidebar: #18181b;
-	--color-accent: #2563eb;
-	--color-accent-subtle: #eff3ff;
+	--color-background: #09090b;
+	--color-foreground: #fafafa;
+	--color-card: #0a0a0c;
+	--color-card-foreground: #fafafa;
+	--color-popover: #09090b;
+	--color-popover-foreground: #fafafa;
+	--color-primary: #6366f1;
+	--color-primary-foreground: #fff;
+	--color-secondary: #18181b;
+	--color-secondary-foreground: #fafafa;
+	--color-muted: #18181b;
+	--color-muted-foreground: #71717a;
+	--color-accent: #1e1e22;
+	--color-accent-foreground: #fafafa;
+	--color-destructive: #ef4444;
+	--color-border: #27272a;
+	--color-input: #27272a;
+	--color-ring: #6366f1;
+	--color-sidebar: #0c0c0e;
+	--color-sidebar-foreground: #a1a1aa;
+	--color-sidebar-active: #6366f1;
+	--radius: 8px;
 }
 
 *,
@@ -20,21 +34,20 @@
 html {
 	-webkit-font-smoothing: antialiased;
 	-moz-osx-font-smoothing: grayscale;
-	text-rendering: optimizeLegibility;
 }
 
 body {
 	margin: 0;
-	font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-	background-color: #fafafa;
-	color: #18181b;
+	font-family: 'Inter', -apple-system, system-ui, sans-serif;
+	background: var(--color-background);
+	color: var(--color-foreground);
 	font-size: 14px;
 	line-height: 1.5;
 }
 
 ::-webkit-scrollbar {
-	width: 5px;
-	height: 5px;
+	width: 6px;
+	height: 6px;
 }
 
 ::-webkit-scrollbar-track {
@@ -42,33 +55,43 @@ body {
 }
 
 ::-webkit-scrollbar-thumb {
-	background: #d4d4d8;
-	border-radius: 9px;
+	background: #27272a;
+	border-radius: 8px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-	background: #a1a1aa;
+	background: #3f3f46;
 }
 
 .fade-in {
-	animation: fadeIn 0.2s ease;
+	animation: fadeIn .2s ease;
 }
 
 @keyframes fadeIn {
 	from {
 		opacity: 0;
-		transform: translateY(2px);
+		transform: translateY(3px);
 	}
 
 	to {
 		opacity: 1;
-		transform: translateY(0);
+		transform: none;
 	}
 }
 
-.recharts-default-tooltip {
-	border-radius: 6px !important;
-	box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.08) !important;
-	border: 1px solid #e4e4e7 !important;
-	font-size: 12px !important;
+.shimmer {
+	background: linear-gradient(90deg, #18181b 0%, #27272a 50%, #18181b 100%);
+	background-size: 200% 100%;
+	animation: shimmer 1.5s infinite;
+	border-radius: var(--radius);
+}
+
+@keyframes shimmer {
+	0% {
+		background-position: 200% 0;
+	}
+
+	100% {
+		background-position: -200% 0;
+	}
 }

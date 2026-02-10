@@ -1,252 +1,165 @@
-import { useState, useEffect, useCallback } from 'react';
-import { Link } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
+import { useNavigate } from 'react-router-dom';
 import {
-	ArrowRight,
-	RefreshCw,
-	ExternalLink,
-	CheckCircle2,
-	Circle,
+	AlertTriangle, Clock, CheckCircle2, Timer, Eye,
+	Zap, ArrowRight, ShieldAlert, TrendingDown
 } from 'lucide-react';
-import { listIncidents, getIncidentAnalytics, getCurrentOncall, updateIncident, checkAllServices } from '../services/api';
-import { severityColor, statusColor, timeAgo, formatSeconds } from '../utils/formatters';
-import { cn } from '../lib/utils';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { listIncidents, getIncidentAnalytics, checkAllServices, listAlerts } from '@/services/api';
+import { timeAgo, formatSeconds, severityColor, statusColor } from '@/utils/formatters';
+import { cn } from '@/lib/utils';
 
-function SeverityDot({ severity }) {
-	const colors = {
-		critical: 'bg-red-500',
-		high: 'bg-orange-500',
-		medium: 'bg-amber-400',
-		low: 'bg-blue-400',
-	};
+function StatCard({ title, value, subtitle, icon: Icon, iconColor }) {
 	return (
-		<span className={cn('inline-block h-2 w-2 rounded-full', colors[severity] || 'bg-gray-300')}
-			title={severity} />
+		<Card className="relative overflow-hidden">
+			<CardContent className="p-5">
+				<div className="flex items-start justify-between">
+					<div className="space-y-1">
+						<p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">{title}</p>
+						<p className="text-2xl font-bold tracking-tight">{value}</p>
+						{subtitle && <p className="text-[11px] text-muted-foreground">{subtitle}</p>}
+					</div>
+					<div className={cn('flex h-10 w-10 items-center justify-center rounded-xl', iconColor || 'bg-primary/10')}>
+						<Icon className={cn('h-5 w-5',
+							iconColor?.includes('red') ? 'text-red-400' :
+								iconColor?.includes('yellow') ? 'text-yellow-400' :
+									iconColor?.includes('emerald') ? 'text-emerald-400' :
+										iconColor?.includes('blue') ? 'text-blue-400' :
+											iconColor?.includes('purple') ? 'text-purple-400' :
+												'text-primary'
+						)} />
+					</div>
+				</div>
+			</CardContent>
+		</Card>
 	);
 }
 
 export default function Dashboard() {
-	const [incidents, setIncidents] = useState([]);
-	const [analytics, setAnalytics] = useState(null);
-	const [oncall, setOncall] = useState(null);
-	const [serviceStatus, setServiceStatus] = useState([]);
-	const [loading, setLoading] = useState(true);
-	const [hoveredRow, setHoveredRow] = useState(null);
+	const navigate = useNavigate();
 
-	const fetchData = useCallback(async () => {
-		try {
-			const [incRes, analyticsRes, oncallRes, healthRes] = await Promise.allSettled([
-				listIncidents({ limit: 25 }),
-				getIncidentAnalytics(),
-				getCurrentOncall(),
-				checkAllServices(),
-			]);
-			if (incRes.status === 'fulfilled') setIncidents(incRes.value.incidents || []);
-			if (analyticsRes.status === 'fulfilled') setAnalytics(analyticsRes.value);
-			if (oncallRes.status === 'fulfilled') setOncall(oncallRes.value);
-			if (healthRes.status === 'fulfilled') setServiceStatus(healthRes.value);
-		} finally {
-			setLoading(false);
-		}
-	}, []);
+	const { data: incidents = [], isLoading: incLoading } = useQuery({
+		queryKey: ['incidents'],
+		queryFn: () => listIncidents({ limit: 50 }),
+		refetchInterval: 15000,
+	});
+	const { data: analytics, isLoading: analyticsLoading } = useQuery({
+		queryKey: ['analytics'],
+		queryFn: getIncidentAnalytics,
+		refetchInterval: 30000,
+	});
+	const { data: services = [] } = useQuery({
+		queryKey: ['services'],
+		queryFn: checkAllServices,
+		refetchInterval: 15000,
+	});
+	const { data: alerts = [] } = useQuery({
+		queryKey: ['alerts-recent'],
+		queryFn: () => listAlerts({ limit: 10 }),
+		refetchInterval: 15000,
+	});
 
-	useEffect(() => {
-		fetchData();
-		const interval = setInterval(fetchData, 30000);
-		return () => clearInterval(interval);
-	}, [fetchData]);
-
-	const handleAcknowledge = async (e, incidentId) => {
-		e.preventDefault();
-		e.stopPropagation();
-		try {
-			await updateIncident(incidentId, { status: 'acknowledged' });
-			fetchData();
-		} catch (err) {
-			console.error('Failed to acknowledge:', err);
-		}
-	};
-
-	const openCount = analytics?.open_count ?? incidents.filter((i) => i.status === 'open').length;
-	const upCount = serviceStatus.filter((s) => s.status === 'up').length;
-	const allUp = serviceStatus.length > 0 && serviceStatus.every((s) => s.status === 'up');
-	const primaryOncall = oncall?.primary?.name || oncall?.primary?.email || null;
-
-	if (loading) {
-		return (
-			<div className="flex h-[60vh] items-center justify-center">
-				<RefreshCw className="h-5 w-5 animate-spin text-zinc-300" />
-			</div>
-		);
-	}
+	const incidentList = Array.isArray(incidents) ? incidents : incidents?.incidents || [];
+	const alertList = Array.isArray(alerts) ? alerts : alerts?.alerts || [];
+	const openCount = incidentList.filter(i => i.status === 'open').length;
+	const ackedCount = incidentList.filter(i => i.status === 'acknowledged').length;
+	const resolvedCount = incidentList.filter(i => i.status === 'resolved' || i.status === 'closed').length;
+	const criticalCount = incidentList.filter(i => i.severity === 'critical' && i.status === 'open').length;
+	const mtta = analytics?.avg_mtta_seconds;
+	const mttr = analytics?.avg_mttr_seconds;
+	const recentIncidents = incidentList.slice(0, 8);
+	const upServices = services.filter(s => s.status === 'up').length;
 
 	return (
-		<div className="fade-in space-y-6">
-			{/* Page header */}
-			<div className="flex items-end justify-between">
-				<h1 className="text-xl font-semibold text-zinc-900">Overview</h1>
-				<button
-					onClick={fetchData}
-					className="flex items-center gap-1.5 text-xs text-zinc-400 hover:text-zinc-600 transition-colors"
-				>
-					<RefreshCw className="h-3 w-3" />
-					Refresh
-				</button>
-			</div>
-
-			{/* Status banner */}
-			<div className={cn(
-				'flex items-center justify-between rounded-lg px-4 py-3',
-				allUp
-					? 'bg-emerald-50 border border-emerald-200/60'
-					: 'bg-red-50 border border-red-200/60'
-			)}>
-				<div className="flex items-center gap-2.5">
-					<span className={cn(
-						'h-2 w-2 rounded-full',
-						allUp ? 'bg-emerald-500' : 'bg-red-500'
-					)} />
-					<span className={cn(
-						'text-sm font-medium',
-						allUp ? 'text-emerald-800' : 'text-red-800'
-					)}>
-						{allUp ? 'All systems operational' : 'Service degradation detected'}
-					</span>
-				</div>
-				<span className="text-xs text-zinc-500">
-					{upCount}/{serviceStatus.length} services healthy
-				</span>
-			</div>
-
-			{/* Inline metrics strip */}
-			<div className="flex items-center gap-8 text-sm">
-				<div>
-					<span className="text-zinc-500">Open incidents</span>
-					<span className={cn('ml-2 font-semibold tabular-nums', openCount > 0 ? 'text-red-600' : 'text-zinc-900')}>
-						{openCount}
-					</span>
-				</div>
-				<div className="h-4 w-px bg-zinc-200" />
-				<div>
-					<span className="text-zinc-500">MTTR avg</span>
-					<span className="ml-2 font-semibold text-zinc-900 tabular-nums">
-						{formatSeconds(analytics?.avg_mttr_seconds)}
-					</span>
-				</div>
-				<div className="h-4 w-px bg-zinc-200" />
-				<div>
-					<span className="text-zinc-500">On-call</span>
-					<span className="ml-2 font-medium text-zinc-900">
-						{primaryOncall || 'None'}
-					</span>
-				</div>
-				<div className="h-4 w-px bg-zinc-200" />
-				<div>
-					<span className="text-zinc-500">Total tracked</span>
-					<span className="ml-2 font-semibold text-zinc-900 tabular-nums">{incidents.length}</span>
-				</div>
-			</div>
-
-			{/* Incidents table */}
+		<div className="space-y-6 fade-in">
 			<div>
-				<div className="flex items-center justify-between mb-3">
-					<h2 className="text-sm font-medium text-zinc-900">Recent incidents</h2>
-					<Link
-						to="/incidents"
-						className="flex items-center gap-1 text-xs text-zinc-400 hover:text-zinc-600 transition-colors"
-					>
-						View all <ArrowRight className="h-3 w-3" />
-					</Link>
-				</div>
+				<h1 className="text-2xl font-bold tracking-tight">Dashboard</h1>
+				<p className="text-sm text-muted-foreground mt-1">Real-time overview of incidents, alerts, and platform health</p>
+			</div>
 
-				<div className="rounded-lg border border-zinc-200 bg-white overflow-hidden">
-					<table className="w-full text-sm">
-						<thead>
-							<tr className="border-b border-zinc-100 bg-zinc-50/50">
-								<th className="py-2 pl-4 pr-2 text-left text-xs font-medium text-zinc-500 w-8"></th>
-								<th className="py-2 px-3 text-left text-xs font-medium text-zinc-500">Incident</th>
-								<th className="py-2 px-3 text-left text-xs font-medium text-zinc-500">Service</th>
-								<th className="py-2 px-3 text-left text-xs font-medium text-zinc-500">Status</th>
-								<th className="py-2 px-3 text-left text-xs font-medium text-zinc-500">Opened</th>
-								<th className="py-2 px-3 text-left text-xs font-medium text-zinc-500">Assignee</th>
-								<th className="py-2 px-3 w-24"></th>
-							</tr>
-						</thead>
-						<tbody>
-							{incidents.length === 0 ? (
-								<tr>
-									<td colSpan={7} className="py-16 text-center">
-										<CheckCircle2 className="mx-auto h-6 w-6 text-emerald-300 mb-2" />
-										<p className="text-sm text-zinc-400">No active incidents</p>
-									</td>
-								</tr>
-							) : (
-								incidents.map((inc) => (
-									<tr
-										key={inc.incident_id}
-										className="group border-b last:border-0 border-zinc-50 hover:bg-zinc-50/60 transition-colors"
-										onMouseEnter={() => setHoveredRow(inc.incident_id)}
-										onMouseLeave={() => setHoveredRow(null)}
-									>
-										<td className="py-2.5 pl-4 pr-2">
-											<SeverityDot severity={inc.severity} />
-										</td>
-										<td className="py-2.5 px-3">
-											<Link
-												to={`/incidents/${inc.incident_id}`}
-												className="hover:text-blue-600 transition-colors"
-											>
-												<span className="font-mono text-[11px] text-zinc-400 mr-1.5">
-													{inc.incident_id.slice(0, 8)}
-												</span>
-												<span className="font-medium text-zinc-800 truncate">
-													{inc.title}
-												</span>
-											</Link>
-										</td>
-										<td className="py-2.5 px-3">
-											<span className="text-xs text-zinc-500">{inc.service}</span>
-										</td>
-										<td className="py-2.5 px-3">
-											<span className={cn(
-												'inline-flex items-center gap-1 text-xs font-medium capitalize',
-												inc.status === 'open' ? 'text-red-600' :
-													inc.status === 'acknowledged' ? 'text-amber-600' :
-														inc.status === 'resolved' ? 'text-emerald-600' :
-															'text-zinc-500'
-											)}>
-												<Circle className="h-1.5 w-1.5 fill-current" />
-												{inc.status}
-											</span>
-										</td>
-										<td className="py-2.5 px-3 text-xs text-zinc-400 tabular-nums">
-											{timeAgo(inc.created_at)}
-										</td>
-										<td className="py-2.5 px-3 text-xs text-zinc-500">
-											{inc.assigned_to || <span className="text-zinc-300">—</span>}
-										</td>
-										<td className="py-2.5 px-3 text-right">
-											{hoveredRow === inc.incident_id && inc.status === 'open' ? (
-												<button
-													onClick={(e) => handleAcknowledge(e, inc.incident_id)}
-													className="text-[11px] font-medium text-amber-600 hover:text-amber-700 transition-colors"
-												>
-													Ack
-												</button>
-											) : (
-												<Link
-													to={`/incidents/${inc.incident_id}`}
-													className="text-zinc-300 opacity-0 group-hover:opacity-100 transition-opacity"
-												>
-													<ExternalLink className="h-3.5 w-3.5" />
-												</Link>
-											)}
-										</td>
-									</tr>
-								))
-							)}
-						</tbody>
-					</table>
-				</div>
+			{/* Stats */}
+			<div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
+				<StatCard title="Open" value={incLoading ? '—' : openCount} subtitle={criticalCount > 0 ? `${criticalCount} critical` : undefined} icon={AlertTriangle} iconColor="bg-red-500/10" />
+				<StatCard title="Acknowledged" value={incLoading ? '—' : ackedCount} icon={Eye} iconColor="bg-yellow-500/10" />
+				<StatCard title="Resolved" value={incLoading ? '—' : resolvedCount} icon={CheckCircle2} iconColor="bg-emerald-500/10" />
+				<StatCard title="MTTA" value={analyticsLoading ? '—' : formatSeconds(mtta)} subtitle="Avg acknowledge" icon={Timer} iconColor="bg-blue-500/10" />
+				<StatCard title="MTTR" value={analyticsLoading ? '—' : formatSeconds(mttr)} subtitle="Avg resolve" icon={Clock} iconColor="bg-purple-500/10" />
+			</div>
+
+
+			{/* Main Grid */}
+			<div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+				{/* Recent Incidents */}
+				<Card className="lg:col-span-2">
+					<CardHeader className="pb-3">
+						<div className="flex items-center justify-between">
+							<CardTitle className="text-sm font-semibold">Recent Incidents</CardTitle>
+							<Button variant="ghost" size="sm" className="text-xs" onClick={() => navigate('/incidents')}>View all <ArrowRight className="ml-1 h-3 w-3" /></Button>
+						</div>
+					</CardHeader>
+					<CardContent className="p-0">
+						{incLoading ? (
+							<div className="space-y-3 p-5">{[1, 2, 3].map(i => <div key={i} className="shimmer h-10 w-full" />)}</div>
+						) : (
+							<Table>
+								<TableHeader>
+									<TableRow>
+										<TableHead>Title</TableHead>
+										<TableHead className="w-[90px]">Severity</TableHead>
+										<TableHead className="w-[100px]">Status</TableHead>
+										<TableHead className="w-[120px] text-right">When</TableHead>
+									</TableRow>
+								</TableHeader>
+								<TableBody>
+									{recentIncidents.map(inc => (
+										<TableRow key={inc.incident_id} className="cursor-pointer" onClick={() => navigate(`/incidents/${inc.incident_id}`)}>
+											<TableCell>
+												<div className="flex items-center gap-2">
+													<ShieldAlert className={cn('h-3.5 w-3.5 shrink-0', severityColor[inc.severity]?.text || 'text-zinc-400')} />
+													<span className="font-medium text-sm truncate max-w-[300px]">{inc.title}</span>
+												</div>
+											</TableCell>
+											<TableCell><span className={cn('inline-flex items-center rounded-md border px-2 py-0.5 text-[10px] font-semibold uppercase', severityColor[inc.severity]?.badge)}>{inc.severity}</span></TableCell>
+											<TableCell><span className={cn('inline-flex items-center rounded-md border px-2 py-0.5 text-[10px] font-semibold capitalize', statusColor[inc.status])}>{inc.status}</span></TableCell>
+											<TableCell className="text-right text-xs text-muted-foreground">{timeAgo(inc.created_at)}</TableCell>
+										</TableRow>
+									))}
+									{recentIncidents.length === 0 && (
+										<TableRow><TableCell colSpan={4} className="text-center text-sm text-muted-foreground py-8">No incidents found</TableCell></TableRow>
+									)}
+								</TableBody>
+							</Table>
+						)}
+					</CardContent>
+				</Card>
+
+				{/* Recent Alerts */}
+				<Card>
+					<CardHeader className="pb-3">
+						<div className="flex items-center justify-between">
+							<CardTitle className="text-sm font-semibold">Recent Alerts</CardTitle>
+							<Button variant="ghost" size="sm" className="text-xs" onClick={() => navigate('/alerts')}>View all <ArrowRight className="ml-1 h-3 w-3" /></Button>
+						</div>
+					</CardHeader>
+					<CardContent>
+						<div className="space-y-3">
+							{alertList.slice(0, 6).map((a, i) => (
+								<div key={a.alert_id || i} className="flex items-start gap-3 rounded-lg border border-border p-3 hover:bg-accent/50 transition-colors">
+									<Zap className={cn('mt-0.5 h-4 w-4 shrink-0', severityColor[a.severity]?.text || 'text-yellow-400')} />
+									<div className="min-w-0 flex-1">
+										<p className="text-xs font-medium truncate">{a.alert_name || a.message || 'Alert'}</p>
+										<p className="text-[10px] text-muted-foreground mt-0.5">{a.service || a.source || '—'} &middot; {timeAgo(a.created_at || a.timestamp)}</p>
+									</div>
+									<span className={cn('inline-flex rounded-md border px-1.5 py-0.5 text-[9px] font-semibold uppercase shrink-0', severityColor[a.severity]?.badge)}>{a.severity}</span>
+								</div>
+							))}
+							{alertList.length === 0 && <p className="text-center text-sm text-muted-foreground py-4">No recent alerts</p>}
+						</div>
+					</CardContent>
+				</Card>
 			</div>
 		</div>
 	);
