@@ -25,7 +25,7 @@ export default function App() {
 					<Routes>
 						<Route path="/" element={<Dashboard />} />
 						<Route path="/incidents" element={<Incidents />} />
-						<Route path="/incidents/:id" element={<IncidentDetail />} />
+						<Route path="/incidents/:incidentId" element={<IncidentDetail />} />
 						<Route path="/alerts" element={<Alerts />} />
 						<Route path="/analytics" element={<Analytics />} />
 						<Route path="/oncall" element={<OnCall />} />
