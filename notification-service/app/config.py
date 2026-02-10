@@ -40,10 +40,14 @@ class Settings(BaseSettings):
     SMTP_SERVER: str = "smtp.gmail.com"
     SMTP_PORT: int = 587
     SMTP_SENDER: str = "noreply@incident-platform.local"
-    SMTP_PASSWORD: str = ""  # App-password / empty = skip email
+    SMTP_PASSWORD: Optional[str] = None  # From env only — never hardcode
     EMAIL_COOLDOWN_SECONDS: int = 300  # Min seconds between emails to the same engineer
     WEBHOOK_URLS: str = ""  # Comma-separated webhook URLs
-    SLACK_WEBHOOK_URL: Optional[str] = None  # Slack incoming webhook URL
+    SLACK_WEBHOOK_URL: Optional[str] = None  # From env only — never hardcode
+
+    # SendGrid email (alternative to SMTP)
+    SENDGRID_API_KEY: Optional[str] = None  # From env only — never hardcode
+    SENDGRID_FROM_EMAIL: str = "noreply@incident-platform.local"
 
     # Logging
     LOG_LEVEL: str = "INFO"
@@ -56,7 +60,7 @@ class Settings(BaseSettings):
     def webhook_url_list(self) -> List[str]:
         return [u.strip() for u in self.WEBHOOK_URLS.split(",") if u.strip()]
 
-    model_config = ConfigDict(env_file=".env", case_sensitive=True)
+    model_config = ConfigDict(env_file=".env", case_sensitive=True, extra="ignore")
 
 
 settings = Settings()

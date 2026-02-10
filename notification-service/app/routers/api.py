@@ -60,8 +60,37 @@ def _send_mock(notification_id: str, request: NotificationRequest) -> Notificati
 
 
 async def _send_email(notification_id: str, request: NotificationRequest) -> NotificationStatus:
-    """Send email via SMTP (e.g. Gmail app-password). Falls back to mock if SMTP_PASSWORD is empty."""
-    if not settings.SMTP_PASSWORD:
+    """Send email via SendGrid (if API key set) or SMTP. Falls back to mock if neither configured."""
+    # ── SendGrid path ──
+    if getattr(settings, "SENDGRID_API_KEY", None):
+        try:
+            async with httpx.AsyncClient(timeout=settings.HTTP_CLIENT_TIMEOUT) as client:
+                resp = await client.post(
+                    "https://api.sendgrid.com/v3/mail/send",
+                    headers={
+                        "Authorization": f"Bearer {settings.SENDGRID_API_KEY}",
+                        "Content-Type": "application/json",
+                    },
+                    json={
+                        "personalizations": [{"to": [{"email": request.engineer}]}],
+                        "from": {"email": settings.SENDGRID_FROM_EMAIL},
+                        "subject": f"[ExpertMind Alert] {request.incident_id}",
+                        "content": [{"type": "text/plain", "value": request.message}],
+                    },
+                )
+            if resp.status_code in (200, 202):
+                logger.info(f"[EMAIL SENT] id={notification_id} to={request.engineer} via SendGrid")
+                return NotificationStatus.DELIVERED
+            else:
+                logger.error(f"[EMAIL ERROR] id={notification_id}: SendGrid {resp.status_code} {resp.text}")
+                return NotificationStatus.FAILED
+        except Exception as e:
+            logger.error(f"[EMAIL ERROR] id={notification_id}: {e}")
+            return NotificationStatus.FAILED
+
+    # ── SMTP path ──
+    smtp_password = getattr(settings, "SMTP_PASSWORD", "")
+    if not smtp_password or not isinstance(smtp_password, str):
         logger.info(f"[EMAIL FALLBACK→MOCK] No SMTP_PASSWORD set. id={notification_id}")
         return _send_mock(notification_id, request)
 

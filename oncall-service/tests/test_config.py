@@ -16,7 +16,7 @@ def test_settings_loads_defaults():
     assert settings.DB_POOL_MIN == 1
     assert settings.DB_POOL_MAX == 10
     assert settings.DEFAULT_ESCALATION_MINUTES == 5
-    assert settings.MANAGER_EMAIL == "admin@example.com"
+    assert settings.MANAGER_EMAIL == "admin@expertmind.local"
     assert settings.ESCALATION_LOOP_COUNT == 2
 
 

@@ -243,7 +243,7 @@ async def test_escalate_single_engineer(client):
     # Single-engineer teams now escalate to manager instead of returning 422
     assert resp.status_code == 201
     body = resp.json()
-    assert body["to_engineer"] == "admin@example.com"
+    assert body["to_engineer"] == "admin@expertmind.local"
 
 
 # ── GET /api/v1/escalations -- list escalation history ────────
@@ -488,7 +488,7 @@ async def test_escalate_level_2_to_manager(client):
     assert resp.status_code == 201
     body = resp.json()
     assert body["level"] == 2
-    assert body["to_engineer"] == "admin@example.com"
+    assert body["to_engineer"] == "admin@expertmind.local"
 
 
 # ── GET /metrics ──────────────────────────────────────────────
@@ -1086,7 +1086,7 @@ async def test_check_escalations_policy_manager_target(client):
     assert resp.status_code == 200
     body = resp.json()
     assert body["escalated"] == 1
-    assert body["details"][0]["to"] == "admin@example.com"
+    assert body["details"][0]["to"] == "admin@expertmind.local"
 
 
 @pytest.mark.asyncio
@@ -1165,7 +1165,7 @@ async def test_check_escalations_no_policy_level_gt1(client):
 
     assert resp.status_code == 200
     body = resp.json()
-    assert body["details"][0]["to"] == "admin@example.com"
+    assert body["details"][0]["to"] == "admin@expertmind.local"
 
 
 @pytest.mark.asyncio
@@ -1297,7 +1297,7 @@ async def test_check_escalations_max_level_no_timer(client):
             "incident_id": "inc-maxlvl",
             "team": "platform",
             "current_level": 99,  # Way above ESCALATION_LOOP_COUNT + 1
-            "assigned_to": "admin@example.com",
+            "assigned_to": "admin@expertmind.local",
         }
     ]
 
