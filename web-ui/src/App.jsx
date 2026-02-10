@@ -19,16 +19,21 @@ function WebSocketProvider() {
 export default function App() {
 	return (
 		<TooltipProvider delayDuration={200}>
-			<Routes>
-				<Route path="/" element={<Dashboard />} />
-				<Route path="/incidents" element={<Incidents />} />
-				<Route path="/incidents/:id" element={<IncidentDetail />} />
-				<Route path="/alerts" element={<Alerts />} />
-				<Route path="/analytics" element={<Analytics />} />
-				<Route path="/oncall" element={<OnCall />} />
-				<Route path="/notifications" element={<Notifications />} />
-				<Route path="*" element={<NotFound />} />
-			</Routes>
+			<div className="flex min-h-screen">
+				<Sidebar />
+				<main className="flex-1 ml-60 overflow-auto">
+					<Routes>
+						<Route path="/" element={<Dashboard />} />
+						<Route path="/incidents" element={<Incidents />} />
+						<Route path="/incidents/:id" element={<IncidentDetail />} />
+						<Route path="/alerts" element={<Alerts />} />
+						<Route path="/analytics" element={<Analytics />} />
+						<Route path="/oncall" element={<OnCall />} />
+						<Route path="/notifications" element={<Notifications />} />
+						<Route path="*" element={<NotFound />} />
+					</Routes>
+				</main>
+			</div>
 		</TooltipProvider>
 	);
 }
