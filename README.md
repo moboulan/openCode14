@@ -1,4 +1,4 @@
-# ExpertMind — Incident & On-Call Management Platform
+# Incident & On-Call Management Platform
 
 > **OpenCode Hackathon 2026** — Production-ready incident management platform built with Python/FastAPI microservices, React frontend, PostgreSQL, and Prometheus + Grafana monitoring. Includes an NLP-powered AI analysis engine for root-cause suggestions.
 
@@ -43,6 +43,10 @@ Open the **Test Runner UI** at <http://localhost:8006> to:
 ---
 
 ## Architecture
+
+<p align="center">
+  <img src="docs/images/Ducker.webp" alt="Docker Architecture" width="800"/>
+</p>
 
 ```text
 ┌─────────────────────────────────────────────────────────────────────┐
@@ -152,13 +156,17 @@ curl http://localhost:8001/health
 
 ## CI/CD Pipeline (7 Stages)
 
+<p align="center">
+  <img src="docs/images/CICD.webp" alt="CI/CD Pipeline" width="800"/>
+</p>
+
 ```text
 make all → quality → security → build → scan → test → deploy → verify
 ```
 
 | Stage | What | Tools |
 | ------- | ------ | ------- |
-| 1. Quality | Linting & formatting | ruff (lint + format) |
+| 1. Quality | Linting & formatting | flake8, pylint, black, isort |
 | 2. Security | Credential scanning | gitleaks, trufflehog |
 | 3. Build | Docker images | docker compose build |
 | 4. Scan | Vulnerability scanning | Trivy |
@@ -177,6 +185,10 @@ make verify       # health + smoke tests
 ```
 
 GitHub Actions CI runs automatically on push to `master` and on PRs.
+
+<p align="center">
+  <img src="docs/images/testCoverage.webp" alt="Test Coverage" width="800"/>
+</p>
 
 ---
 
@@ -199,9 +211,33 @@ All services expose `/metrics` in Prometheus format:
 
 ### Grafana Dashboards
 
+<p align="center">
+  <img src="docs/images/GrafanaCpu.webp" alt="Grafana CPU Dashboard" width="800"/>
+</p>
+
+<p align="center">
+  <img src="docs/images/SRE_Performance.webp" alt="SRE Performance Metrics" width="800"/>
+</p>
+
 1. **Live Incident Overview** — Open incidents, MTTA/MTTR gauges, top noisy services
 2. **SRE Performance Metrics** — MTTA/MTTR trends, incident volume, time distributions
 3. **System Health** — Service availability, request/error rates, resource usage
+
+---
+
+## Incident Dashboard
+
+<p align="center">
+  <img src="docs/images/CriticalIncident.webp" alt="Critical Incident View" width="800"/>
+</p>
+
+<p align="center">
+  <img src="docs/images/analytic.webp" alt="Incident Analytics" width="800"/>
+</p>
+
+<p align="center">
+  <img src="docs/images/OnCall.webp" alt="On-Call Schedule" width="800"/>
+</p>
 
 ---
 
@@ -230,6 +266,25 @@ incident-platform/
 
 ---
 
+## Documentation
+
+Detailed documentation for each component:
+
+| Component | Doc |
+| --------- | --- |
+| Alert Ingestion | [docs/alert-ingestion-service.md](docs/alert-ingestion-service.md) |
+| Incident Management | [docs/incident-management-service.md](docs/incident-management-service.md) |
+| On-Call & Escalation | [docs/oncall-service.md](docs/oncall-service.md) |
+| Notification | [docs/notification-service.md](docs/notification-service.md) |
+| AI Analysis | [docs/ai-analysis-service.md](docs/ai-analysis-service.md) |
+| Web UI | [docs/web-ui.md](docs/web-ui.md) |
+| Test Runner | [docs/test-runner.md](docs/test-runner.md) |
+| Database | [docs/database.md](docs/database.md) |
+
+See the [full documentation index](docs/README.md) for a complete overview.
+
+---
+
 ## Configuration
 
 All services are configured via environment variables. See [`.env.example`](.env.example) for the full list.
@@ -254,15 +309,67 @@ All services are configured via environment variables. See [`.env.example`](.env
 
 ---
 
-## Team
+## Developer Guide
 
-| Member | Role |
-| --- | --- |
-| **Mohamed Boulan** | Backend Lead — microservices, database design, CI/CD |
-| **Samati** | DevOps & Frontend — Docker, monitoring, React UI |
+### Prerequisites
 
----
+- Python 3.11+
+- Docker & Docker Compose
+- Node.js 18+ (for web-ui development only)
+- Make
 
-## License
+### Local Development
 
-MIT
+```bash
+make setup          # create .env, venv, install all deps
+make up             # start all services via Docker Compose
+make logs           # tail logs from all services
+make logs-alert-ingestion  # tail logs for specific service
+```
+
+### Running Tests
+
+```bash
+make test           # unit tests across all services (with coverage)
+make test-integration  # integration tests (requires running services)
+make coverage       # tests + open HTML coverage report
+```
+
+### Code Quality
+
+```bash
+make lint           # flake8 + pylint across all services
+make fmt            # auto-format with black + isort
+make dupcheck       # check for code duplication
+```
+
+### Useful Commands
+
+```bash
+make db-shell       # open psql shell in the database container
+make db-reset       # destroy DB volume and reinitialize
+make health         # hit all health endpoints
+make smoke          # quick smoke test (POST + GET alert)
+make ps             # show running containers
+make down-v         # stop + remove containers AND volumes (full reset)
+make clean          # remove build artifacts
+make fclean         # remove everything (venv, volumes, images)
+```
+
+### Adding a New Service
+
+1. Create a new directory: `my-service/`
+2. Add `app/main.py`, `app/config.py`, `app/models.py`, `app/database.py`, `app/routers/`
+3. Add `Dockerfile`, `Makefile`, `requirements.txt`, `setup.cfg`
+4. Add `tests/` directory with `conftest.py` and test files
+5. Register the service in `docker-compose.yml`
+6. Add lint/test/fmt targets to the root `Makefile`
+7. Create documentation in `docs/my-service.md`
+
+### Code Style
+
+- **Formatter**: Black (line length 100)
+- **Import sorting**: isort (Black profile)
+- **Linting**: flake8 + pylint
+- **Config**: See `ruff.toml` and per-service `setup.cfg`
+

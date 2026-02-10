@@ -2,6 +2,10 @@
 
 FastAPI microservice (port 8003) that manages on-call rotation schedules, computes the current primary and secondary on-call engineers using date-offset rotation logic, and handles incident escalation when the primary engineer does not acknowledge within the configured timeout.
 
+<p align="center">
+  <img src="images/OnCall.webp" alt="On-Call Schedule UI" width="700"/>
+</p>
+
 ## Logic Flow
 
 ```mermaid
