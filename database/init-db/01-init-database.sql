@@ -1,18 +1,3 @@
--- Initial demo/test alerts
-INSERT INTO alerts.alerts (alert_id, service, severity, message, labels, timestamp)
-VALUES
-    ('alert-demo-1', 'platform', 'critical', 'Demo: Platform outage', '{}', NOW() - INTERVAL '2 days'),
-    ('alert-demo-2', 'backend', 'high', 'Demo: Backend error spike', '{}', NOW() - INTERVAL '1 day'),
-    ('alert-demo-3', 'frontend', 'medium', 'Demo: Frontend slow load', '{}', NOW() - INTERVAL '12 hours')
-ON CONFLICT (alert_id) DO NOTHING;
-
--- Initial demo/test incidents
-INSERT INTO incidents.incidents (incident_id, title, description, service, severity, status, created_at, updated_at)
-VALUES
-    ('inc-demo-1', 'Demo Incident: Platform outage', 'Demo incident for platform', 'platform', 'critical', 'open', NOW() - INTERVAL '2 days', NOW() - INTERVAL '2 days'),
-    ('inc-demo-2', 'Demo Incident: Backend errors', 'Demo incident for backend', 'backend', 'high', 'open', NOW() - INTERVAL '1 day', NOW() - INTERVAL '1 day'),
-    ('inc-demo-3', 'Demo Incident: Frontend slow', 'Demo incident for frontend', 'frontend', 'medium', 'open', NOW() - INTERVAL '12 hours', NOW() - INTERVAL '12 hours')
-ON CONFLICT (incident_id) DO NOTHING;
 -- ============================================================
 -- Incident Platform — PostgreSQL schema
 -- ============================================================
@@ -395,3 +380,19 @@ CREATE TABLE IF NOT EXISTS analysis.resolved_patterns (
 );
 
 CREATE INDEX IF NOT EXISTS idx_resolved_patterns_service ON analysis.resolved_patterns(service);
+
+-- ── Demo/Test Alerts ────────────────────────────────────────
+INSERT INTO alerts.alerts (alert_id, service, severity, message, labels, timestamp)
+VALUES
+    ('alert-demo-1', 'platform', 'critical', 'Demo: Platform outage', '{}', NOW() - INTERVAL '2 days'),
+    ('alert-demo-2', 'backend', 'high', 'Demo: Backend error spike', '{}', NOW() - INTERVAL '1 day'),
+    ('alert-demo-3', 'frontend', 'medium', 'Demo: Frontend slow load', '{}', NOW() - INTERVAL '12 hours')
+ON CONFLICT (alert_id) DO NOTHING;
+
+-- ── Demo/Test Incidents ─────────────────────────────────────
+INSERT INTO incidents.incidents (incident_id, title, description, service, severity, status, created_at, updated_at)
+VALUES
+    ('inc-demo-1', 'Demo Incident: Platform outage', 'Demo incident for platform', 'platform', 'critical', 'open', NOW() - INTERVAL '2 days', NOW() - INTERVAL '2 days'),
+    ('inc-demo-2', 'Demo Incident: Backend errors', 'Demo incident for backend', 'backend', 'high', 'open', NOW() - INTERVAL '1 day', NOW() - INTERVAL '1 day'),
+    ('inc-demo-3', 'Demo Incident: Frontend slow', 'Demo incident for frontend', 'frontend', 'medium', 'open', NOW() - INTERVAL '12 hours', NOW() - INTERVAL '12 hours')
+ON CONFLICT (incident_id) DO NOTHING;
