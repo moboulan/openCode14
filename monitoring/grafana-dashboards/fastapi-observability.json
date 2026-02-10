@@ -4,7 +4,10 @@
     "list": [
       {
         "builtIn": 1,
-        "datasource": "-- Grafana --",
+        "datasource": {
+          "type": "datasource",
+          "uid": "grafana"
+        },
         "enable": true,
         "hide": true,
         "iconColor": "rgba(0, 211, 255, 1)",
@@ -888,7 +891,10 @@
         "skipUrlSync": false,
         "sort": 0,
         "type": "query",
-        "datasource": "Prometheus"
+        "datasource": {
+          "type": "prometheus",
+          "uid": "prometheus"
+        }
       },
       {
         "current": {
