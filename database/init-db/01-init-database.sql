@@ -266,9 +266,9 @@ VALUES
     ('Charlie SRE', 'omarafidi2005@gmail.com', '+1-555-0104', 'responder'),
     ('Diana Ops', 'omarafidi2005@gmail.com', '+1-555-0105', 'responder'),
     ('Eve Backend', 'omarafidi2005@gmail.com', '+1-555-0106', 'responder'),
-    ('Frank Frontend', 'omarafidi2005@gmail.com, '+1-555-0107', 'responder'),
-    ('Grace DevOps', 'grace@expertmind.local', '+1-555-0108', 'responder'),
-    ('Henry Platform', 'henry@expertmind.local', '+1-555-0109', 'responder')
+    ('Frank Frontend', 'omarafidi2005@gmail.com', '+1-555-0107', 'responder'),
+    ('Grace DevOps', 'omarafidi2005@gmail.com', '+1-555-0108', 'responder'),
+    ('Henry Platform', 'omarafidi2005@gmail.com', '+1-555-0109', 'responder')
 ON CONFLICT (email) DO NOTHING;
 
 -- On-call schedules for 3 teams (platform, backend, frontend)

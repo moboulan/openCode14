@@ -24,6 +24,24 @@ from app.models import (
 router = APIRouter()
 logger = logging.getLogger(__name__)
 
+# ---------------------------------------------------------------------------
+# Per-engineer email rate limiter (in-memory)
+# ---------------------------------------------------------------------------
+_email_last_sent: dict[str, float] = {}  # engineer_email → epoch timestamp
+
+
+def _is_rate_limited(engineer: str) -> bool:
+    """Return True if an email was already sent to this engineer within the cooldown window."""
+    now = time.time()
+    last = _email_last_sent.get(engineer)
+    if last and (now - last) < settings.EMAIL_COOLDOWN_SECONDS:
+        return True
+    return False
+
+
+def _record_email_sent(engineer: str) -> None:
+    _email_last_sent[engineer] = time.time()
+
 
 # ---------------------------------------------------------------------------
 # Notification channel dispatchers
@@ -45,6 +63,14 @@ async def _send_email(notification_id: str, request: NotificationRequest) -> Not
     """Send email via SMTP (e.g. Gmail app-password). Falls back to mock if SMTP_PASSWORD is empty."""
     if not settings.SMTP_PASSWORD:
         logger.info(f"[EMAIL FALLBACK→MOCK] No SMTP_PASSWORD set. id={notification_id}")
+        return _send_mock(notification_id, request)
+
+    # ── Rate-limit: skip real email if this engineer was mailed recently ──
+    if _is_rate_limited(request.engineer):
+        logger.info(
+            f"[EMAIL RATE-LIMITED] id={notification_id} to={request.engineer} "
+            f"(cooldown {settings.EMAIL_COOLDOWN_SECONDS}s) — falling back to mock"
+        )
         return _send_mock(notification_id, request)
 
     try:
@@ -78,6 +104,7 @@ async def _send_email(notification_id: str, request: NotificationRequest) -> Not
             server.sendmail(settings.SMTP_SENDER, request.engineer, msg.as_string())
 
         logger.info(f"[EMAIL SENT] id={notification_id} to={request.engineer} via SMTP")
+        _record_email_sent(request.engineer)
         return NotificationStatus.DELIVERED
     except Exception as e:
         logger.error(f"[EMAIL ERROR] id={notification_id}: {e}")

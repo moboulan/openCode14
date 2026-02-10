@@ -41,6 +41,7 @@ class Settings(BaseSettings):
     SMTP_PORT: int = 587
     SMTP_SENDER: str = "noreply@incident-platform.local"
     SMTP_PASSWORD: str = ""  # App-password / empty = skip email
+    EMAIL_COOLDOWN_SECONDS: int = 300  # Min seconds between emails to the same engineer
     WEBHOOK_URLS: str = ""  # Comma-separated webhook URLs
     SLACK_WEBHOOK_URL: Optional[str] = None  # Slack incoming webhook URL
 
