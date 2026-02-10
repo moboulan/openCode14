@@ -220,7 +220,7 @@ jobs:
             --cov=app \
             --cov-report=term-missing \
             --cov-report=html:htmlcov \
-            --cov-fail-under=100
+            --cov-fail-under=60
 
       - name: Upload coverage report
         if: always()

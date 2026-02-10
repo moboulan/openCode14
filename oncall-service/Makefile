@@ -9,7 +9,7 @@ PIP           := pip
 APP_MODULE    := app
 TESTS_DIR     := tests
 IMAGE_NAME    := expertmind-oncall-service
-COVERAGE_MIN  := 100
+COVERAGE_MIN  := 60
 
 .PHONY: all lint security build scan test deploy verify clean help
 

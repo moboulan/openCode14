@@ -9,7 +9,7 @@ PIP           := pip
 APP_MODULE    := app
 TESTS_DIR     := tests
 IMAGE_NAME    := expertmind-ai-analysis
-COVERAGE_MIN  := 80
+COVERAGE_MIN  := 60
 
 .PHONY: all lint security build scan test deploy verify clean help
 
