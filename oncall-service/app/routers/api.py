@@ -115,11 +115,7 @@ def _compute_current_oncall(schedule: dict) -> tuple[Engineer | None, Engineer |
         idx = (delta_days // 7) % len(engineer_list)
 
     primary = engineer_list[idx]
-    secondary = (
-        engineer_list[(idx + 1) % len(engineer_list)]
-        if len(engineer_list) > 1
-        else None
-    )
+    secondary = engineer_list[(idx + 1) % len(engineer_list)] if len(engineer_list) > 1 else None
 
     return primary, secondary
 
@@ -129,9 +125,7 @@ def _compute_current_oncall(schedule: dict) -> tuple[Engineer | None, Engineer |
 # ---------------------------------------------------------------------------
 
 
-@router.post(
-    "/schedules", response_model=ScheduleResponse, status_code=status.HTTP_201_CREATED
-)
+@router.post("/schedules", response_model=ScheduleResponse, status_code=status.HTTP_201_CREATED)
 def create_schedule(body: ScheduleCreateRequest):
     """Create a new on-call rotation schedule for a team."""
     schedule_id = str(uuid.uuid4())
@@ -141,9 +135,7 @@ def create_schedule(body: ScheduleCreateRequest):
     try:
         ZoneInfo(body.timezone)
     except (ZoneInfoNotFoundError, KeyError):
-        raise HTTPException(
-            status_code=400, detail=f"Invalid timezone: {body.timezone}"
-        )
+        raise HTTPException(status_code=400, detail=f"Invalid timezone: {body.timezone}")
 
     try:
         with get_db_connection(autocommit=True) as conn:
@@ -171,9 +163,7 @@ def create_schedule(body: ScheduleCreateRequest):
                 row = cur.fetchone()
     except Exception as exc:
         logger.error(f"Failed to create schedule: {exc}")
-        raise HTTPException(
-            status_code=500, detail="Failed to create schedule"
-        ) from exc
+        raise HTTPException(status_code=500, detail="Failed to create schedule") from exc
 
     engineers_data = row["engineers"]
     if isinstance(engineers_data, str):
@@ -211,9 +201,7 @@ def list_schedules(
                         (team,),
                     )
                 else:
-                    cur.execute(
-                        "SELECT * FROM oncall.schedules ORDER BY created_at DESC"
-                    )
+                    cur.execute("SELECT * FROM oncall.schedules ORDER BY created_at DESC")
                 rows = cur.fetchall()
     except Exception as exc:
         logger.error(f"Failed to list schedules: {exc}")
@@ -263,14 +251,10 @@ def delete_schedule(schedule_id: str):
                 row = cur.fetchone()
     except Exception as exc:
         logger.error(f"Failed to delete schedule: {exc}")
-        raise HTTPException(
-            status_code=500, detail="Failed to delete schedule"
-        ) from exc
+        raise HTTPException(status_code=500, detail="Failed to delete schedule") from exc
 
     if not row:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Schedule not found"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Schedule not found")
 
 
 # ---------------------------------------------------------------------------
@@ -293,38 +277,24 @@ def get_current_oncall(
                 schedule = cur.fetchone()
     except Exception as exc:
         logger.error(f"Failed to query on-call: {exc}")
-        raise HTTPException(
-            status_code=500, detail="Failed to query on-call schedule"
-        ) from exc
+        raise HTTPException(status_code=500, detail="Failed to query on-call schedule") from exc
 
     if not schedule:
-        raise HTTPException(
-            status_code=404, detail=f"No schedule found for team '{team}'"
-        )
+        raise HTTPException(status_code=404, detail=f"No schedule found for team '{team}'")
 
     primary_eng, secondary_eng = _compute_current_oncall(schedule)
 
     if not primary_eng:
-        raise HTTPException(
-            status_code=404, detail=f"No engineers configured for team '{team}'"
-        )
+        raise HTTPException(status_code=404, detail=f"No engineers configured for team '{team}'")
 
     # Update Prometheus gauge
     oncall_current.labels(team=team, engineer=primary_eng.email, role="primary").set(1)
     if secondary_eng:
-        oncall_current.labels(
-            team=team, engineer=secondary_eng.email, role="secondary"
-        ).set(1)
+        oncall_current.labels(team=team, engineer=secondary_eng.email, role="secondary").set(1)
 
-    primary = OnCallEngineer(
-        name=primary_eng.name, email=primary_eng.email, role="primary"
-    )
+    primary = OnCallEngineer(name=primary_eng.name, email=primary_eng.email, role="primary")
     secondary = (
-        OnCallEngineer(
-            name=secondary_eng.name, email=secondary_eng.email, role="secondary"
-        )
-        if secondary_eng
-        else None
+        OnCallEngineer(name=secondary_eng.name, email=secondary_eng.email, role="secondary") if secondary_eng else None
     )
 
     return CurrentOnCallResponse(
@@ -334,12 +304,8 @@ def get_current_oncall(
         schedule_id=str(schedule["id"]),
         rotation_type=schedule["rotation_type"],
         escalation_minutes=schedule["escalation_minutes"],
-        handoff_hour=schedule.get("handoff_hour", 9)
-        if isinstance(schedule, dict)
-        else 9,
-        timezone=schedule.get("timezone", "UTC")
-        if isinstance(schedule, dict)
-        else "UTC",
+        handoff_hour=schedule.get("handoff_hour", 9) if isinstance(schedule, dict) else 9,
+        timezone=schedule.get("timezone", "UTC") if isinstance(schedule, dict) else "UTC",
     )
 
 
@@ -348,9 +314,7 @@ def get_current_oncall(
 # ---------------------------------------------------------------------------
 
 
-@router.post(
-    "/escalate", response_model=EscalateResponse, status_code=status.HTTP_201_CREATED
-)
+@router.post("/escalate", response_model=EscalateResponse, status_code=status.HTTP_201_CREATED)
 async def escalate_incident(body: EscalateRequest):
     """Escalate an incident: reassign from primary to secondary on-call.
 
@@ -379,16 +343,12 @@ async def escalate_incident(body: EscalateRequest):
         raise HTTPException(status_code=500, detail="Failed to query schedule") from exc
 
     if not schedule:
-        raise HTTPException(
-            status_code=404, detail=f"No schedule found for team '{team}'"
-        )
+        raise HTTPException(status_code=404, detail=f"No schedule found for team '{team}'")
 
     primary_eng, secondary_eng = _compute_current_oncall(schedule)
 
     if not primary_eng:
-        raise HTTPException(
-            status_code=404, detail=f"No engineers configured for team '{team}'"
-        )
+        raise HTTPException(status_code=404, detail=f"No engineers configured for team '{team}'")
 
     # Determine escalation target based on level and policy
     from_engineer = primary_eng.email
@@ -435,9 +395,7 @@ async def escalate_incident(body: EscalateRequest):
                 )
     except Exception as exc:
         logger.error(f"Failed to record escalation: {exc}")
-        raise HTTPException(
-            status_code=500, detail="Failed to record escalation"
-        ) from exc
+        raise HTTPException(status_code=500, detail="Failed to record escalation") from exc
 
     # Increment Prometheus counter
     escalations_total.labels(team=team).inc()
@@ -464,9 +422,7 @@ async def escalate_incident(body: EscalateRequest):
         team=team,
     )
 
-    logger.info(
-        f"Escalation L{level}: incident={body.incident_id} from={from_engineer} to={to_engineer} team={team}"
-    )
+    logger.info(f"Escalation L{level}: incident={body.incident_id} from={from_engineer} to={to_engineer} team={team}")
 
     return EscalateResponse(
         escalation_id=escalation_id,
@@ -516,9 +472,7 @@ def list_escalations(
                 rows = cur.fetchall()
     except Exception as exc:
         logger.error(f"Failed to list escalations: {exc}")
-        raise HTTPException(
-            status_code=500, detail="Failed to list escalations"
-        ) from exc
+        raise HTTPException(status_code=500, detail="Failed to list escalations") from exc
 
     return {
         "escalations": [
@@ -529,9 +483,7 @@ def list_escalations(
                 "to_engineer": r["to_engineer"],
                 "level": r.get("level", 1),
                 "reason": r.get("reason"),
-                "escalated_at": r["escalated_at"].isoformat()
-                if r["escalated_at"]
-                else None,
+                "escalated_at": r["escalated_at"].isoformat() if r["escalated_at"] else None,
             }
             for r in rows
         ],
@@ -563,9 +515,7 @@ async def _notify_engineer(incident_id: str, engineer: str, message: str, team: 
                 channel="mock",
                 status=notif_status,
             ).inc()
-            logger.info(
-                f"Notification sent to {engineer} for {incident_id}: {notif_status}"
-            )
+            logger.info(f"Notification sent to {engineer} for {incident_id}: {notif_status}")
     except Exception as e:
         escalation_notifications_total.labels(
             team=team,
@@ -580,9 +530,7 @@ async def _notify_engineer(incident_id: str, engineer: str, message: str, team: 
 # ---------------------------------------------------------------------------
 
 
-def _start_escalation_timer(
-    incident_id: str, team: str, next_level: int, assigned_to: str
-):
+def _start_escalation_timer(incident_id: str, team: str, next_level: int, assigned_to: str):
     """Create an escalation timer for the next escalation level."""
     # Look up the escalation policy to find wait time for next level
     wait_minutes = settings.DEFAULT_ESCALATION_MINUTES
@@ -614,9 +562,7 @@ def _start_escalation_timer(
                     (incident_id, team, next_level, assigned_to, escalate_after),
                 )
         active_escalation_timers.labels(team=team).inc()
-        logger.info(
-            f"Escalation timer set: incident={incident_id} level={next_level} at={escalate_after}"
-        )
+        logger.info(f"Escalation timer set: incident={incident_id} level={next_level} at={escalate_after}")
     except Exception as e:
         logger.error(f"Failed to create escalation timer: {e}")
 
@@ -653,9 +599,7 @@ def create_escalation_policy(body: EscalationPolicyCreateRequest):
                     )
     except Exception as exc:
         logger.error(f"Failed to create escalation policy: {exc}")
-        raise HTTPException(
-            status_code=500, detail="Failed to create escalation policy"
-        ) from exc
+        raise HTTPException(status_code=500, detail="Failed to create escalation policy") from exc
 
     return EscalationPolicyResponse(team=body.team, levels=body.levels)
 
@@ -679,15 +623,11 @@ def list_escalation_policies(
                         (team,),
                     )
                 else:
-                    cur.execute(
-                        "SELECT * FROM oncall.escalation_policies ORDER BY team, level"
-                    )
+                    cur.execute("SELECT * FROM oncall.escalation_policies ORDER BY team, level")
                 rows = cur.fetchall()
     except Exception as exc:
         logger.error(f"Failed to list escalation policies: {exc}")
-        raise HTTPException(
-            status_code=500, detail="Failed to list escalation policies"
-        ) from exc
+        raise HTTPException(status_code=500, detail="Failed to list escalation policies") from exc
 
     # Group by team
     policies: dict = {}
@@ -727,14 +667,10 @@ def get_escalation_policy(team: str):
                 rows = cur.fetchall()
     except Exception as exc:
         logger.error(f"Failed to get escalation policy: {exc}")
-        raise HTTPException(
-            status_code=500, detail="Failed to get escalation policy"
-        ) from exc
+        raise HTTPException(status_code=500, detail="Failed to get escalation policy") from exc
 
     if not rows:
-        raise HTTPException(
-            status_code=404, detail=f"No escalation policy found for team '{team}'"
-        )
+        raise HTTPException(status_code=404, detail=f"No escalation policy found for team '{team}'")
 
     levels = [
         EscalationPolicyLevel(
@@ -780,9 +716,7 @@ async def check_escalations():
                 expired_timers = cur.fetchall()
     except Exception as exc:
         logger.error(f"Failed to check escalation timers: {exc}")
-        raise HTTPException(
-            status_code=500, detail="Failed to check escalation timers"
-        ) from exc
+        raise HTTPException(status_code=500, detail="Failed to check escalation timers") from exc
 
     escalated_count = 0
 
@@ -795,9 +729,7 @@ async def check_escalations():
         # Check if incident is still unacknowledged
         incident_status = None
         try:
-            async with httpx.AsyncClient(
-                timeout=settings.HTTP_CLIENT_TIMEOUT
-            ) as client:
+            async with httpx.AsyncClient(timeout=settings.HTTP_CLIENT_TIMEOUT) as client:
                 resp = await client.get(
                     f"{settings.INCIDENT_SERVICE_URL}/api/v1/incidents/{incident_id}",
                 )
@@ -1077,9 +1009,7 @@ def start_timer(body: TimerStartRequest):
         )
     except Exception as exc:
         logger.error(f"Failed to start timer: {exc}")
-        raise HTTPException(
-            status_code=500, detail="Failed to start escalation timer"
-        ) from exc
+        raise HTTPException(status_code=500, detail="Failed to start escalation timer") from exc
 
     return TimerStartResponse(
         timer_id=timer_id,
@@ -1118,9 +1048,7 @@ def cancel_timer(body: TimerCancelRequest):
                 cancelled_rows = cur.fetchall()
     except Exception as exc:
         logger.error(f"Failed to cancel timers: {exc}")
-        raise HTTPException(
-            status_code=500, detail="Failed to cancel escalation timers"
-        ) from exc
+        raise HTTPException(status_code=500, detail="Failed to cancel escalation timers") from exc
 
     count = len(cancelled_rows)
     for r in cancelled_rows:
@@ -1162,9 +1090,7 @@ def list_timers(
                 rows = cur.fetchall()
     except Exception as exc:
         logger.error(f"Failed to list timers: {exc}")
-        raise HTTPException(
-            status_code=500, detail="Failed to list escalation timers"
-        ) from exc
+        raise HTTPException(status_code=500, detail="Failed to list escalation timers") from exc
 
     timers = [
         EscalationTimerResponse(
@@ -1200,13 +1126,9 @@ def add_schedule_member(schedule_id: str, body: ScheduleMemberCreate):
         with get_db_connection(autocommit=True) as conn:
             with conn.cursor() as cur:
                 # Verify schedule exists
-                cur.execute(
-                    "SELECT id FROM oncall.schedules WHERE id = %s", (schedule_id,)
-                )
+                cur.execute("SELECT id FROM oncall.schedules WHERE id = %s", (schedule_id,))
                 if not cur.fetchone():
-                    raise HTTPException(
-                        status_code=404, detail=f"Schedule {schedule_id} not found"
-                    )
+                    raise HTTPException(status_code=404, detail=f"Schedule {schedule_id} not found")
 
         with get_db_connection(autocommit=True) as conn:
             with conn.cursor() as cur:
@@ -1230,9 +1152,7 @@ def add_schedule_member(schedule_id: str, body: ScheduleMemberCreate):
         raise
     except Exception as exc:
         logger.error(f"Failed to add schedule member: {exc}")
-        raise HTTPException(
-            status_code=500, detail="Failed to add schedule member"
-        ) from exc
+        raise HTTPException(status_code=500, detail="Failed to add schedule member") from exc
 
     return ScheduleMemberResponse(
         id=str(row["id"]),
@@ -1250,9 +1170,7 @@ def add_schedule_member(schedule_id: str, body: ScheduleMemberCreate):
 # ---------------------------------------------------------------------------
 
 
-@router.get(
-    "/schedules/{schedule_id}/members", response_model=ScheduleMemberListResponse
-)
+@router.get("/schedules/{schedule_id}/members", response_model=ScheduleMemberListResponse)
 def list_schedule_members(schedule_id: str):
     """List all members in a schedule rotation, ordered by position."""
     try:
@@ -1270,9 +1188,7 @@ def list_schedule_members(schedule_id: str):
                 rows = cur.fetchall()
     except Exception as exc:
         logger.error(f"Failed to list schedule members: {exc}")
-        raise HTTPException(
-            status_code=500, detail="Failed to list schedule members"
-        ) from exc
+        raise HTTPException(status_code=500, detail="Failed to list schedule members") from exc
 
     members = [
         ScheduleMemberResponse(

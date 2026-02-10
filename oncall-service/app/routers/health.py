@@ -44,11 +44,7 @@ def health_check(response: Response):
 
     uptime = time.time() - service_start_time
 
-    response.status_code = (
-        status.HTTP_200_OK
-        if health_status == "healthy"
-        else status.HTTP_503_SERVICE_UNAVAILABLE
-    )
+    response.status_code = status.HTTP_200_OK if health_status == "healthy" else status.HTTP_503_SERVICE_UNAVAILABLE
 
     return HealthCheck(
         status=health_status,

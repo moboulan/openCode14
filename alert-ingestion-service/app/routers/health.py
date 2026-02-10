@@ -2,11 +2,10 @@ import time
 from datetime import datetime, timezone
 
 import psutil
-from fastapi import APIRouter, Response, status
-
 from app.config import settings
 from app.database import check_database_health
 from app.models import HealthCheck
+from fastapi import APIRouter, Response, status
 
 router = APIRouter()
 
@@ -44,11 +43,7 @@ def health_check(response: Response):
 
     uptime = time.time() - service_start_time
 
-    response.status_code = (
-        status.HTTP_200_OK
-        if health_status == "healthy"
-        else status.HTTP_503_SERVICE_UNAVAILABLE
-    )
+    response.status_code = status.HTTP_200_OK if health_status == "healthy" else status.HTTP_503_SERVICE_UNAVAILABLE
 
     return HealthCheck(
         status=health_status,

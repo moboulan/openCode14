@@ -1,17 +1,15 @@
 """Tests for the POST /api/v1/analyze endpoint."""
 
-import pytest
 from unittest.mock import patch
 
+import pytest
 from helpers import fake_connection
 
 
 @pytest.mark.asyncio
 async def test_analyze_success(client, sample_analyse_payload):
     """Analyze returns suggestions for a valid alert."""
-    with patch(
-        "app.routers.api.get_db_connection", side_effect=fake_connection([None])
-    ):
+    with patch("app.routers.api.get_db_connection", side_effect=fake_connection([None])):
         resp = await client.post("/api/v1/analyze", json=sample_analyse_payload)
 
     assert resp.status_code == 200
@@ -43,12 +41,8 @@ async def test_analyze_missing_message(client):
 @pytest.mark.asyncio
 async def test_analyze_optional_fields(client):
     """Analyze works when optional fields are omitted."""
-    with patch(
-        "app.routers.api.get_db_connection", side_effect=fake_connection([None])
-    ):
-        resp = await client.post(
-            "/api/v1/analyze", json={"message": "disk full on host"}
-        )
+    with patch("app.routers.api.get_db_connection", side_effect=fake_connection([None])):
+        resp = await client.post("/api/v1/analyze", json={"message": "disk full on host"})
 
     assert resp.status_code == 200
     body = resp.json()
@@ -68,15 +62,11 @@ async def test_analyze_persists_suggestions(client, sample_analyse_payload):
 
 
 @pytest.mark.asyncio
-async def test_analyze_db_error_still_returns(
-    client, sample_analyse_payload, _patch_engine
-):
+async def test_analyze_db_error_still_returns(client, sample_analyse_payload, _patch_engine):
     """If DB persist fails, the response is still returned (fire-and-forget)."""
     from helpers import fake_connection_error
 
-    with patch(
-        "app.routers.api.get_db_connection", side_effect=fake_connection_error()
-    ):
+    with patch("app.routers.api.get_db_connection", side_effect=fake_connection_error()):
         resp = await client.post("/api/v1/analyze", json=sample_analyse_payload)
 
     # The endpoint should still return 200 since analysis succeeded even if persist fails

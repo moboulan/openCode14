@@ -13,9 +13,7 @@ from app.metrics import setup_custom_metrics
 from app.routers import api, health
 
 # Configure logging
-logging.basicConfig(
-    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-)
+logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
 
 
@@ -24,9 +22,7 @@ async def lifespan(app: FastAPI):
     """Startup and shutdown events"""
     # Startup
     logger.info(f"Starting {settings.SERVICE_NAME} on port {settings.SERVICE_PORT}")
-    logger.info(
-        f"Metrics available at http://localhost:{settings.SERVICE_PORT}/metrics"
-    )
+    logger.info(f"Metrics available at http://localhost:{settings.SERVICE_PORT}/metrics")
     logger.info(f"Health check at http://localhost:{settings.SERVICE_PORT}/health")
     yield
     # Shutdown

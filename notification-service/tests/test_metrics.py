@@ -14,13 +14,9 @@ def test_setup_custom_metrics():
 
 def test_oncall_notifications_sent_total():
     """Counter oncall_notifications_sent_total increments correctly."""
-    before = oncall_notifications_sent_total.labels(
-        channel="mock", status="delivered"
-    )._value.get()
+    before = oncall_notifications_sent_total.labels(channel="mock", status="delivered")._value.get()
     oncall_notifications_sent_total.labels(channel="mock", status="delivered").inc()
-    after = oncall_notifications_sent_total.labels(
-        channel="mock", status="delivered"
-    )._value.get()
+    after = oncall_notifications_sent_total.labels(channel="mock", status="delivered")._value.get()
     assert after == before + 1
 
 

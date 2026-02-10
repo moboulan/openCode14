@@ -18,9 +18,8 @@ def test_default_settings():
 def test_settings_override_from_env():
     """Settings can be overridden via environment variables."""
     with patch.dict(os.environ, {"MIN_CONFIDENCE": "0.5", "TOP_K_SUGGESTIONS": "10"}):
-        from pydantic_settings import BaseSettings  # noqa: F401
-
         from app.config import Settings
+        from pydantic_settings import BaseSettings  # noqa: F401
 
         s = Settings()
         assert s.MIN_CONFIDENCE == 0.5

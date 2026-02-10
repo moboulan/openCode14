@@ -1,9 +1,8 @@
 """Tests for Pydantic models."""
 
-import pytest
 from datetime import datetime, timezone
-from pydantic import ValidationError
 
+import pytest
 from app.models import (
     AnalyseRequest,
     AnalysisResponse,
@@ -11,6 +10,7 @@ from app.models import (
     SeverityLevel,
     SuggestionResponse,
 )
+from pydantic import ValidationError
 
 
 class TestAnalyseRequest:

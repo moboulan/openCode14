@@ -20,9 +20,7 @@ from httpx import ASGITransport, AsyncClient
 DATABASE_URL = os.getenv("DATABASE_URL")
 pytestmark = [
     pytest.mark.integration,
-    pytest.mark.skipif(
-        not DATABASE_URL, reason="DATABASE_URL not set -- skip integration tests"
-    ),
+    pytest.mark.skipif(not DATABASE_URL, reason="DATABASE_URL not set -- skip integration tests"),
 ]
 
 

@@ -23,9 +23,7 @@ def test_check_database_health_success():
 
 def test_check_database_health_failure():
     """check_database_health returns False when DB is unreachable."""
-    with patch(
-        "app.database.get_db_connection", side_effect=Exception("connection refused")
-    ):
+    with patch("app.database.get_db_connection", side_effect=Exception("connection refused")):
         result = check_database_health()
     assert result is False
 

@@ -216,9 +216,7 @@ async def test_list_notifications_with_filters(client):
             _list_connection(total=0, rows=[])(),
         ],
     ):
-        resp = await client.get(
-            "/api/v1/notifications?incident_id=inc-test&channel=mock"
-        )
+        resp = await client.get("/api/v1/notifications?incident_id=inc-test&channel=mock")
 
     assert resp.status_code == 200
     assert resp.json()["total"] == 0

@@ -1,6 +1,6 @@
 """Tests for the NLP similarity engine."""
 
-from app.nlp_engine import SimilarityEngine, HistoricalEntry, _normalise, Suggestion
+from app.nlp_engine import HistoricalEntry, SimilarityEngine, Suggestion, _normalise
 
 
 class TestNormalise:
@@ -57,18 +57,13 @@ class TestSimilarityEngine:
         results = engine.analyse("CPU utilization above 95% threshold")
         assert len(results) > 0
         # The top result should be from knowledge_base related to CPU
-        assert (
-            "cpu" in results[0].root_cause.lower()
-            or "cpu" in results[0].matched_pattern.lower()
-        )
+        assert "cpu" in results[0].root_cause.lower() or "cpu" in results[0].matched_pattern.lower()
 
     def test_analyse_service_hint_boost(self):
         """When alert_service matches a pattern's service_hint, confidence is boosted."""
         engine = SimilarityEngine(min_confidence=0.1)
         results_no_hint = engine.analyse("high cpu usage")
-        results_with_hint = engine.analyse(
-            "high cpu usage", alert_service="some-service"
-        )
+        results_with_hint = engine.analyse("high cpu usage", alert_service="some-service")
         # Both should return results; with hint the confidence may be boosted if service matches
         assert len(results_no_hint) > 0
         assert len(results_with_hint) > 0

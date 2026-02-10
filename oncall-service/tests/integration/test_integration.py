@@ -20,9 +20,7 @@ from httpx import ASGITransport, AsyncClient
 DATABASE_URL = os.getenv("DATABASE_URL")
 pytestmark = [
     pytest.mark.integration,
-    pytest.mark.skipif(
-        not DATABASE_URL, reason="DATABASE_URL not set -- skip integration tests"
-    ),
+    pytest.mark.skipif(not DATABASE_URL, reason="DATABASE_URL not set -- skip integration tests"),
 ]
 
 
@@ -79,9 +77,7 @@ async def test_create_schedule(live_client, db_conn):
 
     # Verify in database
     cur = db_conn.cursor()
-    cur.execute(
-        "SELECT team, rotation_type FROM oncall.schedules WHERE team = %s", (team_name,)
-    )
+    cur.execute("SELECT team, rotation_type FROM oncall.schedules WHERE team = %s", (team_name,))
     row = cur.fetchone()
     cur.close()
 

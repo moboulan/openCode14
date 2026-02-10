@@ -2,21 +2,18 @@ import logging
 import time
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, Request
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
-from prometheus_fastapi_instrumentator import Instrumentator
-
 from app.config import settings
 from app.database import close_pool
 from app.http_client import close_http_client, init_http_client
 from app.metrics import setup_custom_metrics
 from app.routers import api, health
+from fastapi import FastAPI, Request
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+from prometheus_fastapi_instrumentator import Instrumentator
 
 # Configure logging
-logging.basicConfig(
-    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-)
+logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
 
 
@@ -25,9 +22,7 @@ async def lifespan(app: FastAPI):
     """Startup and shutdown events"""
     # Startup
     logger.info(f"Starting {settings.SERVICE_NAME} on port {settings.SERVICE_PORT}")
-    logger.info(
-        f"Metrics available at http://localhost:{settings.SERVICE_PORT}/metrics"
-    )
+    logger.info(f"Metrics available at http://localhost:{settings.SERVICE_PORT}/metrics")
     logger.info(f"Health check at http://localhost:{settings.SERVICE_PORT}/health")
     await init_http_client(timeout=settings.HTTP_CLIENT_TIMEOUT)
     yield

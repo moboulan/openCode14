@@ -2,9 +2,8 @@
 
 from unittest.mock import MagicMock, patch
 
-import pytest
-
 import app.database as db_mod
+import pytest
 
 # All tests in this file manage the pool mock themselves
 pytestmark = pytest.mark.db

@@ -19,7 +19,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from prometheus_fastapi_instrumentator import Instrumentator
 
 from app.config import settings
-from app.database import init_pool, close_pool, get_db_connection, check_database_health
+from app.database import check_database_health, close_pool, get_db_connection, init_pool
 from app.knowledge_base import KNOWN_PATTERNS
 from app.models import HealthCheck
 from app.nlp_engine import HistoricalEntry, SimilarityEngine

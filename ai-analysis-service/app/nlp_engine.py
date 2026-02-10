@@ -145,9 +145,7 @@ class SimilarityEngine:
                 hist_idx = idx - kb_len
                 if hist_idx < len(self._hist_entries):
                     hist = self._hist_entries[hist_idx]
-                    resolution_text = (
-                        hist.resolution or "See incident notes for resolution details."
-                    )
+                    resolution_text = hist.resolution or "See incident notes for resolution details."
                     root_cause = f"Similar to historical incident #{hist.incident_id}: {hist.title}"
                     suggestions.append(
                         Suggestion(
@@ -169,10 +167,7 @@ class SimilarityEngine:
         self._hist_docs = []
         self._hist_entries = []
         for e in entries:
-            doc = _normalise(
-                f"{e.title} {e.description} {e.service} {e.severity} "
-                + " ".join(e.notes)
-            )
+            doc = _normalise(f"{e.title} {e.description} {e.service} {e.severity} " + " ".join(e.notes))
             self._hist_docs.append(doc)
             self._hist_entries.append(e)
 

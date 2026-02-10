@@ -4,8 +4,6 @@ import uuid
 from datetime import datetime, timezone
 from typing import Optional
 
-from fastapi import APIRouter, HTTPException, Query, status
-
 from app.config import settings
 from app.database import get_db_connection
 from app.http_client import get_http_client
@@ -25,6 +23,7 @@ from app.models import (
     IncidentUpdate,
     SeverityLevel,
 )
+from fastapi import APIRouter, HTTPException, Query, status
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -33,9 +32,7 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 # POST /incidents — create a new incident
 # ---------------------------------------------------------------------------
-@router.post(
-    "/incidents", response_model=IncidentResponse, status_code=status.HTTP_201_CREATED
-)
+@router.post("/incidents", response_model=IncidentResponse, status_code=status.HTTP_201_CREATED)
 async def create_incident(payload: IncidentCreate):
     """
     Create a new incident.
@@ -136,11 +133,7 @@ async def create_incident(payload: IncidentCreate):
         notifications_sent_total.labels(channel="mock", status="failed").inc()
 
     # Build response from the DB row
-    notes = (
-        row["notes"]
-        if isinstance(row["notes"], list)
-        else json.loads(row["notes"] or "[]")
-    )
+    notes = row["notes"] if isinstance(row["notes"], list) else json.loads(row["notes"] or "[]")
 
     return IncidentResponse(
         id=str(row["id"]),
@@ -246,15 +239,11 @@ async def get_analytics():
             summary = cur.fetchone()
 
             # By severity
-            cur.execute(
-                "SELECT severity::text, COUNT(*) AS cnt FROM incidents.incidents GROUP BY severity"
-            )
+            cur.execute("SELECT severity::text, COUNT(*) AS cnt FROM incidents.incidents GROUP BY severity")
             sev_rows = cur.fetchall()
 
             # By service
-            cur.execute(
-                "SELECT service, COUNT(*) AS cnt FROM incidents.incidents GROUP BY service"
-            )
+            cur.execute("SELECT service, COUNT(*) AS cnt FROM incidents.incidents GROUP BY service")
             svc_rows = cur.fetchall()
 
     return IncidentAnalyticsResponse(
@@ -290,9 +279,7 @@ async def get_incident(incident_id: str):
             row = cur.fetchone()
 
     if not row:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Incident not found"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Incident not found")
 
     # Fetch linked alerts
     linked_alerts: list = []
@@ -313,11 +300,7 @@ async def get_incident(incident_id: str):
     except Exception as e:
         logger.warning(f"Could not fetch linked alerts for {incident_id}: {e}")
 
-    notes = (
-        row["notes"]
-        if isinstance(row["notes"], list)
-        else json.loads(row["notes"] or "[]")
-    )
+    notes = row["notes"] if isinstance(row["notes"], list) else json.loads(row["notes"] or "[]")
 
     return IncidentResponse(
         id=str(row["id"]),
@@ -364,9 +347,7 @@ async def update_incident(incident_id: str, payload: IncidentUpdate):
             row = cur.fetchone()
 
     if not row:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Incident not found"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Incident not found")
 
     now = datetime.now(timezone.utc)
     updates: list[str] = []
@@ -416,9 +397,7 @@ async def update_incident(incident_id: str, payload: IncidentUpdate):
                 )
                 logger.info(f"Escalation timer cancelled for {incident_id}")
             except Exception as e:
-                logger.warning(
-                    f"Could not cancel escalation timer for {incident_id}: {e}"
-                )
+                logger.warning(f"Could not cancel escalation timer for {incident_id}: {e}")
 
     # ── Assignment ────────────────────────────────────────────
     if payload.assigned_to is not None:
@@ -432,9 +411,7 @@ async def update_incident(incident_id: str, payload: IncidentUpdate):
         params.append(note_entry)
 
     if not updates:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail="No fields to update"
-        )
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="No fields to update")
 
     updates.append("updated_at = %s")
     params.append(now)
@@ -463,11 +440,7 @@ async def update_incident(incident_id: str, payload: IncidentUpdate):
             detail="Incident not found after update",
         )
 
-    notes = (
-        updated["notes"]
-        if isinstance(updated["notes"], list)
-        else json.loads(updated["notes"] or "[]")
-    )
+    notes = updated["notes"] if isinstance(updated["notes"], list) else json.loads(updated["notes"] or "[]")
 
     return IncidentResponse(
         id=str(updated["id"]),
@@ -505,9 +478,7 @@ async def get_incident_metrics(incident_id: str):
             row = cur.fetchone()
 
     if not row:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Incident not found"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Incident not found")
 
     mtta = None
     mttr = None
@@ -541,15 +512,11 @@ async def delete_incident(incident_id: str):
             )
             row = cur.fetchone()
             if not row:
-                raise HTTPException(
-                    status_code=status.HTTP_404_NOT_FOUND, detail="Incident not found"
-                )
+                raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Incident not found")
 
             db_id = row["id"]
             # Remove join table entries
-            cur.execute(
-                "DELETE FROM incidents.incident_alerts WHERE incident_id = %s", (db_id,)
-            )
+            cur.execute("DELETE FROM incidents.incident_alerts WHERE incident_id = %s", (db_id,))
             # Remove notification log entries
             cur.execute(
                 "DELETE FROM incidents.notification_log WHERE incident_id = %s",

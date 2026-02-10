@@ -51,9 +51,7 @@ async def test_mtta_calculated_on_acknowledge(client):
     now = datetime.now(timezone.utc)
     created = now - timedelta(minutes=2)
     row = _incident_row(status="open", created_at=created)
-    updated = _incident_row(
-        status="acknowledged", created_at=created, acknowledged_at=now
-    )
+    updated = _incident_row(status="acknowledged", created_at=created, acknowledged_at=now)
 
     with patch(
         "app.routers.api.get_db_connection",
@@ -86,9 +84,7 @@ async def test_mttr_calculated_on_resolve(client):
     created = now - timedelta(minutes=30)
     ack = now - timedelta(minutes=28)
     row = _incident_row(status="acknowledged", created_at=created, acknowledged_at=ack)
-    updated = _incident_row(
-        status="resolved", created_at=created, acknowledged_at=ack, resolved_at=now
-    )
+    updated = _incident_row(status="resolved", created_at=created, acknowledged_at=ack, resolved_at=now)
 
     with patch(
         "app.routers.api.get_db_connection",
@@ -120,9 +116,7 @@ async def test_no_duplicate_mtta(client):
     created = now - timedelta(minutes=10)
     ack = now - timedelta(minutes=8)
     row = _incident_row(status="acknowledged", created_at=created, acknowledged_at=ack)
-    updated = _incident_row(
-        status="acknowledged", created_at=created, acknowledged_at=ack
-    )
+    updated = _incident_row(status="acknowledged", created_at=created, acknowledged_at=ack)
 
     with patch(
         "app.routers.api.get_db_connection",
@@ -200,12 +194,8 @@ async def test_metrics_endpoint_ack_no_resolve(client):
 @pytest.mark.asyncio
 async def test_open_gauge_decremented_on_resolve(client):
     now = datetime.now(timezone.utc)
-    row = _incident_row(
-        status="acknowledged", acknowledged_at=now - timedelta(minutes=1)
-    )
-    updated = _incident_row(
-        status="resolved", acknowledged_at=now - timedelta(minutes=1), resolved_at=now
-    )
+    row = _incident_row(status="acknowledged", acknowledged_at=now - timedelta(minutes=1))
+    updated = _incident_row(status="resolved", acknowledged_at=now - timedelta(minutes=1), resolved_at=now)
 
     with patch(
         "app.routers.api.get_db_connection",

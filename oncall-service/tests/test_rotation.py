@@ -99,24 +99,18 @@ class TestDailyRotation:
 
     def test_day_0_returns_first(self):
         with _patch_now(_utc_dt(date(2026, 1, 1))):
-            primary, secondary = _compute_current_oncall(
-                _schedule(rotation_type="daily")
-            )
+            primary, secondary = _compute_current_oncall(_schedule(rotation_type="daily"))
         assert primary.email == "alice@example.com"
 
     def test_day_1_rotates(self):
         with _patch_now(_utc_dt(date(2026, 1, 2))):
-            primary, secondary = _compute_current_oncall(
-                _schedule(rotation_type="daily")
-            )
+            primary, secondary = _compute_current_oncall(_schedule(rotation_type="daily"))
         assert primary.email == "bob@example.com"
         assert secondary.email == "charlie@example.com"
 
     def test_daily_wraps_around(self):
         with _patch_now(_utc_dt(date(2026, 1, 4))):
-            primary, secondary = _compute_current_oncall(
-                _schedule(rotation_type="daily")
-            )
+            primary, secondary = _compute_current_oncall(_schedule(rotation_type="daily"))
         assert primary.email == "alice@example.com"
 
 
@@ -151,9 +145,7 @@ class TestHandoffHour:
     def test_custom_handoff_hour(self):
         """Handoff at midnight: hour 0 >= handoff_hour 0 so current day applies."""
         with _patch_now(_utc_dt(date(2026, 1, 2), hour=0)):
-            primary, _ = _compute_current_oncall(
-                _schedule(rotation_type="daily", handoff_hour=0)
-            )
+            primary, _ = _compute_current_oncall(_schedule(rotation_type="daily", handoff_hour=0))
         # hour 0 >= handoff_hour 0, so current day → delta 1 → idx 1 = Bob
         assert primary.email == "bob@example.com"
 
@@ -215,9 +207,7 @@ class TestEdgeCases:
 
     def test_single_engineer_no_secondary(self):
         with _patch_now(_utc_dt(date(2026, 1, 1))):
-            engineers = [
-                {"name": "Alice", "email": "alice@example.com", "primary": True}
-            ]
+            engineers = [{"name": "Alice", "email": "alice@example.com", "primary": True}]
             primary, secondary = _compute_current_oncall(_schedule(engineers=engineers))
         assert primary.email == "alice@example.com"
         assert secondary is None
@@ -234,9 +224,7 @@ class TestEdgeCases:
 
     def test_start_date_as_datetime(self):
         with _patch_now(_utc_dt(date(2026, 1, 1))):
-            primary, _ = _compute_current_oncall(
-                _schedule(start_date=datetime(2026, 1, 1, tzinfo=timezone.utc))
-            )
+            primary, _ = _compute_current_oncall(_schedule(start_date=datetime(2026, 1, 1, tzinfo=timezone.utc)))
         assert primary.email == "alice@example.com"
 
     def test_engineers_as_json_string(self):

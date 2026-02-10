@@ -15,12 +15,8 @@ def test_oncall_current_gauge():
     """oncall_current gauge can be set."""
     from app.metrics import oncall_current
 
-    oncall_current.labels(
-        team="backend", engineer="alice@example.com", role="primary"
-    ).set(1)
-    val = oncall_current.labels(
-        team="backend", engineer="alice@example.com", role="primary"
-    )._value.get()
+    oncall_current.labels(team="backend", engineer="alice@example.com", role="primary").set(1)
+    val = oncall_current.labels(team="backend", engineer="alice@example.com", role="primary")._value.get()
     assert val == 1.0
 
 
@@ -35,15 +31,9 @@ def test_escalation_notifications_total():
     """escalation_notifications_total counter increments."""
     from app.metrics import escalation_notifications_total
 
-    before = escalation_notifications_total.labels(
-        team="platform", channel="mock", status="sent"
-    )._value.get()
-    escalation_notifications_total.labels(
-        team="platform", channel="mock", status="sent"
-    ).inc()
-    after = escalation_notifications_total.labels(
-        team="platform", channel="mock", status="sent"
-    )._value.get()
+    before = escalation_notifications_total.labels(team="platform", channel="mock", status="sent")._value.get()
+    escalation_notifications_total.labels(team="platform", channel="mock", status="sent").inc()
+    after = escalation_notifications_total.labels(team="platform", channel="mock", status="sent")._value.get()
     assert after == before + 1
 
 

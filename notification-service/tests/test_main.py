@@ -21,9 +21,7 @@ async def test_metrics_endpoint(client):
     """Metrics endpoint returns Prometheus text format."""
     resp = await client.get("/metrics")
     assert resp.status_code == 200
-    assert "text/plain" in resp.headers.get("content-type", "") or "text/plain" in str(
-        resp.headers
-    )
+    assert "text/plain" in resp.headers.get("content-type", "") or "text/plain" in str(resp.headers)
 
 
 @pytest.mark.asyncio

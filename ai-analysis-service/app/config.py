@@ -4,9 +4,7 @@ from pydantic_settings import BaseSettings
 
 
 class Settings(BaseSettings):
-    DATABASE_URL: str = (
-        "postgresql://incident_user:incident_pass@database:5432/incident_platform"
-    )
+    DATABASE_URL: str = "postgresql://incident_user:incident_pass@database:5432/incident_platform"
     SERVICE_PORT: int = 8005
 
     # Peer service URLs (for fetching historical data)

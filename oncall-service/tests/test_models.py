@@ -3,8 +3,6 @@
 from datetime import date, datetime, timezone
 
 import pytest
-from pydantic import ValidationError
-
 from app.models import (
     AutoEscalationResult,
     CurrentOnCallResponse,
@@ -19,6 +17,7 @@ from app.models import (
     ScheduleCreateRequest,
     ScheduleResponse,
 )
+from pydantic import ValidationError
 
 
 def test_engineer_model():
@@ -151,9 +150,7 @@ def test_escalation_policy_response():
     """EscalationPolicyResponse serializes correctly."""
     resp = EscalationPolicyResponse(
         team="platform",
-        levels=[
-            EscalationPolicyLevel(level=1, wait_minutes=5, notify_target="secondary")
-        ],
+        levels=[EscalationPolicyLevel(level=1, wait_minutes=5, notify_target="secondary")],
     )
     assert resp.team == "platform"
     assert resp.levels[0].notify_target == "secondary"

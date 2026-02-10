@@ -37,22 +37,12 @@ class ScheduleCreateRequest(BaseModel):
     """Create a new on-call rotation schedule."""
 
     team: str = Field(..., description="Team name (e.g. platform, backend, frontend)")
-    rotation_type: RotationType = Field(
-        default=RotationType.WEEKLY, description="Rotation type"
-    )
+    rotation_type: RotationType = Field(default=RotationType.WEEKLY, description="Rotation type")
     start_date: date = Field(..., description="Rotation start date")
-    engineers: List[Engineer] = Field(
-        ..., min_length=1, description="Ordered list of engineers in rotation"
-    )
-    escalation_minutes: int = Field(
-        default=5, ge=1, description="Minutes before escalation"
-    )
-    handoff_hour: int = Field(
-        default=9, ge=0, le=23, description="Hour of day for rotation handoff (0-23)"
-    )
-    timezone: str = Field(
-        default="UTC", description="Schedule timezone (e.g. UTC, US/Eastern)"
-    )
+    engineers: List[Engineer] = Field(..., min_length=1, description="Ordered list of engineers in rotation")
+    escalation_minutes: int = Field(default=5, ge=1, description="Minutes before escalation")
+    handoff_hour: int = Field(default=9, ge=0, le=23, description="Hour of day for rotation handoff (0-23)")
+    timezone: str = Field(default="UTC", description="Schedule timezone (e.g. UTC, US/Eastern)")
 
 
 class EscalateRequest(BaseModel):
@@ -61,9 +51,7 @@ class EscalateRequest(BaseModel):
     incident_id: str = Field(..., description="Incident ID to escalate")
     team: Optional[str] = Field(None, description="Team to escalate within (optional)")
     reason: Optional[str] = Field(None, description="Reason for escalation")
-    level: Optional[int] = Field(
-        None, ge=1, description="Escalation level (auto-determined if omitted)"
-    )
+    level: Optional[int] = Field(None, ge=1, description="Escalation level (auto-determined if omitted)")
 
 
 # ---------------------------------------------------------------------------
@@ -75,21 +63,15 @@ class EscalationPolicyLevel(BaseModel):
     """A single level in an escalation policy."""
 
     level: int = Field(..., ge=1, description="Escalation level (1 = first escalation)")
-    wait_minutes: int = Field(
-        ..., ge=1, description="Minutes to wait before escalating to this level"
-    )
-    notify_target: str = Field(
-        ..., description="Target: 'secondary', 'manager', or an email"
-    )
+    wait_minutes: int = Field(..., ge=1, description="Minutes to wait before escalating to this level")
+    notify_target: str = Field(..., description="Target: 'secondary', 'manager', or an email")
 
 
 class EscalationPolicyCreateRequest(BaseModel):
     """Create or replace escalation policy for a team."""
 
     team: str = Field(..., description="Team name")
-    levels: List[EscalationPolicyLevel] = Field(
-        ..., min_length=1, description="Ordered escalation levels"
-    )
+    levels: List[EscalationPolicyLevel] = Field(..., min_length=1, description="Ordered escalation levels")
 
 
 # ---------------------------------------------------------------------------
@@ -200,9 +182,7 @@ class TimerStartRequest(BaseModel):
 
     incident_id: str = Field(..., description="Incident ID to track")
     team: str = Field(..., description="Team responsible for the incident")
-    assigned_to: str = Field(
-        ..., description="Currently assigned engineer (name or email)"
-    )
+    assigned_to: str = Field(..., description="Currently assigned engineer (name or email)")
 
 
 class TimerCancelRequest(BaseModel):

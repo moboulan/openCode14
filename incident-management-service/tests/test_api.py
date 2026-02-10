@@ -259,9 +259,7 @@ async def test_list_incidents_with_filters(client):
             _list_connection(total=0, rows=[])(),
         ],
     ):
-        resp = await client.get(
-            "/api/v1/incidents?status=open&severity=high&service=web"
-        )
+        resp = await client.get("/api/v1/incidents?status=open&severity=high&service=web")
     assert resp.status_code == 200
     assert resp.json()["total"] == 0
 
@@ -308,9 +306,7 @@ async def test_patch_acknowledge(client):
     """Acknowledging sets acknowledged_at and returns updated incident."""
     now = datetime.now(timezone.utc)
     row = _make_incident_row(incident_id="inc-ack", status="open")
-    updated = _make_incident_row(
-        incident_id="inc-ack", status="acknowledged", acknowledged_at=now
-    )
+    updated = _make_incident_row(incident_id="inc-ack", status="acknowledged", acknowledged_at=now)
 
     with patch(
         "app.routers.api.get_db_connection",
@@ -826,9 +822,7 @@ async def test_get_analytics_no_avg(client):
 async def test_patch_assign(client):
     """PATCH with assigned_to updates the assignee."""
     row = _make_incident_row(incident_id="inc-assign")
-    updated = _make_incident_row(
-        incident_id="inc-assign", assigned_to="bob@example.com"
-    )
+    updated = _make_incident_row(incident_id="inc-assign", assigned_to="bob@example.com")
 
     with patch(
         "app.routers.api.get_db_connection",
