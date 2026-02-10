@@ -8,27 +8,40 @@ FastAPI microservice (port 8003) that manages on-call rotation schedules, comput
 
 ## Logic Flow
 
-```mermaid
-flowchart TD
-    A[GET /api/v1/oncall/current?team=X] --> B[Query oncall.schedules<br>for team X]
-    B --> C{Schedule found?}
-    C -- No --> D[404: No schedule for team]
-    C -- Yes --> E[Compute rotation index]
-    E --> F{rotation_type?}
-    F -- weekly --> G["index = (days_since_start / 7) % len(engineers)"]
-    F -- daily --> H["index = days_since_start % len(engineers)"]
-    G --> I[primary = engineers at index<br>secondary = engineers at index+1]
-    H --> I
-    I --> J[Update Prometheus gauge<br>oncall_current]
-    J --> K[Return CurrentOnCallResponse]
+```text
+GET /api/v1/oncall/current?team=X
+         │
+  Query oncall.schedules for team X
+         │
+    Schedule found?
+      ├── No  → 404: No schedule for team
+      └── Yes → Compute rotation index
+                    │
+               rotation_type?
+                ├── weekly → index = (days_since_start / 7) % len(engineers)
+                └── daily  → index = days_since_start % len(engineers)
+                    │
+               primary  = engineers[index]
+               secondary = engineers[index + 1]
+                    │
+               Update Prometheus gauge (oncall_current)
+                    │
+               Return CurrentOnCallResponse
 
-    L[POST /api/v1/escalate] --> M[Lookup schedule for team]
-    M --> N[Compute current primary and secondary]
-    N --> O{Secondary exists?}
-    O -- No --> P[422: Cannot escalate]
-    O -- Yes --> Q[Insert into oncall.escalations]
-    Q --> R[Increment escalations_total counter]
-    R --> S[Return EscalateResponse]
+
+POST /api/v1/escalate
+         │
+  Lookup schedule for team
+         │
+  Compute current primary and secondary
+         │
+    Secondary exists?
+      ├── No  → 422: Cannot escalate
+      └── Yes → Insert into oncall.escalations
+                    │
+               Increment escalations_total counter
+                    │
+               Return EscalateResponse
 ```
 
 ## Purpose

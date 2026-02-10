@@ -4,23 +4,33 @@ FastAPI microservice (port 8001) that receives incoming alerts via REST, validat
 
 ## Logic Flow
 
-```mermaid
-flowchart TD
-    A[POST /api/v1/alerts] --> B[Validate schema via Pydantic model]
-    B --> C[Normalize severity to enum value]
-    C --> D[Generate unique alert_id]
-    D --> E[Store raw alert in alerts.alerts]
-    E --> F{Correlation query:<br>same service + severity<br>within CORRELATION_WINDOW_MINUTES<br>and status IN open, acknowledged}
-    F -- Match found --> G[Link alert to existing incident<br>via incidents.incident_alerts]
-    G --> H[Update alert row with incident FK]
-    F -- No match --> I[POST to Incident Management Service<br>/api/v1/incidents]
-    I --> J{Incident created?}
-    J -- Yes --> K[Link alert to new incident]
-    J -- No --> L[Graceful degradation:<br>alert stored, incident_id = null]
-    H --> M[Increment Prometheus counters]
-    K --> M
-    L --> M
-    M --> N[Return AlertResponse]
+```text
+POST /api/v1/alerts
+         │
+  Validate schema (Pydantic)
+         │
+  Normalize severity to enum
+         │
+  Generate unique alert_id
+         │
+  Store raw alert in alerts.alerts
+         │
+  Correlation query: same service + severity
+  within CORRELATION_WINDOW_MINUTES, status IN (open, acknowledged)
+         │
+    Match found?
+      ├── Yes → Link alert to existing incident (incident_alerts)
+      │         Update alert row with incident FK
+      │
+      └── No  → POST to Incident Management /api/v1/incidents
+                    │
+               Incident created?
+                 ├── Yes → Link alert to new incident
+                 └── No  → Graceful degradation (incident_id = null)
+         │
+  Increment Prometheus counters
+         │
+  Return AlertResponse
 ```
 
 ## Purpose

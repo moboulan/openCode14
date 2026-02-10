@@ -17,21 +17,22 @@ python3 test-runner.py --continuous 10  # Send random alert every 10s (Ctrl+C to
 
 ## Logic Flow
 
-```mermaid
-flowchart TD
-    A[python3 test-runner.py] --> B{Flags}
-    B -- "--health" --> C[Probe all 5 service /health endpoints]
-    B -- "--list" --> D[Print 15 scenarios to terminal]
-    B -- "--scenario ID" --> E[POST single alert to :8001]
-    B -- "--all / default" --> F[POST all 15 scenarios to :8001]
-    B -- "--setup-oncall" --> G[POST 5 on-call schedules to :8003]
-    B -- "--continuous N" --> H[Loop: random alert every N seconds]
-
-    E --> I[POST to Alert Ingestion :8001]
-    F --> I
-    H --> I
-    I --> J[POST to AI Analysis :8005]
-    J --> K[Print alert_id + incident_id + suggestions]
+```text
+python3 test-runner.py
+         │
+    Parse flags
+      ├── --health       → Probe all 5 service /health endpoints
+      ├── --list         → Print 15 scenarios to terminal
+      ├── --scenario ID  → POST single alert to :8001
+      ├── --all / default→ POST all 15 scenarios to :8001
+      ├── --setup-oncall → POST 5 on-call schedules to :8003
+      └── --continuous N → Loop: random alert every N seconds
+         │
+  POST to Alert Ingestion :8001
+         │
+  POST to AI Analysis :8005
+         │
+  Print alert_id + incident_id + suggestions
 ```
 
 ## Configuration

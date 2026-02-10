@@ -4,19 +4,31 @@ PostgreSQL 16 instance (port 5432) serving as the shared persistent store for al
 
 ## Logic Flow
 
-```mermaid
-flowchart TD
-    A[PostgreSQL container starts] --> B[Run init-db/01-init-database.sql]
-    B --> C[Create extension: uuid-ossp]
-    C --> D[Create schemas:<br>alerts, incidents, oncall, notifications]
-    D --> E[Create ENUM types:<br>severity_level, alert_status,<br>incident_status, user_role,<br>notification_channel, notification_status]
-    E --> F[Create tables across all schemas]
-    F --> G[Create indexes for query performance]
-    G --> H[Create update_updated_at trigger function]
-    H --> I[Attach triggers to alerts.alerts<br>and incidents.incidents]
-    I --> J[Seed users: 9 engineers<br>with roles admin and responder]
-    J --> K[Seed oncall.schedules:<br>3 teams with rotation configs]
-    K --> L[Database ready for connections]
+```text
+PostgreSQL container starts
+         │
+  Run init-db/01-init-database.sql
+         │
+  Create extension: uuid-ossp
+         │
+  Create schemas: alerts, incidents, oncall, notifications
+         │
+  Create ENUM types: severity_level, alert_status,
+  incident_status, user_role, notification_channel, notification_status
+         │
+  Create tables across all schemas
+         │
+  Create indexes for query performance
+         │
+  Create update_updated_at() trigger function
+         │
+  Attach triggers to alerts.alerts and incidents.incidents
+         │
+  Seed users: 9 engineers (admin + responder)
+         │
+  Seed oncall.schedules: 3 teams with rotation configs
+         │
+  Database ready for connections
 ```
 
 ## Purpose

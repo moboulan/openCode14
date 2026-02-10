@@ -4,25 +4,32 @@ Detailed documentation for every component of the Incident & On-Call Management 
 
 ## Architecture Overview
 
-```mermaid
-graph LR
-    UI[Web UI :8080] --> AI[Alert Ingestion :8001]
-    UI --> IM[Incident Management :8002]
-    UI --> OC[On-Call :8003]
-    AI --> IM
-    IM --> OC
-    IM --> NS[Notification :8004]
-    OC --> NS
-    AI --> AA[AI Analysis :8005]
-    AI --> DB[(PostgreSQL :5432)]
-    IM --> DB
-    OC --> DB
-    NS --> DB
-    AA --> DB
-    DB --> PM[Prometheus :9090]
-    PM --> GR[Grafana :3000]
-    TR[Test Runner :8006] --> AI
-    TR --> AA
+```text
+┌──────────────────┐     ┌──────────────────┐     ┌──────────────────┐
+│  Web UI :8080    │────▶│ Alert Ingestion   │────▶│ Incident Mgmt    │
+│  React + Nginx   │     │ :8001             │     │ :8002            │
+└──────────────────┘     └────────┬──────────┘     └──┬─────────┬────┘
+                                  │                    │         │
+                                  ▼                    ▼         ▼
+                         ┌────────────────┐   ┌────────────┐ ┌────────────┐
+                         │ AI Analysis    │   │ On-Call     │ │ Notification│
+                         │ :8005          │   │ :8003      │ │ :8004      │
+                         └───────┬────────┘   └─────┬──────┘ └─────┬──────┘
+                                 │                  │              │
+                                 ▼                  ▼              ▼
+                         ┌─────────────────────────────────────────────┐
+                         │            PostgreSQL :5432                 │
+                         └────────────────────┬────────────────────────┘
+                                              │
+                                              ▼
+                         ┌──────────────┐     ┌──────────────┐
+                         │ Prometheus   │────▶│   Grafana    │
+                         │ :9090        │     │   :3000      │
+                         └──────────────┘     └──────────────┘
+
+         ┌──────────────────┐
+         │ Test Runner :8006│──▶ Alert Ingestion + AI Analysis
+         └──────────────────┘
 ```
 
 ## Services

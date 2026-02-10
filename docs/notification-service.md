@@ -4,28 +4,33 @@ FastAPI microservice (port 8004) responsible for dispatching notifications to on
 
 ## Logic Flow
 
-```mermaid
-flowchart TD
-    A[POST /api/v1/notify] --> B[Generate notification_id]
-    B --> C{Channel?}
-    C -- mock --> D[Log to stdout]
-    C -- email --> E{SENDGRID_API_KEY set?}
-    E -- Yes --> F[POST to SendGrid /v3/mail/send]
-    E -- No --> D
-    F --> G{HTTP 2xx?}
-    G -- Yes --> H[status = delivered]
-    G -- No --> I[status = failed]
-    C -- webhook --> J{Webhook URLs configured?}
-    J -- No --> I
-    J -- Yes --> K[POST payload to each URL]
-    K --> L{Any URL returned < 400?}
-    L -- Yes --> H
-    L -- No --> I
-    D --> H
-    H --> M[Store notification in notifications.notifications]
-    I --> M
-    M --> N[Increment Prometheus counters<br>Observe delivery latency]
-    N --> O[Return NotificationResponse]
+```text
+POST /api/v1/notify
+         │
+  Generate notification_id
+         │
+  Channel?
+   ├── mock ──────▶ Log to stdout → status = delivered
+   │
+   ├── email
+   │     └── SENDGRID_API_KEY set?
+   │           ├── No  → Fall back to mock → status = delivered
+   │           └── Yes → POST to SendGrid /v3/mail/send
+   │                       ├── HTTP 2xx → status = delivered
+   │                       └── Otherwise → status = failed
+   │
+   └── webhook
+         └── Webhook URLs configured?
+               ├── No  → status = failed
+               └── Yes → POST payload to each URL
+                           ├── Any URL < 400 → status = delivered
+                           └── All >= 400    → status = failed
+         │
+  Store notification in notifications.notifications
+         │
+  Increment Prometheus counters + observe delivery latency
+         │
+  Return NotificationResponse
 ```
 
 ## Purpose

@@ -4,28 +4,38 @@ FastAPI microservice (port 8002) that owns the incident lifecycle from creation 
 
 ## Logic Flow
 
-```mermaid
-flowchart TD
-    A[POST /api/v1/incidents] --> B[Generate incident_id]
-    B --> C[Store incident in incidents.incidents<br>status = open]
-    C --> D[Increment Prometheus counters]
-    D --> E[GET oncall-service /api/v1/oncall/current<br>to find assignee]
-    E --> F{Assignee found?}
-    F -- Yes --> G[Update incident assigned_to]
-    F -- No --> H[Skip assignment]
-    G --> I[POST notification-service /api/v1/notify<br>channel = mock]
-    H --> I
-    I --> J[Return IncidentResponse]
+```text
+POST /api/v1/incidents
+         │
+  Generate incident_id
+         │
+  Store incident (status = open)
+         │
+  Increment Prometheus counters
+         │
+  GET oncall-service /api/v1/oncall/current
+         │
+    Assignee found?
+      ├── Yes → Update incident assigned_to
+      └── No  → Skip assignment
+         │
+  POST notification-service /api/v1/notify (channel = mock)
+         │
+  Return IncidentResponse
 
-    K[PATCH /api/v1/incidents/:id] --> L[Fetch current incident]
-    L --> M{Status change?}
-    M -- acknowledged --> N[Set acknowledged_at<br>Calculate MTTA<br>Observe in histogram]
-    M -- resolved --> O[Set resolved_at<br>Calculate MTTR<br>Observe in histogram<br>Decrement open gauge]
-    M -- No status change --> P[Apply other fields]
-    N --> Q[Persist update]
-    O --> Q
-    P --> Q
-    Q --> R[Return updated IncidentResponse]
+
+PATCH /api/v1/incidents/:id
+         │
+  Fetch current incident
+         │
+    Status change?
+      ├── acknowledged → Set acknowledged_at, calculate MTTA, observe histogram
+      ├── resolved     → Set resolved_at, calculate MTTR, observe histogram, decrement open gauge
+      └── No change    → Apply other fields
+         │
+  Persist update
+         │
+  Return updated IncidentResponse
 ```
 
 ## Purpose
