@@ -348,8 +348,8 @@ CREATE SCHEMA IF NOT EXISTS analysis;
 
 CREATE TABLE IF NOT EXISTS analysis.suggestions (
     suggestion_id   SERIAL PRIMARY KEY,
-    alert_id        UUID,
-    incident_id     UUID,
+    alert_id        VARCHAR(255),
+    incident_id     VARCHAR(255),
     alert_message   TEXT NOT NULL,
     alert_service   VARCHAR(200),
     alert_severity  VARCHAR(20),

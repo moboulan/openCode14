@@ -4,12 +4,13 @@ import uuid
 from datetime import datetime, timezone
 from typing import Optional
 
+from fastapi import APIRouter, HTTPException, Query, status
+
 from app.config import settings
 from app.database import get_db_connection
 from app.http_client import get_http_client
 from app.metrics import alerts_correlated_total, alerts_received_total
 from app.models import Alert, AlertResponse, SeverityLevel
-from fastapi import APIRouter, HTTPException, Query, status
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -171,8 +172,8 @@ async def create_alert(alert: Alert):
             await client.post(
                 f"{settings.AI_ANALYSIS_SERVICE_URL}/api/v1/analyze",
                 json={
-                    "alert_id": alert_db_id,
-                    "incident_id": incident_db_id if incident_id else None,
+                    "alert_id": alert_id,
+                    "incident_id": incident_id if incident_id else None,
                     "message": alert.message,
                     "service": alert.service,
                     "severity": alert.severity.value,
