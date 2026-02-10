@@ -5,37 +5,65 @@ FastAPI microservice (port 8002) that owns the incident lifecycle from creation 
 ## Logic Flow
 
 ```text
-POST /api/v1/incidents
-         │
-  Generate incident_id
-         │
-  Store incident (status = open)
-         │
-  Increment Prometheus counters
-         │
-  GET oncall-service /api/v1/oncall/current
-         │
-    Assignee found?
-      ├── Yes → Update incident assigned_to
-      └── No  → Skip assignment
-         │
-  POST notification-service /api/v1/notify (channel = mock)
-         │
-  Return IncidentResponse
+  ╔═══════════════════════════════════════════════╗
+  ║     POST /api/v1/incidents                    ║
+  ╚═══════════════════════╤═══════════════════════╝
+                          ▼
+  ┌───────────────────────────────────────────────┐
+  │           Generate incident_id                │
+  └───────────────────────┬───────────────────────┘
+                          ▼
+  ┌───────────────────────────────────────────────┐
+  │       Store incident (status = open)          │
+  └───────────────────────┬───────────────────────┘
+                          ▼
+  ┌───────────────────────────────────────────────┐
+  │       Increment Prometheus counters           │
+  └───────────────────────┬───────────────────────┘
+                          ▼
+  ┌───────────────────────────────────────────────┐
+  │  GET oncall-service /api/v1/oncall/current    │
+  └──────────┬────────────────────────┬───────────┘
+             ▼                        ▼
+     ┌───────────────┐       ┌────────────────┐
+     │ Assignee found │       │ No assignee    │
+     │ → Update       │       │ → Skip         │
+     │   assigned_to  │       │   assignment   │
+     └───────┬───────┘       └───────┬────────┘
+             └────────────┬──────────┘
+                          ▼
+  ┌───────────────────────────────────────────────┐
+  │  POST notification-service /api/v1/notify     │
+  └───────────────────────┬───────────────────────┘
+                          ▼
+  ┌───────────────────────────────────────────────┐
+  │        Return IncidentResponse                │
+  └───────────────────────────────────────────────┘
 
 
-PATCH /api/v1/incidents/:id
-         │
-  Fetch current incident
-         │
-    Status change?
-      ├── acknowledged → Set acknowledged_at, calculate MTTA, observe histogram
-      ├── resolved     → Set resolved_at, calculate MTTR, observe histogram, decrement open gauge
-      └── No change    → Apply other fields
-         │
-  Persist update
-         │
-  Return updated IncidentResponse
+  ╔═══════════════════════════════════════════════╗
+  ║     PATCH /api/v1/incidents/:id               ║
+  ╚═══════════════════════╤═══════════════════════╝
+                          ▼
+  ┌───────────────────────────────────────────────┐
+  │          Fetch current incident               │
+  └───────────┬───────────┬───────────┬───────────┘
+              ▼           ▼           ▼
+  ┌────────────────┐ ┌─────────┐ ┌────────────┐
+  │  acknowledged  │ │resolved │ │ No change  │
+  │  → set ack_at  │ │→ set    │ │ → apply    │
+  │  → calc MTTA   │ │  res_at │ │   other    │
+  │  → histogram   │ │→ MTTR   │ │   fields   │
+  └───────┬────────┘ └────┬────┘ └─────┬──────┘
+          └───────────────┼────────────┘
+                          ▼
+  ┌───────────────────────────────────────────────┐
+  │            Persist update                     │
+  └───────────────────────┬───────────────────────┘
+                          ▼
+  ┌───────────────────────────────────────────────┐
+  │      Return updated IncidentResponse          │
+  └───────────────────────────────────────────────┘
 ```
 
 ## Purpose

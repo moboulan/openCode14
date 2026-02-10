@@ -5,32 +5,48 @@ FastAPI microservice (port 8004) responsible for dispatching notifications to on
 ## Logic Flow
 
 ```text
-POST /api/v1/notify
-         │
-  Generate notification_id
-         │
-  Channel?
-   ├── mock ──────▶ Log to stdout → status = delivered
-   │
-   ├── email
-   │     └── SENDGRID_API_KEY set?
-   │           ├── No  → Fall back to mock → status = delivered
-   │           └── Yes → POST to SendGrid /v3/mail/send
-   │                       ├── HTTP 2xx → status = delivered
-   │                       └── Otherwise → status = failed
-   │
-   └── webhook
-         └── Webhook URLs configured?
-               ├── No  → status = failed
-               └── Yes → POST payload to each URL
-                           ├── Any URL < 400 → status = delivered
-                           └── All >= 400    → status = failed
-         │
-  Store notification in notifications.notifications
-         │
-  Increment Prometheus counters + observe delivery latency
-         │
-  Return NotificationResponse
+  ╔═══════════════════════════════════════════════╗
+  ║          POST /api/v1/notify                  ║
+  ╚═══════════════════════╤═══════════════════════╝
+                          ▼
+  ┌───────────────────────────────────────────────┐
+  │         Generate notification_id              │
+  └──────────┬────────────┬───────────┬───────────┘
+             ▼            ▼           ▼
+  ┌──────────────┐ ┌────────────┐ ┌──────────────┐
+  │    mock      │ │   email    │ │   webhook    │
+  └──────┬───────┘ └─────┬──────┘ └──────┬───────┘
+         ▼               ▼               ▼
+  ┌──────────────┐ ┌────────────┐ ┌──────────────┐
+  │ Log to       │ │ SENDGRID   │ │ URLs         │
+  │ stdout       │ │ KEY set?   │ │ configured?  │
+  └──────┬───────┘ └──┬─────┬───┘ └───┬──────┬───┘
+         │           No    Yes       No     Yes
+         │            │     │         │      │
+         │            ▼     ▼         ▼      ▼
+         │       ┌──────┐ ┌──────┐ ┌─────┐ ┌──────┐
+         │       │mock  │ │Send  │ │fail │ │POST  │
+         │       │fall- │ │Grid  │ │     │ │each  │
+         │       │back  │ │API   │ │     │ │URL   │
+         │       └──┬───┘ └──┬───┘ └──┬──┘ └──┬───┘
+         │          │     2xx│!2xx    │    <400│≥400
+         ▼          ▼        ▼        ▼       ▼    ▼
+  ┌─────────────────────┐  ┌──────────────────────┐
+  │  status = delivered  │  │   status = failed    │
+  └──────────┬──────────┘  └──────────┬───────────┘
+             └─────────────┬──────────┘
+                           ▼
+  ┌───────────────────────────────────────────────┐
+  │  Store in notifications.notifications         │
+  └───────────────────────┬───────────────────────┘
+                          ▼
+  ┌───────────────────────────────────────────────┐
+  │  Increment counters + observe latency         │
+  └───────────────────────┬───────────────────────┘
+                          ▼
+  ┌───────────────────────────────────────────────┐
+  │       Return NotificationResponse             │
+  └───────────────────────────────────────────────┘
 ```
 
 ## Purpose

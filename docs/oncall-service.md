@@ -9,39 +9,71 @@ FastAPI microservice (port 8003) that manages on-call rotation schedules, comput
 ## Logic Flow
 
 ```text
-GET /api/v1/oncall/current?team=X
-         │
-  Query oncall.schedules for team X
-         │
-    Schedule found?
-      ├── No  → 404: No schedule for team
-      └── Yes → Compute rotation index
-                    │
-               rotation_type?
-                ├── weekly → index = (days_since_start / 7) % len(engineers)
-                └── daily  → index = days_since_start % len(engineers)
-                    │
-               primary  = engineers[index]
-               secondary = engineers[index + 1]
-                    │
-               Update Prometheus gauge (oncall_current)
-                    │
-               Return CurrentOnCallResponse
+  ╔═══════════════════════════════════════════════════╗
+  ║   GET /api/v1/oncall/current?team=X               ║
+  ╚═════════════════════════╤═════════════════════════╝
+                            ▼
+  ┌─────────────────────────────────────────────────┐
+  │     Query oncall.schedules for team X           │
+  └────────────┬────────────────────────┬───────────┘
+               ▼                        ▼
+       ┌──────────────┐        ┌────────────────────┐
+       │  Not found   │        │     Found          │
+       │  → 404       │        │                    │
+       └──────────────┘        └─────────┬──────────┘
+                                         ▼
+                           ┌──────────────────────────┐
+                           │    rotation_type?         │
+                           └─────┬──────────────┬─────┘
+                                 ▼              ▼
+                          ┌───────────┐  ┌───────────┐
+                          │  weekly   │  │   daily   │
+                          │ idx=d/7%n │  │ idx=d%n   │
+                          └─────┬─────┘  └─────┬─────┘
+                                └───────┬──────┘
+                                        ▼
+                           ┌──────────────────────────┐
+                           │  primary  = eng[idx]      │
+                           │  secondary = eng[idx + 1] │
+                           └────────────┬─────────────┘
+                                        ▼
+                           ┌──────────────────────────┐
+                           │  Update Prometheus gauge  │
+                           └────────────┬─────────────┘
+                                        ▼
+                           ┌──────────────────────────┐
+                           │ Return OnCallResponse     │
+                           └──────────────────────────┘
 
 
-POST /api/v1/escalate
-         │
-  Lookup schedule for team
-         │
-  Compute current primary and secondary
-         │
-    Secondary exists?
-      ├── No  → 422: Cannot escalate
-      └── Yes → Insert into oncall.escalations
-                    │
-               Increment escalations_total counter
-                    │
-               Return EscalateResponse
+  ╔═══════════════════════════════════════════════════╗
+  ║          POST /api/v1/escalate                    ║
+  ╚═════════════════════════╤═════════════════════════╝
+                            ▼
+  ┌─────────────────────────────────────────────────┐
+  │         Lookup schedule for team                │
+  └─────────────────────────┬───────────────────────┘
+                            ▼
+  ┌─────────────────────────────────────────────────┐
+  │   Compute current primary and secondary         │
+  └────────────┬────────────────────────┬───────────┘
+               ▼                        ▼
+       ┌──────────────┐        ┌────────────────────┐
+       │  No secondary │        │ Secondary exists   │
+       │  → 422        │        └─────────┬──────────┘
+       └──────────────┘                   ▼
+                               ┌──────────────────────┐
+                               │ Insert into           │
+                               │ oncall.escalations    │
+                               └──────────┬───────────┘
+                                          ▼
+                               ┌──────────────────────┐
+                               │ Increment counter     │
+                               └──────────┬───────────┘
+                                          ▼
+                               ┌──────────────────────┐
+                               │ Return EscalateResp   │
+                               └──────────────────────┘
 ```
 
 ## Purpose

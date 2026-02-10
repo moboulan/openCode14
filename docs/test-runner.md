@@ -18,21 +18,36 @@ python3 test-runner.py --continuous 10  # Send random alert every 10s (Ctrl+C to
 ## Logic Flow
 
 ```text
-python3 test-runner.py
-         │
-    Parse flags
-      ├── --health       → Probe all 5 service /health endpoints
-      ├── --list         → Print 15 scenarios to terminal
-      ├── --scenario ID  → POST single alert to :8001
-      ├── --all / default→ POST all 15 scenarios to :8001
-      ├── --setup-oncall → POST 5 on-call schedules to :8003
-      └── --continuous N → Loop: random alert every N seconds
-         │
-  POST to Alert Ingestion :8001
-         │
-  POST to AI Analysis :8005
-         │
-  Print alert_id + incident_id + suggestions
+  ╔═══════════════════════════════════════════════╗
+  ║        python3 test-runner.py                 ║
+  ╚═══════════════════════╤═══════════════════════╝
+                          ▼
+  ┌───────────────────────────────────────────────┐
+  │              Parse flags                      │
+  └──┬──────┬──────┬──────┬───────┬───────┬───────┘
+     ▼      ▼      ▼      ▼       ▼       ▼
+  ┌──────┐┌──────┐┌─────┐┌──────┐┌──────┐┌────────┐
+  │health││ list ││scen.││ all  ││oncall││contin. │
+  └──┬───┘└──┬───┘└──┬──┘└──┬───┘└──┬───┘└───┬────┘
+     ▼       ▼       │      │       ▼        │
+  ┌──────┐┌──────┐   │      │  ┌─────────┐   │
+  │Probe ││Print │   │      │  │POST 5   │   │
+  │5 svcs││table │   │      │  │schedules│   │
+  └──────┘└──────┘   │      │  └─────────┘   │
+                     ▼      ▼                ▼
+            ┌─────────────────────────────────────┐
+            │    POST alert to Alert Ingestion     │
+            │            :8001                     │
+            └─────────────────┬───────────────────┘
+                              ▼
+            ┌─────────────────────────────────────┐
+            │    POST to AI Analysis :8005         │
+            └─────────────────┬───────────────────┘
+                              ▼
+            ┌─────────────────────────────────────┐
+            │    Print alert_id + incident_id      │
+            │    + AI suggestions                  │
+            └─────────────────────────────────────┘
 ```
 
 ## Configuration

@@ -5,32 +5,53 @@ FastAPI microservice (port 8001) that receives incoming alerts via REST, validat
 ## Logic Flow
 
 ```text
-POST /api/v1/alerts
-         │
-  Validate schema (Pydantic)
-         │
-  Normalize severity to enum
-         │
-  Generate unique alert_id
-         │
-  Store raw alert in alerts.alerts
-         │
-  Correlation query: same service + severity
-  within CORRELATION_WINDOW_MINUTES, status IN (open, acknowledged)
-         │
-    Match found?
-      ├── Yes → Link alert to existing incident (incident_alerts)
-      │         Update alert row with incident FK
-      │
-      └── No  → POST to Incident Management /api/v1/incidents
-                    │
-               Incident created?
-                 ├── Yes → Link alert to new incident
-                 └── No  → Graceful degradation (incident_id = null)
-         │
-  Increment Prometheus counters
-         │
-  Return AlertResponse
+  ┌─────────────────────────────────────────────────┐
+  │            POST /api/v1/alerts                   │
+  └──────────────────────┬──────────────────────────┘
+                         ▼
+  ┌─────────────────────────────────────────────────┐
+  │         Validate schema (Pydantic)              │
+  └──────────────────────┬──────────────────────────┘
+                         ▼
+  ┌─────────────────────────────────────────────────┐
+  │         Normalize severity to enum              │
+  └──────────────────────┬──────────────────────────┘
+                         ▼
+  ┌─────────────────────────────────────────────────┐
+  │          Generate unique alert_id               │
+  └──────────────────────┬──────────────────────────┘
+                         ▼
+  ┌─────────────────────────────────────────────────┐
+  │       Store raw alert in alerts.alerts          │
+  └──────────────────────┬──────────────────────────┘
+                         ▼
+  ┌─────────────────────────────────────────────────┐
+  │  Correlation: same service + severity within    │
+  │  CORRELATION_WINDOW, status IN (open, ack'd)    │
+  └──────────┬──────────────────────┬───────────────┘
+             ▼                      ▼
+     ┌──────────────┐      ┌────────────────────────┐
+     │  Match found  │      │     No match           │
+     └──────┬───────┘      └───────────┬────────────┘
+            ▼                          ▼
+  ┌──────────────────┐   ┌──────────────────────────┐
+  │  Link alert to   │   │  POST to Incident Mgmt   │
+  │  existing incident│   │  /api/v1/incidents       │
+  └────────┬─────────┘   └──────┬──────────┬────────┘
+           │                    ▼          ▼
+           │          ┌───────────┐  ┌──────────────┐
+           │          │  Created  │  │  Not created │
+           │          │  → Link   │  │  → null FK   │
+           │          └─────┬─────┘  └──────┬───────┘
+           └────────────────┼───────────────┘
+                            ▼
+  ┌─────────────────────────────────────────────────┐
+  │       Increment Prometheus counters             │
+  └──────────────────────┬──────────────────────────┘
+                         ▼
+  ┌─────────────────────────────────────────────────┐
+  │           Return AlertResponse                  │
+  └─────────────────────────────────────────────────┘
 ```
 
 ## Purpose

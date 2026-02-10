@@ -5,30 +5,54 @@ PostgreSQL 16 instance (port 5432) serving as the shared persistent store for al
 ## Logic Flow
 
 ```text
-PostgreSQL container starts
-         │
-  Run init-db/01-init-database.sql
-         │
-  Create extension: uuid-ossp
-         │
-  Create schemas: alerts, incidents, oncall, notifications, analysis
-         │
-  Create ENUM types: severity_level, alert_status,
-  incident_status, user_role, notification_channel, notification_status
-         │
-  Create tables across all schemas
-         │
-  Create indexes for query performance
-         │
-  Create update_updated_at() trigger function
-         │
-  Attach triggers to alerts.alerts and incidents.incidents
-         │
-  Seed users: 9 engineers (admin + responder)
-         │
-  Seed oncall.schedules: 3 teams with rotation configs
-         │
-  Database ready for connections
+  ╔═══════════════════════════════════════════════╗
+  ║       PostgreSQL container starts             ║
+  ╚═══════════════════════╤═══════════════════════╝
+                          ▼
+  ┌───────────────────────────────────────────────┐
+  │    Run init-db/01-init-database.sql           │
+  └───────────────────────┬───────────────────────┘
+                          ▼
+  ┌───────────────────────────────────────────────┐
+  │    Create extension: uuid-ossp                │
+  └───────────────────────┬───────────────────────┘
+                          ▼
+  ┌───────────────────────────────────────────────────────┐
+  │    Create schemas:                                    │
+  │    alerts │ incidents │ oncall │ notifications │ analysis │
+  └───────────────────────┬───────────────────────────────┘
+                          ▼
+  ┌───────────────────────────────────────────────┐
+  │    Create ENUM types:                         │
+  │    severity_level, alert_status,              │
+  │    incident_status, user_role,                │
+  │    notification_channel, notification_status  │
+  └───────────────────────┬───────────────────────┘
+                          ▼
+  ┌───────────────────────────────────────────────┐
+  │    Create tables across all schemas           │
+  └───────────────────────┬───────────────────────┘
+                          ▼
+  ┌───────────────────────────────────────────────┐
+  │    Create indexes for query performance       │
+  └───────────────────────┬───────────────────────┘
+                          ▼
+  ┌───────────────────────────────────────────────┐
+  │    Create update_updated_at() trigger         │
+  │    Attach to alerts.alerts + incidents         │
+  └───────────────────────┬───────────────────────┘
+                          ▼
+  ┌───────────────────────────────────────────────┐
+  │    Seed users: 9 engineers (admin+responder)  │
+  └───────────────────────┬───────────────────────┘
+                          ▼
+  ┌───────────────────────────────────────────────┐
+  │    Seed oncall.schedules: 3 teams             │
+  └───────────────────────┬───────────────────────┘
+                          ▼
+  ╔═══════════════════════════════════════════════╗
+  ║       ✓ Database ready for connections        ║
+  ╚═══════════════════════════════════════════════╝
 ```
 
 ## Purpose
@@ -44,7 +68,6 @@ PostgreSQL database providing schema-separated persistent storage for all platfo
 | `incidents` | Incident Management | Incident records, alert linkage, notification log |
 | `oncall` | On-Call Service | Schedules, assignments, escalation history |
 | `notifications` | Notification Service | Notification delivery records |
-| `analysis` | AI Analysis Service | Suggestions and resolved patterns |
 
 ## Tables
 
@@ -60,8 +83,6 @@ PostgreSQL database providing schema-separated persistent storage for all platfo
 | `oncall` | `schedules` | `id` (UUID) | Rotation schedules with JSONB engineer lists |
 | `oncall` | `oncall_assignments` | `id` (UUID) | Explicit on-call time-range assignments |
 | `oncall` | `escalations` | `id` (UUID) | Escalation history with from/to engineer |
-| `analysis` | `suggestions` | `suggestion_id` (SERIAL) | AI root-cause suggestions per alert/incident |
-| `analysis` | `resolved_patterns` | `pattern_id` (SERIAL) | Learned patterns for future TF-IDF matching |
 
 ## ENUM Types
 
