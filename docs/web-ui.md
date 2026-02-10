@@ -1,4 +1,4 @@
-# Web UI
+# Web UI (ExpertMind)
 
 React 18 single-page application (port 8080) built with Vite and served via Nginx. Provides the browser-based operator interface for the incident platform, including a live dashboard, incident detail views, on-call schedule management, and SRE metrics charts. Nginx acts as a reverse proxy, routing API calls to all backend services over the Docker Compose network.
 
@@ -8,22 +8,27 @@ React 18 single-page application (port 8080) built with Vite and served via Ngin
 flowchart TD
     A["Browser: http://localhost:8080"] --> B["Nginx serves SPA (React + Vite build)"]
     B --> C{Route?}
-    C -- "/" --> D["Dashboard page: IncidentList + MetricsStrip + IncidentAnalytics"]
-    C -- "/incidents/:id" --> E["IncidentDetail page: Status update, notes, linked alerts"]
-    C -- "/oncall" --> F["OnCall page: Schedules and current on-call"]
-    C -- "/metrics" --> G["Metrics page: Trends and SRE analytics"]
-    C -- "other" --> H["NotFound page"]
+    C -- "/" --> D["Dashboard: IncidentList + MetricsStrip + Analytics"]
+    C -- "/incidents" --> E1["Incidents: Paginated list with filters"]
+    C -- "/incidents/:id" --> E2["IncidentDetail: Status update, notes, alerts"]
+    C -- "/alerts" --> F1["Alerts: Feed with severity/service filters"]
+    C -- "/analytics" --> F2["Analytics: SRE trends and charts"]
+    C -- "/oncall" --> G["OnCall: Schedules and current on-call"]
+    C -- "/notifications" --> H1["Notifications: History and delivery status"]
+    C -- "other" --> H2["NotFound page"]
 
     D --> I["API calls via Nginx reverse proxy"]
-    E --> I
-    F --> I
+    E1 --> I
+    E2 --> I
+    F1 --> I
+    F2 --> I
     G --> I
+    H1 --> I
 
     I --> J["/api/incident-management proxied to :8002"]
     I --> K["/api/oncall-service proxied to :8003"]
     I --> L["/api/alert-ingestion proxied to :8001"]
     I --> M["/api/notification-service proxied to :8004"]
-    I --> N["/ws proxied to :8002 WebSocket"]
 ```
 
 ## Purpose
@@ -35,9 +40,13 @@ Single-page React application served via Nginx that provides a browser-based int
 | Route | Component | Description |
 | :--- | :--- | :--- |
 | `/` | `Dashboard` | Incident list, live metrics strip, incident analytics |
+| `/incidents` | `Incidents` | Paginated incident list with filters |
 | `/incidents/:incidentId` | `IncidentDetail` | Single incident view with status transitions, notes, linked alerts |
+| `/alerts` | `Alerts` | Alert feed with severity and service filters |
+| `/analytics` | `Analytics` | SRE performance trends and analytics charts |
 | `/oncall` | `OnCall` | On-call schedules and current engineer lookup |
-| `/metrics` | `Metrics` | SRE performance trends and analytics charts |
+| `/notifications` | `Notifications` | Notification history and delivery status |
+| `/login` | `Login` | Authentication page |
 | `/*` | `NotFound` | 404 fallback |
 
 ## Nginx Reverse Proxy Routes

@@ -1,0 +1,16 @@
+__pycache__
+*.pyc
+*.pyo
+.pytest_cache
+htmlcov
+.coverage
+.git
+.github
+.env
+*.md
+tests/
+Makefile
+setup.cfg
+.flake8
+.mypy_cache
+.ruff_cache

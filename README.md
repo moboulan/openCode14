@@ -1,4 +1,4 @@
-# Incident & On-Call Management Platform
+# ExpertMind — Incident & On-Call Management Platform
 
 > **OpenCode Hackathon 2026** — Production-ready incident management platform built with Python/FastAPI microservices, React frontend, PostgreSQL, and Prometheus + Grafana monitoring. Includes an NLP-powered AI analysis engine for root-cause suggestions.
 
@@ -158,7 +158,7 @@ make all → quality → security → build → scan → test → deploy → ver
 
 | Stage | What | Tools |
 | ------- | ------ | ------- |
-| 1. Quality | Linting & formatting | flake8, pylint, black, isort |
+| 1. Quality | Linting & formatting | ruff (lint + format) |
 | 2. Security | Credential scanning | gitleaks, trufflehog |
 | 3. Build | Docker images | docker compose build |
 | 4. Scan | Vulnerability scanning | Trivy |
@@ -251,6 +251,15 @@ All services are configured via environment variables. See [`.env.example`](.env
 - **Credential scanning** — GitLeaks + TruffleHog in CI pipeline
 - **Vulnerability scanning** — Trivy scans all container images
 - **SARIF reports** — Scan results uploaded as CI artifacts
+
+---
+
+## Team
+
+| Member | Role |
+| --- | --- |
+| **Mohamed Boulan** | Backend Lead — microservices, database design, CI/CD |
+| **Samati** | DevOps & Frontend — Docker, monitoring, React UI |
 
 ---
 

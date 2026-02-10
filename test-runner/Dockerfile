@@ -1,12 +1,22 @@
+# ── builder stage ────────────────────────────────────────────
+FROM python:3.11-slim AS builder
+
+WORKDIR /build
+COPY requirements.txt .
+RUN pip install --no-cache-dir --prefix=/install -r requirements.txt
+
+# ── runtime stage ────────────────────────────────────────────
 FROM python:3.11-slim
+
+RUN groupadd -r appuser && useradd -r -g appuser appuser
 
 WORKDIR /app
 
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+COPY --from=builder /install /usr/local
+COPY --chown=appuser:appuser runner.py .
+COPY --chown=appuser:appuser static/ static/
 
-COPY runner.py .
-COPY static/ static/
+USER appuser
 
 EXPOSE 8006
 
