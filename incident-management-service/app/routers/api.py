@@ -4,8 +4,6 @@ import uuid
 from datetime import datetime, timezone
 from typing import Optional
 
-from fastapi import APIRouter, HTTPException, Query, status
-
 from app.config import settings
 from app.database import get_db_connection
 from app.http_client import get_http_client
@@ -26,6 +24,7 @@ from app.models import (
     SeverityLevel,
 )
 from app.ws import manager as ws_manager
+from fastapi import APIRouter, HTTPException, Query, status
 
 router = APIRouter()
 logger = logging.getLogger(__name__)

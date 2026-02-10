@@ -1,9 +1,7 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { TooltipProvider } from '@radix-ui/react-tooltip';
-import { useAuth } from '@/hooks/useAuth';
 import { useIncidentWebSocket } from '@/hooks/useIncidentWebSocket';
 import Sidebar from './components/Sidebar';
-import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import Incidents from './pages/Incidents';
 import IncidentDetail from './pages/IncidentDetail';
@@ -13,50 +11,24 @@ import OnCall from './pages/OnCall';
 import Notifications from './pages/Notifications';
 import NotFound from './pages/NotFound';
 
-function ProtectedRoute({ children }) {
-	const { isAuthenticated } = useAuth();
-	if (!isAuthenticated) return <Navigate to="/login" replace />;
-	return children;
-}
-
 function WebSocketProvider() {
 	useIncidentWebSocket();
 	return null;
 }
 
 export default function App() {
-	const { isAuthenticated } = useAuth();
-
-	if (!isAuthenticated) {
-		return (
-			<Routes>
-				<Route path="/login" element={<Login />} />
-				<Route path="*" element={<Navigate to="/login" replace />} />
-			</Routes>
-		);
-	}
-
 	return (
 		<TooltipProvider delayDuration={200}>
-			<WebSocketProvider />
-			<div className="flex min-h-screen">
-				<Sidebar />
-				<main className="ml-60 flex-1 min-h-screen transition-[margin] duration-150">
-					<div className="mx-auto max-w-[1400px] px-8 py-6">
-						<Routes>
-							<Route path="/" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
-							<Route path="/incidents" element={<ProtectedRoute><Incidents /></ProtectedRoute>} />
-							<Route path="/incidents/:incidentId" element={<ProtectedRoute><IncidentDetail /></ProtectedRoute>} />
-							<Route path="/alerts" element={<ProtectedRoute><Alerts /></ProtectedRoute>} />
-							<Route path="/analytics" element={<ProtectedRoute><Analytics /></ProtectedRoute>} />
-							<Route path="/oncall" element={<ProtectedRoute><OnCall /></ProtectedRoute>} />
-							<Route path="/notifications" element={<ProtectedRoute><Notifications /></ProtectedRoute>} />
-							<Route path="/login" element={<Navigate to="/" replace />} />
-							<Route path="*" element={<NotFound />} />
-						</Routes>
-					</div>
-				</main>
-			</div>
+			<Routes>
+				<Route path="/" element={<Dashboard />} />
+				<Route path="/incidents" element={<Incidents />} />
+				<Route path="/incidents/:id" element={<IncidentDetail />} />
+				<Route path="/alerts" element={<Alerts />} />
+				<Route path="/analytics" element={<Analytics />} />
+				<Route path="/oncall" element={<OnCall />} />
+				<Route path="/notifications" element={<Notifications />} />
+				<Route path="*" element={<NotFound />} />
+			</Routes>
 		</TooltipProvider>
 	);
 }

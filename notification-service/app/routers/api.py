@@ -202,7 +202,17 @@ async def send_notification(request: NotificationRequest):
     # ── 1. Dispatch to channel ────────────────────────────────
     start = time.time()
 
+    rate_limited = False
+    duplicate_reason = None
     if request.channel == NotificationChannel.EMAIL:
+        # Check if rate-limited before sending
+        if _is_rate_limited(request.engineer):
+            rate_limited = True
+            duplicate_reason = (
+                f"Duplicate notification for {request.engineer} within cooldown window "
+                f"({settings.EMAIL_COOLDOWN_SECONDS}s) at {datetime.now(timezone.utc).isoformat()}"
+            )
+            logger.info(f"[DUPLICATE NOTIFICATION] {duplicate_reason}")
         delivery_status = await _send_email(notification_id, request)
     elif request.channel == NotificationChannel.WEBHOOK:
         delivery_status = await _send_webhook(notification_id, request)
@@ -247,7 +257,8 @@ async def send_notification(request: NotificationRequest):
         status=delivery_status.value,
     ).inc()
 
-    return NotificationResponse(
+    # Add rate_limited and duplicate_reason to response if applicable
+    resp = NotificationResponse(
         notification_id=notification_id,
         incident_id=request.incident_id,
         engineer=request.engineer,
@@ -256,6 +267,13 @@ async def send_notification(request: NotificationRequest):
         message=request.message,
         timestamp=now,
     )
+    # Attach extra fields for duplicate/rate-limited
+    if rate_limited:
+        resp_dict = resp.model_dump()
+        resp_dict["rate_limited"] = True
+        resp_dict["duplicate_reason"] = duplicate_reason
+        return resp_dict
+    return resp
 
 
 # ---------------------------------------------------------------------------

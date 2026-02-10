@@ -4,13 +4,12 @@ import uuid
 from datetime import datetime, timezone
 from typing import Optional
 
-from fastapi import APIRouter, HTTPException, Query, status
-
 from app.config import settings
 from app.database import get_db_connection
 from app.http_client import get_http_client
 from app.metrics import alerts_correlated_total, alerts_received_total
 from app.models import Alert, AlertResponse, SeverityLevel
+from fastapi import APIRouter, HTTPException, Query, status
 
 router = APIRouter()
 logger = logging.getLogger(__name__)

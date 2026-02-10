@@ -95,7 +95,7 @@ export default function Sidebar() {
 						<p className="text-[10px] text-zinc-500">{user?.role || 'admin'}</p>
 					</div>
 					<button
-						onClick={() => { logout(); navigate('/login'); }}
+						onClick={() => { logout(); }}
 						className="rounded-md p-1.5 text-zinc-500 hover:text-red-400 hover:bg-red-500/10 transition-colors"
 						title="Sign out"
 					>
