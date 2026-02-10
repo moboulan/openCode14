@@ -1,3 +1,4 @@
+import asyncio
 import logging
 import time
 from contextlib import asynccontextmanager
@@ -5,7 +6,6 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-from fastapi_utils.tasks import repeat_every
 from prometheus_fastapi_instrumentator import Instrumentator
 
 from app.config import settings
@@ -26,10 +26,24 @@ async def lifespan(app: FastAPI):
     logger.info(f"Starting {settings.SERVICE_NAME} on port {settings.SERVICE_PORT}")
     logger.info(f"Metrics available at http://localhost:{settings.SERVICE_PORT}/metrics")
     logger.info(f"Health check at http://localhost:{settings.SERVICE_PORT}/health")
+    # Start background escalation task
+    task = asyncio.create_task(_escalation_loop())
     yield
     # Shutdown
+    task.cancel()
     close_pool()
     logger.info(f"Shutting down {settings.SERVICE_NAME}")
+
+
+async def _escalation_loop():
+    """Background loop that runs auto-escalation every 60 seconds."""
+    while True:
+        await asyncio.sleep(60)
+        try:
+            await check_escalations()
+            logger.info("Auto-escalation task executed successfully.")
+        except Exception as e:
+            logger.error(f"Auto-escalation task failed: {e}")
 
 
 # Create FastAPI app
@@ -64,17 +78,6 @@ instrumentator.instrument(app).expose(app, include_in_schema=False, endpoint="/m
 
 # Setup custom metrics
 setup_custom_metrics()
-
-
-# Background task for auto-escalation
-@app.on_event("startup")
-@repeat_every(seconds=60)  # Run every 60 seconds
-async def run_auto_escalation():
-    try:
-        await check_escalations()
-        logger.info("Auto-escalation task executed successfully.")
-    except Exception as e:
-        logger.error(f"Auto-escalation task failed: {e}")
 
 
 # Middleware for request timing
