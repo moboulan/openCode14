@@ -30,6 +30,117 @@ class _FakeAsyncClientDown:
         raise Exception("connection refused")
 
 
+class _FakeResponse:
+    """Minimal response object for mocked httpx."""
+
+    def __init__(self, status_code, json_data=None):
+        self.status_code = status_code
+        self._json = json_data or {}
+
+    def json(self):
+        return self._json
+
+
+class _FakeAsyncClientUp:
+    """External services respond successfully."""
+
+    def __init__(self, **kw):
+        pass
+
+    async def __aenter__(self):
+        return self
+
+    async def __aexit__(self, *a):
+        pass
+
+    async def get(self, url, **kw):
+        if "oncall" in url:
+            return _FakeResponse(
+                200,
+                {
+                    "primary": {"name": "Alice", "email": "alice@example.com"},
+                    "secondary": {"name": "Bob", "email": "bob@example.com"},
+                },
+            )
+        return _FakeResponse(200, {})
+
+    async def post(self, url, **kw):
+        return _FakeResponse(200, {"status": "ok"})
+
+
+class _FakeAsyncClientOncallUpNotifDown:
+    """Oncall service up but notification service fails."""
+
+    def __init__(self, **kw):
+        pass
+
+    async def __aenter__(self):
+        return self
+
+    async def __aexit__(self, *a):
+        pass
+
+    async def get(self, url, **kw):
+        if "oncall" in url:
+            return _FakeResponse(
+                200,
+                {"primary": {"name": "Alice", "email": "alice@example.com"}},
+            )
+        return _FakeResponse(200, {})
+
+    async def post(self, url, **kw):
+        if "notify" in url:
+            raise Exception("notification down")
+        return _FakeResponse(200, {"status": "ok"})
+
+
+class _FakeAsyncClientTimerDown:
+    """Oncall GET succeeds, timer POST fails, notifications work."""
+
+    def __init__(self, **kw):
+        pass
+
+    async def __aenter__(self):
+        return self
+
+    async def __aexit__(self, *a):
+        pass
+
+    async def get(self, url, **kw):
+        if "oncall" in url:
+            return _FakeResponse(
+                200,
+                {"primary": {"name": "Alice", "email": "alice@example.com"}},
+            )
+        return _FakeResponse(200, {})
+
+    async def post(self, url, **kw):
+        if "timers" in url:
+            raise Exception("timer service down")
+        return _FakeResponse(200, {"status": "ok"})
+
+
+class _FakeAsyncClientCancelDown:
+    """Timer cancel POST fails, notifications work."""
+
+    def __init__(self, **kw):
+        pass
+
+    async def __aenter__(self):
+        return self
+
+    async def __aexit__(self, *a):
+        pass
+
+    async def get(self, *a, **kw):
+        return _FakeResponse(200, {})
+
+    async def post(self, url, **kw):
+        if "timers/cancel" in url:
+            raise Exception("timer cancel failed")
+        return _FakeResponse(200, {"status": "ok"})
+
+
 def _make_incident_row(
     incident_id="inc-test123",
     severity="low",
@@ -122,7 +233,7 @@ def _list_connection(total: int, rows: list):
 
 @pytest.mark.asyncio
 async def test_list_incidents(client):
-    rows = [_make_incident_row()]
+    rows = [_make_incident_row(assigned_to="alice@example.com")]
 
     with patch(
         "app.routers.api.get_db_connection",
@@ -414,3 +525,315 @@ async def test_get_analytics(client):
     assert body["avg_mtta_seconds"] == 120.5
     assert body["by_severity"]["critical"] == 4
     assert body["by_service"]["web"] == 7
+
+
+# ── POST /incidents — external services UP (oncall + timer + notif) ──
+
+
+@pytest.mark.asyncio
+async def test_create_incident_with_assignment(client, sample_incident_payload):
+    """POST /incidents succeeds with oncall assignment + timer start + notif."""
+    row = _make_incident_row()
+
+    with patch(
+        "app.routers.api.get_db_connection",
+        side_effect=[
+            _fake_connection([row])(autocommit=True),  # INSERT
+            _fake_connection([None])(autocommit=True),  # persist assignment
+        ],
+    ):
+        with patch("httpx.AsyncClient", _FakeAsyncClientUp):
+            resp = await client.post("/api/v1/incidents", json=sample_incident_payload)
+
+    assert resp.status_code == 201
+    body = resp.json()
+    assert body["assigned_to"] == "Alice"
+
+
+@pytest.mark.asyncio
+async def test_create_incident_oncall_non_200(client, sample_incident_payload):
+    """Oncall returns non-200 → no assignment but incident still created."""
+    row = _make_incident_row()
+
+    class _OncallBad:
+        def __init__(self, **kw):
+            pass
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *a):
+            pass
+
+        async def get(self, *a, **kw):
+            return _FakeResponse(500, {})
+
+        async def post(self, *a, **kw):
+            return _FakeResponse(200, {"status": "ok"})
+
+    with patch(
+        "app.routers.api.get_db_connection",
+        side_effect=[
+            _fake_connection([row])(autocommit=True),
+        ],
+    ):
+        with patch("httpx.AsyncClient", _OncallBad):
+            resp = await client.post("/api/v1/incidents", json=sample_incident_payload)
+
+    assert resp.status_code == 201
+    assert resp.json()["assigned_to"] is None
+
+
+@pytest.mark.asyncio
+async def test_create_incident_notification_failure(client, sample_incident_payload):
+    """If notification service down, incident is still created."""
+    row = _make_incident_row()
+
+    with patch(
+        "app.routers.api.get_db_connection",
+        side_effect=[
+            _fake_connection([row])(autocommit=True),
+            _fake_connection([None])(autocommit=True),  # persist assignment
+        ],
+    ):
+        with patch("httpx.AsyncClient", _FakeAsyncClientOncallUpNotifDown):
+            resp = await client.post("/api/v1/incidents", json=sample_incident_payload)
+
+    assert resp.status_code == 201
+
+
+@pytest.mark.asyncio
+async def test_create_incident_timer_start_failure(client, sample_incident_payload):
+    """If timer start fails, incident is still created with assignment."""
+    row = _make_incident_row()
+
+    with patch(
+        "app.routers.api.get_db_connection",
+        side_effect=[
+            _fake_connection([row])(autocommit=True),
+            _fake_connection([None])(autocommit=True),
+        ],
+    ):
+        with patch("httpx.AsyncClient", _FakeAsyncClientTimerDown):
+            resp = await client.post("/api/v1/incidents", json=sample_incident_payload)
+
+    assert resp.status_code == 201
+
+
+# ── PATCH /incidents — timer cancellation on acknowledge/resolve ──
+
+
+@pytest.mark.asyncio
+async def test_patch_acknowledge_cancels_timer(client):
+    """Acknowledging an incident also cancels escalation timer."""
+    now = datetime.now(timezone.utc)
+    row = _make_incident_row(incident_id="inc-ack-t", status="open")
+    updated = _make_incident_row(
+        incident_id="inc-ack-t",
+        status="acknowledged",
+        acknowledged_at=now,
+    )
+
+    with patch(
+        "app.routers.api.get_db_connection",
+        side_effect=[
+            _fake_connection([row])(),
+            _fake_connection([updated])(autocommit=True),
+        ],
+    ):
+        with patch("httpx.AsyncClient", _FakeAsyncClientUp):
+            resp = await client.patch(
+                "/api/v1/incidents/inc-ack-t",
+                json={"status": "acknowledged"},
+            )
+
+    assert resp.status_code == 200
+    assert resp.json()["status"] == "acknowledged"
+
+
+@pytest.mark.asyncio
+async def test_patch_resolve_cancels_timer(client):
+    """Resolving an incident also cancels escalation timer."""
+    now = datetime.now(timezone.utc)
+    row = _make_incident_row(incident_id="inc-res-t", status="open")
+    updated = _make_incident_row(
+        incident_id="inc-res-t",
+        status="resolved",
+        resolved_at=now,
+    )
+
+    with patch(
+        "app.routers.api.get_db_connection",
+        side_effect=[
+            _fake_connection([row])(),
+            _fake_connection([updated])(autocommit=True),
+        ],
+    ):
+        with patch("httpx.AsyncClient", _FakeAsyncClientUp):
+            resp = await client.patch(
+                "/api/v1/incidents/inc-res-t",
+                json={"status": "resolved"},
+            )
+
+    assert resp.status_code == 200
+    assert resp.json()["status"] == "resolved"
+
+
+@pytest.mark.asyncio
+async def test_patch_acknowledge_timer_cancel_failure(client):
+    """Acknowledge still succeeds even if timer cancel fails."""
+    now = datetime.now(timezone.utc)
+    row = _make_incident_row(incident_id="inc-ack-fail", status="open")
+    updated = _make_incident_row(
+        incident_id="inc-ack-fail",
+        status="acknowledged",
+        acknowledged_at=now,
+    )
+
+    with patch(
+        "app.routers.api.get_db_connection",
+        side_effect=[
+            _fake_connection([row])(),
+            _fake_connection([updated])(autocommit=True),
+        ],
+    ):
+        with patch("httpx.AsyncClient", _FakeAsyncClientCancelDown):
+            resp = await client.patch(
+                "/api/v1/incidents/inc-ack-fail",
+                json={"status": "acknowledged"},
+            )
+
+    assert resp.status_code == 200
+
+
+@pytest.mark.asyncio
+async def test_patch_mitigated_cancels_timer(client):
+    """Mitigated status also cancels escalation timer."""
+    row = _make_incident_row(incident_id="inc-mit", status="open")
+    updated = _make_incident_row(incident_id="inc-mit", status="mitigated")
+    updated["status"] = "mitigated"
+
+    with patch(
+        "app.routers.api.get_db_connection",
+        side_effect=[
+            _fake_connection([row])(),
+            _fake_connection([updated])(autocommit=True),
+        ],
+    ):
+        with patch("httpx.AsyncClient", _FakeAsyncClientUp):
+            resp = await client.patch(
+                "/api/v1/incidents/inc-mit",
+                json={"status": "mitigated"},
+            )
+
+    assert resp.status_code == 200
+
+
+# ── GET /incidents/{id} — linked alerts exception ────────────
+
+
+@pytest.mark.asyncio
+async def test_get_incident_linked_alerts_exception(client):
+    """Linked alerts query failure is handled gracefully."""
+    row = _make_incident_row(incident_id="inc-alert-err")
+
+    def _linked_alerts_error_conn(autocommit=False):
+        """First conn succeeds, second raises for linked alerts."""
+        raise Exception("linked alerts DB error")
+
+    with patch(
+        "app.routers.api.get_db_connection",
+        side_effect=[
+            _fake_connection([row])(),  # incident row
+            _linked_alerts_error_conn,  # linked alerts raises
+        ],
+    ):
+        resp = await client.get("/api/v1/incidents/inc-alert-err")
+
+    assert resp.status_code == 200
+    assert resp.json()["alerts"] == []
+
+
+# ── PATCH — update returns None (not found after update) ─────
+
+
+@pytest.mark.asyncio
+async def test_patch_update_returns_none(client):
+    """If UPDATE RETURNING yields no row, return 404."""
+    row = _make_incident_row(incident_id="inc-vanish", status="open")
+
+    with patch(
+        "app.routers.api.get_db_connection",
+        side_effect=[
+            _fake_connection([row])(),
+            _fake_connection([None])(autocommit=True),
+        ],
+    ):
+        with patch("httpx.AsyncClient", _FakeAsyncClientUp):
+            resp = await client.patch(
+                "/api/v1/incidents/inc-vanish",
+                json={"status": "acknowledged"},
+            )
+
+    assert resp.status_code == 404
+
+
+# ── GET /incidents/analytics — avg_mtta/avg_mttr None ────────
+
+
+@pytest.mark.asyncio
+async def test_get_analytics_no_avg(client):
+    """Analytics with no MTTA/MTTR data returns None."""
+    summary = {
+        "total": 0,
+        "open_count": 0,
+        "ack_count": 0,
+        "resolved_count": 0,
+        "avg_mtta": None,
+        "avg_mttr": None,
+    }
+
+    fetch_one_results = iter([summary])
+    fetch_all_results = iter([[], []])
+
+    @contextmanager
+    def _analytics_conn(autocommit=False):
+        cur = MagicMock()
+        cur.fetchone = MagicMock(side_effect=lambda: next(fetch_one_results))
+        cur.fetchall = MagicMock(side_effect=lambda: next(fetch_all_results))
+
+        conn = MagicMock()
+        conn.cursor.return_value.__enter__ = MagicMock(return_value=cur)
+        conn.cursor.return_value.__exit__ = MagicMock(return_value=False)
+        yield conn
+
+    with patch("app.routers.api.get_db_connection", side_effect=[_analytics_conn()]):
+        resp = await client.get("/api/v1/incidents/analytics")
+
+    assert resp.status_code == 200
+    assert resp.json()["avg_mtta_seconds"] is None
+    assert resp.json()["avg_mttr_seconds"] is None
+
+
+# ── PATCH — assign_to ────────────────────────────────────────
+
+
+@pytest.mark.asyncio
+async def test_patch_assign(client):
+    """PATCH with assigned_to updates the assignee."""
+    row = _make_incident_row(incident_id="inc-assign")
+    updated = _make_incident_row(incident_id="inc-assign", assigned_to="bob@example.com")
+
+    with patch(
+        "app.routers.api.get_db_connection",
+        side_effect=[
+            _fake_connection([row])(),
+            _fake_connection([updated])(autocommit=True),
+        ],
+    ):
+        resp = await client.patch(
+            "/api/v1/incidents/inc-assign",
+            json={"assigned_to": "bob@example.com"},
+        )
+
+    assert resp.status_code == 200

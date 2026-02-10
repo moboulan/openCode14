@@ -3,6 +3,8 @@
 from datetime import datetime, timezone
 
 import pytest
+from pydantic import ValidationError
+
 from app.models import (
     HealthCheck,
     IncidentAnalyticsResponse,
@@ -13,7 +15,6 @@ from app.models import (
     IncidentUpdate,
     SeverityLevel,
 )
-from pydantic import ValidationError
 
 # ── SeverityLevel enum ───────────────────────────────────────
 

@@ -92,6 +92,22 @@ async def create_incident(payload: IncidentCreate):
                     (assigned_to, incident_id),
                 )
 
+    # ── 2b. Start escalation timer in On-Call Service ─────────
+    if assigned_to:
+        try:
+            async with httpx.AsyncClient(timeout=settings.HTTP_CLIENT_TIMEOUT) as client:
+                await client.post(
+                    f"{settings.ONCALL_SERVICE_URL}/api/v1/timers/start",
+                    json={
+                        "incident_id": incident_id,
+                        "team": payload.service,
+                        "assigned_to": assigned_to,
+                    },
+                )
+            logger.info(f"Escalation timer started for {incident_id}")
+        except Exception as e:
+            logger.warning(f"Could not start escalation timer for {incident_id}: {e}")
+
     # ── 3. Call Notification Service ──────────────────────────
     try:
         async with httpx.AsyncClient(timeout=settings.HTTP_CLIENT_TIMEOUT) as client:
@@ -363,6 +379,18 @@ async def update_incident(incident_id: str, payload: IncidentUpdate):
 
         # Update counter
         incidents_total.labels(status=new_status, severity=severity).inc()
+
+        # Cancel escalation timer on acknowledge or resolve
+        if new_status in ("acknowledged", "resolved", "closed", "mitigated"):
+            try:
+                async with httpx.AsyncClient(timeout=settings.HTTP_CLIENT_TIMEOUT) as client:
+                    await client.post(
+                        f"{settings.ONCALL_SERVICE_URL}/api/v1/timers/cancel",
+                        json={"incident_id": incident_id},
+                    )
+                logger.info(f"Escalation timer cancelled for {incident_id}")
+            except Exception as e:
+                logger.warning(f"Could not cancel escalation timer for {incident_id}: {e}")
 
     # ── Assignment ────────────────────────────────────────────
     if payload.assigned_to is not None:
