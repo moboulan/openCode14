@@ -4,7 +4,6 @@ import {
 	AlertTriangle,
 	CalendarClock,
 	BarChart3,
-	Activity,
 	Bell,
 	Zap,
 	LogOut,
@@ -23,7 +22,6 @@ const mainNav = [
 
 const insightNav = [
 	{ name: 'Analytics', href: '/analytics', icon: BarChart3 },
-	{ name: 'System Health', href: '/health', icon: Activity },
 ];
 
 export default function Sidebar() {
@@ -65,7 +63,7 @@ export default function Sidebar() {
 					<Shield className="h-4 w-4 text-white" />
 				</div>
 				<span className="text-[15px] font-semibold tracking-tight text-foreground">
-					Resilience
+					ExpertMind
 				</span>
 			</div>
 

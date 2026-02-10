@@ -32,7 +32,7 @@ export default function Login() {
 					<div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-xl bg-primary">
 						<Shield className="h-6 w-6 text-white" />
 					</div>
-					<h1 className="text-2xl font-bold tracking-tight">Resilience</h1>
+					<h1 className="text-2xl font-bold tracking-tight">ExpertMind</h1>
 					<p className="mt-1 text-sm text-muted-foreground">Incident & On-Call Platform</p>
 				</div>
 

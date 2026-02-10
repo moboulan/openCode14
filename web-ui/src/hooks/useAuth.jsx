@@ -17,7 +17,7 @@ export function AuthProvider({ children }) {
 
 	const login = (username, password) => {
 		if (username === 'admin' && password === 'admin') {
-			const u = { username: 'admin', name: 'SRE Admin', role: 'admin', email: 'admin@resilience.io' };
+			const u = { username: 'admin', name: 'SRE Admin', role: 'admin', email: 'admin@expertmind.io' };
 			setUser(u);
 			return true;
 		}

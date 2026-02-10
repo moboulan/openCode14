@@ -10,7 +10,6 @@ import Alerts from './pages/Alerts';
 import Analytics from './pages/Analytics';
 import OnCall from './pages/OnCall';
 import Notifications from './pages/Notifications';
-import SystemHealth from './pages/SystemHealth';
 import NotFound from './pages/NotFound';
 
 function ProtectedRoute({ children }) {
@@ -45,7 +44,6 @@ export default function App() {
 							<Route path="/analytics" element={<ProtectedRoute><Analytics /></ProtectedRoute>} />
 							<Route path="/oncall" element={<ProtectedRoute><OnCall /></ProtectedRoute>} />
 							<Route path="/notifications" element={<ProtectedRoute><Notifications /></ProtectedRoute>} />
-							<Route path="/health" element={<ProtectedRoute><SystemHealth /></ProtectedRoute>} />
 							<Route path="/login" element={<Navigate to="/" replace />} />
 							<Route path="*" element={<NotFound />} />
 						</Routes>
