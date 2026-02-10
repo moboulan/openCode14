@@ -4,6 +4,8 @@ import uuid
 from datetime import datetime, timezone
 from typing import Optional
 
+from fastapi import APIRouter, HTTPException, Query, status
+
 from app.config import settings
 from app.database import get_db_connection
 from app.http_client import get_http_client
@@ -23,7 +25,7 @@ from app.models import (
     IncidentUpdate,
     SeverityLevel,
 )
-from fastapi import APIRouter, HTTPException, Query, status
+from app.ws import manager as ws_manager
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -135,7 +137,7 @@ async def create_incident(payload: IncidentCreate):
     # Build response from the DB row
     notes = row["notes"] if isinstance(row["notes"], list) else json.loads(row["notes"] or "[]")
 
-    return IncidentResponse(
+    resp = IncidentResponse(
         id=str(row["id"]),
         incident_id=row["incident_id"],
         title=row["title"],
@@ -150,6 +152,20 @@ async def create_incident(payload: IncidentCreate):
         resolved_at=row["resolved_at"],
         updated_at=row["updated_at"],
     )
+
+    # Broadcast to WebSocket clients
+    await ws_manager.broadcast(
+        "incident_created",
+        {
+            "incident_id": incident_id,
+            "title": payload.title,
+            "service": payload.service,
+            "severity": payload.severity.value,
+            "status": "open",
+        },
+    )
+
+    return resp
 
 
 # ---------------------------------------------------------------------------
@@ -224,7 +240,8 @@ async def get_analytics():
     with get_db_connection() as conn:
         with conn.cursor() as cur:
             # Total + status counts
-            cur.execute("""
+            cur.execute(
+                """
                 SELECT
                     COUNT(*)                                                    AS total,
                     COUNT(*) FILTER (WHERE status = 'open')                     AS open_count,
@@ -235,7 +252,8 @@ async def get_analytics():
                     AVG(EXTRACT(EPOCH FROM (resolved_at - created_at)))
                         FILTER (WHERE resolved_at IS NOT NULL)                  AS avg_mttr
                 FROM incidents.incidents
-                """)
+                """
+            )
             summary = cur.fetchone()
 
             # By severity
@@ -442,7 +460,7 @@ async def update_incident(incident_id: str, payload: IncidentUpdate):
 
     notes = updated["notes"] if isinstance(updated["notes"], list) else json.loads(updated["notes"] or "[]")
 
-    return IncidentResponse(
+    resp = IncidentResponse(
         id=str(updated["id"]),
         incident_id=updated["incident_id"],
         title=updated["title"],
@@ -457,6 +475,19 @@ async def update_incident(incident_id: str, payload: IncidentUpdate):
         resolved_at=updated["resolved_at"],
         updated_at=updated["updated_at"],
     )
+
+    # Broadcast to WebSocket clients
+    await ws_manager.broadcast(
+        "incident_updated",
+        {
+            "incident_id": updated["incident_id"],
+            "status": updated["status"],
+            "severity": updated["severity"],
+            "service": updated["service"],
+        },
+    )
+
+    return resp
 
 
 # ---------------------------------------------------------------------------

@@ -1,6 +1,7 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { TooltipProvider } from '@radix-ui/react-tooltip';
 import { useAuth } from '@/hooks/useAuth';
+import { useIncidentWebSocket } from '@/hooks/useIncidentWebSocket';
 import Sidebar from './components/Sidebar';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
@@ -18,6 +19,11 @@ function ProtectedRoute({ children }) {
 	return children;
 }
 
+function WebSocketProvider() {
+	useIncidentWebSocket();
+	return null;
+}
+
 export default function App() {
 	const { isAuthenticated } = useAuth();
 
@@ -32,6 +38,7 @@ export default function App() {
 
 	return (
 		<TooltipProvider delayDuration={200}>
+			<WebSocketProvider />
 			<div className="flex min-h-screen">
 				<Sidebar />
 				<main className="ml-60 flex-1 min-h-screen transition-[margin] duration-150">
