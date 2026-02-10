@@ -36,6 +36,7 @@ services:
       - SERVICE_PORT=8001
       - INCIDENT_SERVICE_URL=http://incident-management:8002
       - NOTIFICATION_SERVICE_URL=http://notification-service:8004
+      - AI_ANALYSIS_SERVICE_URL=http://ai-analysis:8005
     networks:
       - incident-platform
     depends_on:
@@ -128,6 +129,34 @@ services:
       timeout: 10s
       retries: 3
       start_period: 40s
+    restart: unless-stopped
+
+  # ── AI Analysis Service ───────────────────────────────────
+  ai-analysis:
+    build:
+      context: ./ai-analysis-service
+      dockerfile: Dockerfile
+    container_name: ai-analysis
+    ports:
+      - "8005:8005"
+    environment:
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-postgres}@database:5432/${POSTGRES_DB:-incident_platform}
+      - SERVICE_PORT=8005
+      - INCIDENT_SERVICE_URL=http://incident-management:8002
+      - MIN_CONFIDENCE=0.12
+      - TOP_K_SUGGESTIONS=5
+      - HISTORICAL_REFRESH_INTERVAL=300
+    networks:
+      - incident-platform
+    depends_on:
+      database:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8005/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 45s
     restart: unless-stopped
 
   # ── Web UI ────────────────────────────────────────────────

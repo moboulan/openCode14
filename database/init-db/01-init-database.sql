@@ -340,3 +340,41 @@ VALUES
     ('frontend', 1, 5,  'secondary'),
     ('frontend', 2, 10, 'manager')
 ON CONFLICT DO NOTHING;
+
+-- ============================================================
+-- SCHEMA: analysis  (AI-powered alert analysis)
+-- ============================================================
+CREATE SCHEMA IF NOT EXISTS analysis;
+
+CREATE TABLE IF NOT EXISTS analysis.suggestions (
+    suggestion_id   SERIAL PRIMARY KEY,
+    alert_id        UUID,
+    incident_id     UUID,
+    alert_message   TEXT NOT NULL,
+    alert_service   VARCHAR(200),
+    alert_severity  VARCHAR(20),
+    root_cause      TEXT NOT NULL,
+    solution        TEXT NOT NULL,
+    confidence      REAL NOT NULL DEFAULT 0.0,
+    source          VARCHAR(50) NOT NULL DEFAULT 'knowledge_base',
+    matched_pattern TEXT,
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_suggestions_alert_id    ON analysis.suggestions(alert_id);
+CREATE INDEX IF NOT EXISTS idx_suggestions_incident_id ON analysis.suggestions(incident_id);
+CREATE INDEX IF NOT EXISTS idx_suggestions_created_at  ON analysis.suggestions(created_at DESC);
+
+CREATE TABLE IF NOT EXISTS analysis.resolved_patterns (
+    pattern_id      SERIAL PRIMARY KEY,
+    service         VARCHAR(200),
+    severity        VARCHAR(20),
+    message_pattern TEXT NOT NULL,
+    root_cause      TEXT NOT NULL,
+    solution        TEXT NOT NULL,
+    occurrence_count INTEGER NOT NULL DEFAULT 1,
+    last_seen       TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_resolved_patterns_service ON analysis.resolved_patterns(service);

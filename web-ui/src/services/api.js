@@ -9,6 +9,7 @@ const incidentBase = '/api/incident-management/api/v1';
 const oncallBase = '/api/oncall-service/api/v1';
 const alertBase = '/api/alert-ingestion/api/v1';
 const notificationBase = '/api/notification-service/api/v1';
+const aiBase = '/api/ai-analysis/api/v1';
 
 // ─── Incidents ─────────────────────────────────────────────
 export async function listIncidents(params = {}) {
@@ -90,8 +91,34 @@ export async function checkAllServices() {
 		'incident-management',
 		'oncall-service',
 		'notification-service',
+		'ai-analysis',
 	];
 	return Promise.all(services.map(checkServiceHealth));
+}
+
+// ─── AI Analysis ───────────────────────────────────────────
+export async function getIncidentSuggestions(incidentId) {
+	const { data } = await api.get(`${aiBase}/suggestions`, { params: { incident_id: incidentId } });
+	return data;
+}
+
+export async function analyseAlert(payload) {
+	const { data } = await api.post(`${aiBase}/analyze`, payload);
+	return data;
+}
+
+export async function getKnowledgeBase() {
+	const { data } = await api.get(`${aiBase}/knowledge-base`);
+	return data;
+}
+
+export async function getAiHealth() {
+	try {
+		const { data } = await api.get('/api/ai-analysis/health', { timeout: 3000 });
+		return data;
+	} catch {
+		return null;
+	}
 }
 
 export default api;

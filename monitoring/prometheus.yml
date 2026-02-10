@@ -48,6 +48,13 @@ scrape_configs:
     metrics_path: '/metrics'
     scrape_interval: 10s
 
+  # AI Analysis Service
+  - job_name: 'ai-analysis'
+    static_configs:
+      - targets: ['ai-analysis:8005']
+    metrics_path: '/metrics'
+    scrape_interval: 10s
+
   # Web UI (health only — no /metrics endpoint)
   - job_name: 'web-ui'
     static_configs:
@@ -72,6 +79,7 @@ scrape_configs:
           - http://incident-management:8002/health
           - http://oncall-service:8003/health
           - http://notification-service:8004/health
+          - http://ai-analysis:8005/health
           - http://web-ui:8080/health
           - http://grafana:3000/api/health
     relabel_configs:

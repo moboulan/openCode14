@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { ArrowLeft, AlertTriangle, Circle, Send, RefreshCw } from 'lucide-react';
-import { getIncident, updateIncident } from '../services/api';
+import { ArrowLeft, AlertTriangle, Circle, Send, RefreshCw, Sparkles, ChevronDown, ChevronUp, Brain, BookOpen } from 'lucide-react';
+import { getIncident, updateIncident, getIncidentSuggestions } from '../services/api';
 import { timeAgo, formatDate, formatSeconds } from '../utils/formatters';
 import { cn } from '../lib/utils';
 
@@ -51,11 +51,22 @@ export default function IncidentDetail() {
 	const [error, setError] = useState(null);
 	const [noteText, setNoteText] = useState('');
 	const [submitting, setSubmitting] = useState(false);
+	const [suggestions, setSuggestions] = useState([]);
+	const [suggestionsLoading, setSuggestionsLoading] = useState(false);
+	const [expandedSuggestion, setExpandedSuggestion] = useState(0);
 
 	useEffect(() => {
 		(async () => {
 			try {
-				setIncident(await getIncident(incidentId));
+				const inc = await getIncident(incidentId);
+				setIncident(inc);
+				// fetch AI suggestions
+				setSuggestionsLoading(true);
+				try {
+					const sug = await getIncidentSuggestions(inc.id || incidentId);
+					setSuggestions(Array.isArray(sug) ? sug : []);
+				} catch { setSuggestions([]); }
+				finally { setSuggestionsLoading(false); }
 			} catch (err) {
 				setError(err.response?.data?.detail || 'Incident not found');
 			} finally {
@@ -118,8 +129,78 @@ export default function IncidentDetail() {
 
 			{/* Two-column layout */}
 			<div className="grid grid-cols-[1fr_280px] gap-6">
-				{/* Left: timeline + notes */}
+				{/* Left: AI suggestions + timeline + notes */}
 				<div className="space-y-5">
+					{/* AI Suggestions panel */}
+					<div className="rounded-lg border border-indigo-200 bg-gradient-to-br from-indigo-50/80 to-white p-5">
+						<div className="mb-3 flex items-center gap-2">
+							<Sparkles className="h-4 w-4 text-indigo-500" />
+							<h2 className="text-sm font-medium text-indigo-900">AI Root-Cause Analysis</h2>
+							{suggestionsLoading && <RefreshCw className="ml-auto h-3.5 w-3.5 animate-spin text-indigo-300" />}
+						</div>
+						{!suggestionsLoading && suggestions.length === 0 && (
+							<p className="text-xs text-zinc-400">No suggestions available for this incident yet.</p>
+						)}
+						{suggestions.length > 0 && (
+							<div className="space-y-2">
+								{suggestions.map((s, idx) => {
+									const isExpanded = expandedSuggestion === idx;
+									const confPct = Math.round(s.confidence * 100);
+									const isKb = s.source === 'knowledge_base';
+									return (
+										<div
+											key={idx}
+											className={cn(
+												'rounded-md border bg-white transition-shadow',
+												isExpanded ? 'border-indigo-300 shadow-sm' : 'border-zinc-200'
+											)}
+										>
+											<button
+												onClick={() => setExpandedSuggestion(isExpanded ? -1 : idx)}
+												className="flex w-full items-center gap-2 px-3 py-2.5 text-left"
+											>
+												{isKb
+													? <BookOpen className="h-3.5 w-3.5 shrink-0 text-indigo-400" />
+													: <Brain className="h-3.5 w-3.5 shrink-0 text-purple-400" />
+												}
+												<span className="flex-1 text-sm font-medium text-zinc-800 truncate">{s.root_cause}</span>
+												<span className={cn(
+													'shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold tabular-nums',
+													confPct >= 50 ? 'bg-emerald-100 text-emerald-700'
+														: confPct >= 25 ? 'bg-amber-100 text-amber-700'
+															: 'bg-zinc-100 text-zinc-500'
+												)}>{confPct}%</span>
+												{isExpanded ? <ChevronUp className="h-3.5 w-3.5 text-zinc-400" /> : <ChevronDown className="h-3.5 w-3.5 text-zinc-400" />}
+											</button>
+											{isExpanded && (
+												<div className="border-t border-zinc-100 px-3 py-3 space-y-2">
+													<div>
+														<p className="text-[11px] font-medium text-zinc-400 uppercase tracking-wide">Recommended Solution</p>
+														<p className="mt-1 text-sm text-zinc-700 whitespace-pre-line leading-relaxed">{s.solution}</p>
+													</div>
+													<div className="flex items-center gap-3 pt-1">
+														<span className={cn(
+															'inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium',
+															isKb ? 'bg-indigo-50 text-indigo-600' : 'bg-purple-50 text-purple-600'
+														)}>
+															{isKb ? <BookOpen className="h-2.5 w-2.5" /> : <Brain className="h-2.5 w-2.5" />}
+															{isKb ? 'Knowledge Base' : 'Historical Match'}
+														</span>
+														{s.matched_pattern && (
+															<span className="text-[10px] text-zinc-400 truncate max-w-[200px]">
+																matched: {s.matched_pattern}
+															</span>
+														)}
+													</div>
+												</div>
+											)}
+										</div>
+									);
+								})}
+							</div>
+						)}
+					</div>
+
 					<div className="rounded-lg border border-zinc-200 bg-white p-5">
 						<h2 className="mb-4 text-sm font-medium text-zinc-900">Activity</h2>
 						<div className="space-y-0">

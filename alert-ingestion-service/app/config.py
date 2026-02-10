@@ -38,6 +38,7 @@ class Settings(BaseSettings):
     ONCALL_SERVICE_URL: Optional[str] = "http://oncall-service:8003"
     ALERT_SERVICE_URL: Optional[str] = "http://alert-ingestion:8001"
     NOTIFICATION_SERVICE_URL: Optional[str] = "http://notification-service:8004"
+    AI_ANALYSIS_SERVICE_URL: Optional[str] = "http://ai-analysis:8005"
 
     # Logging
     LOG_LEVEL: str = "INFO"

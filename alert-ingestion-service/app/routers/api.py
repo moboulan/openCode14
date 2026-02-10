@@ -154,6 +154,25 @@ async def create_alert(alert: Alert):
     display_action = action_map.get(action, action)
     resp_status = "correlated" if incident_id else "created"
 
+    # ── 4. Fire-and-forget AI analysis ────────────────────────
+    try:
+        if settings.AI_ANALYSIS_SERVICE_URL:
+            client = get_http_client()
+            await client.post(
+                f"{settings.AI_ANALYSIS_SERVICE_URL}/api/v1/analyze",
+                json={
+                    "alert_id": alert_db_id,
+                    "incident_id": incident_db_id if incident_id else None,
+                    "message": alert.message,
+                    "service": alert.service,
+                    "severity": alert.severity.value,
+                },
+                timeout=5.0,
+            )
+            logger.info(f"AI analysis triggered for alert {alert_id}")
+    except Exception as e:
+        logger.warning(f"AI analysis call failed for {alert_id}: {e}")
+
     return AlertResponse(
         alert_id=alert_id,
         incident_id=incident_id,
