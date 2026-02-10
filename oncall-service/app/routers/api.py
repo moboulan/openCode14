@@ -6,22 +6,42 @@ from typing import Optional
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 import httpx
+from fastapi import APIRouter, HTTPException, Query, status
+
 from app.config import settings
 from app.database import get_db_connection
-from app.metrics import (active_escalation_timers, auto_escalation_runs_total,
-                         escalation_notifications_total, escalation_rate,
-                         escalations_total, oncall_current)
-from app.models import (AutoEscalationResult, CurrentOnCallResponse, Engineer,
-                        EscalateRequest, EscalateResponse,
-                        EscalationPolicyCreateRequest, EscalationPolicyLevel,
-                        EscalationPolicyResponse, EscalationTimerResponse,
-                        OnCallEngineer, OnCallMetrics, ScheduleCreateRequest,
-                        ScheduleListResponse, ScheduleMemberCreate,
-                        ScheduleMemberListResponse, ScheduleMemberResponse,
-                        ScheduleResponse, TimerCancelRequest,
-                        TimerCancelResponse, TimerListResponse,
-                        TimerStartRequest, TimerStartResponse)
-from fastapi import APIRouter, HTTPException, Query, status
+from app.metrics import (
+    active_escalation_timers,
+    auto_escalation_runs_total,
+    escalation_notifications_total,
+    escalation_rate,
+    escalations_total,
+    oncall_current,
+)
+from app.models import (
+    AutoEscalationResult,
+    CurrentOnCallResponse,
+    Engineer,
+    EscalateRequest,
+    EscalateResponse,
+    EscalationPolicyCreateRequest,
+    EscalationPolicyLevel,
+    EscalationPolicyResponse,
+    EscalationTimerResponse,
+    OnCallEngineer,
+    OnCallMetrics,
+    ScheduleCreateRequest,
+    ScheduleListResponse,
+    ScheduleMemberCreate,
+    ScheduleMemberListResponse,
+    ScheduleMemberResponse,
+    ScheduleResponse,
+    TimerCancelRequest,
+    TimerCancelResponse,
+    TimerListResponse,
+    TimerStartRequest,
+    TimerStartResponse,
+)
 
 router = APIRouter()
 logger = logging.getLogger(__name__)

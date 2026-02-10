@@ -13,12 +13,13 @@ from __future__ import annotations
 import logging
 from datetime import datetime, timezone
 
+from fastapi import APIRouter, HTTPException, Query
+
 from app.config import settings
 from app.database import get_db_connection
 from app.knowledge_base import KNOWN_PATTERNS
 from app.models import AnalyseRequest, AnalysisResponse, SuggestionResponse
 from app.nlp_engine import SimilarityEngine
-from fastapi import APIRouter, HTTPException, Query
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/v1", tags=["analysis"])

@@ -5,8 +5,9 @@ from __future__ import annotations
 import logging
 from contextlib import contextmanager
 
-from app.config import settings
 from psycopg2 import pool
+
+from app.config import settings
 
 logger = logging.getLogger(__name__)
 

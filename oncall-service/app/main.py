@@ -2,16 +2,17 @@ import logging
 import time
 from contextlib import asynccontextmanager
 
-from app.config import settings
-from app.database import close_pool
-from app.metrics import setup_custom_metrics
-from app.routers import api, health
-from app.routers.api import check_escalations
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi_utils.tasks import repeat_every
 from prometheus_fastapi_instrumentator import Instrumentator
+
+from app.config import settings
+from app.database import close_pool
+from app.metrics import setup_custom_metrics
+from app.routers import api, health
+from app.routers.api import check_escalations
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")

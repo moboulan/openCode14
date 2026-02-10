@@ -1,7 +1,6 @@
 """Tests for notification service metrics."""
 
-from app.metrics import (notification_delivery_seconds,
-                         oncall_notifications_sent_total, setup_custom_metrics)
+from app.metrics import notification_delivery_seconds, oncall_notifications_sent_total, setup_custom_metrics
 
 
 def test_setup_custom_metrics():

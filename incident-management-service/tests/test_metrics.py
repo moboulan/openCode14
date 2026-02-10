@@ -1,7 +1,12 @@
 """Tests for custom Prometheus metrics setup."""
 
-from app.metrics import (incident_mtta_seconds, incident_mttr_seconds,
-                         incidents_total, open_incidents, setup_custom_metrics)
+from app.metrics import (
+    incident_mtta_seconds,
+    incident_mttr_seconds,
+    incidents_total,
+    open_incidents,
+    setup_custom_metrics,
+)
 
 
 class TestMetrics:

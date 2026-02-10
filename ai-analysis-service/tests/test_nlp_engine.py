@@ -1,7 +1,6 @@
 """Tests for the NLP similarity engine."""
 
-from app.nlp_engine import (HistoricalEntry, SimilarityEngine, Suggestion,
-                            _normalise)
+from app.nlp_engine import HistoricalEntry, SimilarityEngine, Suggestion, _normalise
 
 
 class TestNormalise:

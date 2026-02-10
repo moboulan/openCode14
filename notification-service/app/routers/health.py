@@ -2,10 +2,11 @@ import time
 from datetime import datetime, timezone
 
 import psutil
+from fastapi import APIRouter, Response, status
+
 from app.config import settings
 from app.database import check_database_health
 from app.models import HealthCheck
-from fastapi import APIRouter, Response, status
 
 router = APIRouter()
 

@@ -3,8 +3,7 @@
 from unittest.mock import MagicMock, patch
 
 import pytest
-from app.database import (check_database_health, close_pool, get_db_connection,
-                          get_pool)
+from app.database import check_database_health, close_pool, get_db_connection, get_pool
 
 
 def test_check_database_health_success():

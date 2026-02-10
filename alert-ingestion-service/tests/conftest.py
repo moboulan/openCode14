@@ -16,8 +16,7 @@ from httpx import ASGITransport, AsyncClient
 os.environ.setdefault("DATABASE_URL", "postgresql://test:test@localhost:5432/test")
 
 # Re-export helpers so they stay accessible from conftest if needed
-from helpers import (FakeAsyncClient, FakeAsyncClientDown,  # noqa: F401
-                     fake_connection)
+from helpers import FakeAsyncClient, FakeAsyncClientDown, fake_connection  # noqa: F401
 
 # ---------------------------------------------------------------------------
 # Ensure the app never tries to connect to a real DB during unit tests

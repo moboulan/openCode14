@@ -1,7 +1,6 @@
 """Tests for custom Prometheus metrics setup."""
 
-from app.metrics import (alerts_correlated_total, alerts_received_total,
-                         setup_custom_metrics)
+from app.metrics import alerts_correlated_total, alerts_received_total, setup_custom_metrics
 
 
 class TestMetrics:
