@@ -48,4 +48,4 @@ EXPOSE ${SERVICE_PORT}
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
 	CMD curl -f http://localhost:${SERVICE_PORT}/health || exit 1
 
-CMD ["python", "-m", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8003"]
+CMD ["sh", "-c", "uvicorn app.main:app --host 0.0.0.0 --port ${SERVICE_PORT}"]

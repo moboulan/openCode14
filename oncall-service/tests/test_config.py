@@ -36,8 +36,7 @@ def test_settings_requires_database_url():
     env.pop("DATABASE_URL", None)
 
     with patch.dict(os.environ, env, clear=True):
-        from pydantic import ValidationError
-        from pydantic_settings import BaseSettings
+        from pydantic import ValidationError  # noqa: F401
 
         with pytest.raises((ValidationError, Exception)):
             from importlib import reload

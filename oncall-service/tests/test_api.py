@@ -3,7 +3,7 @@
 import json
 import uuid
 from datetime import date, datetime, timezone
-from unittest.mock import AsyncMock, patch
+from unittest.mock import patch
 
 import pytest
 from helpers import FakeAsyncClient, FakeAsyncClientDown, fake_connection, make_fake_async_client
@@ -1343,7 +1343,6 @@ async def test_oncall_metrics_escalation_db_error(client):
 async def test_oncall_metrics_incident_db_error(client):
     """GET /api/v1/metrics/oncall handles DB error in incident query gracefully."""
     fake_esc_count = {"cnt": 3}
-    fake_esc_by_team = []  # No team data
 
     # 1) escalation count OK, 2) incident query FAIL
     with patch(
@@ -1361,8 +1360,6 @@ async def test_oncall_metrics_incident_db_error(client):
 @pytest.mark.asyncio
 async def test_oncall_metrics_full_data(client):
     """GET /api/v1/metrics/oncall returns full metrics when all queries succeed."""
-    from unittest.mock import call
-
     fake_esc_count = {"cnt": 10}
     fake_esc_by_team = [{"team": "platform", "cnt": 7}]
 
@@ -1528,3 +1525,370 @@ async def test_escalate_timer_uses_policy_wait(client, sample_escalate_payload):
         with patch("app.routers.api.httpx.AsyncClient", FakeAsyncClient):
             resp = await client.post("/api/v1/escalate", json=sample_escalate_payload)
     assert resp.status_code == 201
+
+
+# ── POST /api/v1/schedules -- invalid timezone ──────────────────
+
+
+@pytest.mark.asyncio
+async def test_create_schedule_invalid_timezone(client, sample_schedule_payload):
+    """POST /api/v1/schedules rejects an invalid timezone string."""
+    payload = {**sample_schedule_payload, "timezone": "Invalid/TZ"}
+    resp = await client.post("/api/v1/schedules", json=payload)
+    assert resp.status_code == 400
+    assert "Invalid timezone" in resp.json()["detail"]
+
+
+@pytest.mark.asyncio
+async def test_create_schedule_with_handoff_and_timezone(client, sample_schedule_payload):
+    """POST /api/v1/schedules with handoff_hour and timezone returns both fields."""
+    payload = {**sample_schedule_payload, "handoff_hour": 8, "timezone": "US/Eastern"}
+    fake_row = {
+        "id": str(uuid.uuid4()),
+        "team": "platform",
+        "rotation_type": "weekly",
+        "start_date": date(2026, 1, 1),
+        "engineers": [
+            {"name": "Alice Engineer", "email": "alice@example.com", "primary": True},
+            {"name": "Bob Developer", "email": "bob@example.com", "primary": False},
+        ],
+        "escalation_minutes": 5,
+        "handoff_hour": 8,
+        "timezone": "US/Eastern",
+        "created_at": datetime(2026, 1, 1, tzinfo=timezone.utc),
+    }
+
+    with patch("app.routers.api.get_db_connection", fake_connection([fake_row])):
+        resp = await client.post("/api/v1/schedules", json=payload)
+
+    assert resp.status_code == 201
+    body = resp.json()
+    assert body["handoff_hour"] == 8
+    assert body["timezone"] == "US/Eastern"
+
+
+@pytest.mark.asyncio
+async def test_create_schedule_reraises_http_exception(client, sample_schedule_payload):
+    """Ensure HTTPException from timezone check is re-raised, not wrapped as 500."""
+    payload = {**sample_schedule_payload, "timezone": "Fake/Zone"}
+    resp = await client.post("/api/v1/schedules", json=payload)
+    assert resp.status_code == 400
+
+
+# ── POST /api/v1/timers/start ─────────────────────────────────
+
+
+@pytest.mark.asyncio
+async def test_start_timer_success(client):
+    """POST /api/v1/timers/start creates a timer with default wait."""
+    timer_payload = {
+        "incident_id": "inc-timer-001",
+        "team": "platform",
+        "assigned_to": "alice@example.com",
+    }
+
+    # Call 1: policy lookup (no policy → use default)
+    # Call 2: timer INSERT
+    with patch("app.routers.api.get_db_connection", fake_connection([None, None])):
+        resp = await client.post("/api/v1/timers/start", json=timer_payload)
+
+    assert resp.status_code == 201
+    body = resp.json()
+    assert body["incident_id"] == "inc-timer-001"
+    assert body["team"] == "platform"
+    assert body["assigned_to"] == "alice@example.com"
+    assert body["current_level"] == 1
+    assert "escalate_after" in body
+
+
+@pytest.mark.asyncio
+async def test_start_timer_with_policy(client):
+    """POST /api/v1/timers/start uses policy wait_minutes when present."""
+    timer_payload = {
+        "incident_id": "inc-timer-002",
+        "team": "platform",
+        "assigned_to": "alice@example.com",
+    }
+
+    # Call 1: policy lookup found
+    # Call 2: timer INSERT
+    policy = {"wait_minutes": 15}
+    with patch("app.routers.api.get_db_connection", fake_connection([policy, None])):
+        resp = await client.post("/api/v1/timers/start", json=timer_payload)
+
+    assert resp.status_code == 201
+    body = resp.json()
+    assert body["current_level"] == 1
+
+
+@pytest.mark.asyncio
+async def test_start_timer_policy_db_error(client):
+    """POST /api/v1/timers/start handles policy lookup DB error gracefully."""
+    timer_payload = {
+        "incident_id": "inc-timer-003",
+        "team": "platform",
+        "assigned_to": "alice@example.com",
+    }
+
+    # Call 1: policy lookup raises exception → falls back to default
+    # Call 2: timer INSERT
+    with patch("app.routers.api.get_db_connection", fake_connection([Exception("DB"), None])):
+        resp = await client.post("/api/v1/timers/start", json=timer_payload)
+
+    assert resp.status_code == 201
+
+
+@pytest.mark.asyncio
+async def test_start_timer_insert_db_error(client):
+    """POST /api/v1/timers/start returns 500 on timer INSERT failure."""
+    timer_payload = {
+        "incident_id": "inc-timer-004",
+        "team": "platform",
+        "assigned_to": "alice@example.com",
+    }
+
+    # Call 1: policy lookup ok
+    # Call 2: timer INSERT fails
+    with patch("app.routers.api.get_db_connection", fake_connection([None, Exception("DB")])):
+        resp = await client.post("/api/v1/timers/start", json=timer_payload)
+
+    assert resp.status_code == 500
+
+
+# ── POST /api/v1/timers/cancel ────────────────────────────────
+
+
+@pytest.mark.asyncio
+async def test_cancel_timer_success(client):
+    """POST /api/v1/timers/cancel deactivates timer(s) and returns count."""
+    cancel_payload = {"incident_id": "inc-timer-001"}
+
+    # fetchall returns cancelled rows with team
+    cancelled_rows = [{"team": "platform"}]
+    with patch("app.routers.api.get_db_connection", fake_connection([cancelled_rows])):
+        resp = await client.post("/api/v1/timers/cancel", json=cancel_payload)
+
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["incident_id"] == "inc-timer-001"
+    assert body["cancelled_count"] == 1
+
+
+@pytest.mark.asyncio
+async def test_cancel_timer_none_active(client):
+    """POST /api/v1/timers/cancel with no active timer returns count 0."""
+    cancel_payload = {"incident_id": "inc-nonexistent"}
+
+    with patch("app.routers.api.get_db_connection", fake_connection([[]])):
+        resp = await client.post("/api/v1/timers/cancel", json=cancel_payload)
+
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["cancelled_count"] == 0
+
+
+@pytest.mark.asyncio
+async def test_cancel_timer_db_error(client):
+    """POST /api/v1/timers/cancel returns 500 on DB error."""
+    cancel_payload = {"incident_id": "inc-timer-001"}
+
+    with patch("app.routers.api.get_db_connection", fake_connection([Exception("DB")])):
+        resp = await client.post("/api/v1/timers/cancel", json=cancel_payload)
+
+    assert resp.status_code == 500
+
+
+# ── GET /api/v1/timers ────────────────────────────────────────
+
+
+@pytest.mark.asyncio
+async def test_list_timers(client):
+    """GET /api/v1/timers returns active timers."""
+    fake_timers = [
+        {
+            "id": str(uuid.uuid4()),
+            "incident_id": "inc-t-001",
+            "team": "platform",
+            "current_level": 1,
+            "assigned_to": "alice@example.com",
+            "escalate_after": datetime(2026, 1, 1, 12, 0, tzinfo=timezone.utc),
+            "is_active": True,
+        }
+    ]
+
+    with patch("app.routers.api.get_db_connection", fake_connection([fake_timers])):
+        resp = await client.get("/api/v1/timers")
+
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["total"] == 1
+    assert body["timers"][0]["incident_id"] == "inc-t-001"
+
+
+@pytest.mark.asyncio
+async def test_list_timers_with_team_filter(client):
+    """GET /api/v1/timers?team=platform filters by team."""
+    with patch("app.routers.api.get_db_connection", fake_connection([[]])):
+        resp = await client.get("/api/v1/timers?team=platform")
+
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["total"] == 0
+
+
+@pytest.mark.asyncio
+async def test_list_timers_with_incident_filter(client):
+    """GET /api/v1/timers?incident_id=inc-x filters by incident."""
+    with patch("app.routers.api.get_db_connection", fake_connection([[]])):
+        resp = await client.get("/api/v1/timers?incident_id=inc-x")
+
+    assert resp.status_code == 200
+
+
+@pytest.mark.asyncio
+async def test_list_timers_with_both_filters(client):
+    """GET /api/v1/timers?team=x&incident_id=y accepts both filters."""
+    with patch("app.routers.api.get_db_connection", fake_connection([[]])):
+        resp = await client.get("/api/v1/timers?team=platform&incident_id=inc-123")
+
+    assert resp.status_code == 200
+
+
+@pytest.mark.asyncio
+async def test_list_timers_db_error(client):
+    """GET /api/v1/timers returns 500 on DB error."""
+    with patch("app.routers.api.get_db_connection", fake_connection([Exception("DB")])):
+        resp = await client.get("/api/v1/timers")
+
+    assert resp.status_code == 500
+
+
+# ── POST /api/v1/schedules/{id}/members ──────────────────────
+
+
+@pytest.mark.asyncio
+async def test_add_schedule_member_success(client):
+    """POST /api/v1/schedules/{id}/members creates a member."""
+    schedule_id = str(uuid.uuid4())
+    member_payload = {
+        "user_name": "Alice Engineer",
+        "user_email": "alice@example.com",
+        "position": 1,
+    }
+
+    fake_schedule = {"id": schedule_id}
+    fake_member_row = {
+        "id": str(uuid.uuid4()),
+        "schedule_id": schedule_id,
+        "user_name": "Alice Engineer",
+        "user_email": "alice@example.com",
+        "position": 1,
+        "is_active": True,
+        "created_at": datetime(2026, 1, 1, tzinfo=timezone.utc),
+    }
+
+    # Call 1: check schedule exists (fetchone), Call 2: INSERT member (fetchone)
+    with patch("app.routers.api.get_db_connection", fake_connection([fake_schedule, fake_member_row])):
+        resp = await client.post(f"/api/v1/schedules/{schedule_id}/members", json=member_payload)
+
+    assert resp.status_code == 201
+    body = resp.json()
+    assert body["user_name"] == "Alice Engineer"
+    assert body["position"] == 1
+    assert body["is_active"] is True
+
+
+@pytest.mark.asyncio
+async def test_add_schedule_member_schedule_not_found(client):
+    """POST /api/v1/schedules/{id}/members returns 404 for unknown schedule."""
+    schedule_id = str(uuid.uuid4())
+    member_payload = {
+        "user_name": "Alice",
+        "user_email": "alice@example.com",
+        "position": 1,
+    }
+
+    # fetchone returns None (schedule not found)
+    with patch("app.routers.api.get_db_connection", fake_connection([None])):
+        resp = await client.post(f"/api/v1/schedules/{schedule_id}/members", json=member_payload)
+
+    assert resp.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_add_schedule_member_db_error(client):
+    """POST /api/v1/schedules/{id}/members returns 500 on DB error."""
+    schedule_id = str(uuid.uuid4())
+    member_payload = {
+        "user_name": "Alice",
+        "user_email": "alice@example.com",
+        "position": 1,
+    }
+
+    with patch("app.routers.api.get_db_connection", fake_connection([Exception("DB")])):
+        resp = await client.post(f"/api/v1/schedules/{schedule_id}/members", json=member_payload)
+
+    assert resp.status_code == 500
+
+
+# ── GET /api/v1/schedules/{id}/members ───────────────────────
+
+
+@pytest.mark.asyncio
+async def test_list_schedule_members(client):
+    """GET /api/v1/schedules/{id}/members returns members list."""
+    schedule_id = str(uuid.uuid4())
+    fake_rows = [
+        {
+            "id": str(uuid.uuid4()),
+            "schedule_id": schedule_id,
+            "user_name": "Alice",
+            "user_email": "alice@example.com",
+            "position": 1,
+            "is_active": True,
+            "created_at": datetime(2026, 1, 1, tzinfo=timezone.utc),
+        },
+        {
+            "id": str(uuid.uuid4()),
+            "schedule_id": schedule_id,
+            "user_name": "Bob",
+            "user_email": "bob@example.com",
+            "position": 2,
+            "is_active": True,
+            "created_at": datetime(2026, 1, 1, tzinfo=timezone.utc),
+        },
+    ]
+
+    with patch("app.routers.api.get_db_connection", fake_connection([fake_rows])):
+        resp = await client.get(f"/api/v1/schedules/{schedule_id}/members")
+
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["total"] == 2
+    assert body["members"][0]["user_name"] == "Alice"
+    assert body["members"][1]["position"] == 2
+
+
+@pytest.mark.asyncio
+async def test_list_schedule_members_empty(client):
+    """GET /api/v1/schedules/{id}/members returns empty list."""
+    schedule_id = str(uuid.uuid4())
+
+    with patch("app.routers.api.get_db_connection", fake_connection([[]])):
+        resp = await client.get(f"/api/v1/schedules/{schedule_id}/members")
+
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["total"] == 0
+    assert body["members"] == []
+
+
+@pytest.mark.asyncio
+async def test_list_schedule_members_db_error(client):
+    """GET /api/v1/schedules/{id}/members returns 500 on DB error."""
+    schedule_id = str(uuid.uuid4())
+
+    with patch("app.routers.api.get_db_connection", fake_connection([Exception("DB")])):
+        resp = await client.get(f"/api/v1/schedules/{schedule_id}/members")
+
+    assert resp.status_code == 500

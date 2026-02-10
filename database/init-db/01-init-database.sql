@@ -165,8 +165,24 @@ CREATE TABLE IF NOT EXISTS oncall.schedules (
     start_date          DATE         NOT NULL,
     engineers           JSONB        NOT NULL,
     escalation_minutes  INTEGER      DEFAULT 5,
+    handoff_hour        INTEGER      DEFAULT 9,
+    timezone            VARCHAR(50)  DEFAULT 'UTC',
     created_at          TIMESTAMPTZ  NOT NULL DEFAULT now()
 );
+
+-- ── Schedule Members (normalised member list with position) ──
+CREATE TABLE IF NOT EXISTS oncall.schedule_members (
+    id          UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    schedule_id UUID         NOT NULL REFERENCES oncall.schedules(id) ON DELETE CASCADE,
+    user_name   VARCHAR(255) NOT NULL,
+    user_email  VARCHAR(255) NOT NULL,
+    position    INTEGER      NOT NULL,
+    is_active   BOOLEAN      DEFAULT TRUE,
+    created_at  TIMESTAMPTZ  NOT NULL DEFAULT now(),
+    UNIQUE (schedule_id, position)
+);
+
+CREATE INDEX IF NOT EXISTS idx_schedule_members_schedule ON oncall.schedule_members(schedule_id);
 
 CREATE TABLE IF NOT EXISTS oncall.oncall_assignments (
     id          UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -184,11 +200,39 @@ CREATE TABLE IF NOT EXISTS oncall.escalations (
     incident_id     VARCHAR(255) NOT NULL,
     from_engineer   VARCHAR(255) NOT NULL,
     to_engineer     VARCHAR(255) NOT NULL,
+    level           INTEGER      NOT NULL DEFAULT 1,
     reason          VARCHAR(255),
     escalated_at    TIMESTAMPTZ  NOT NULL DEFAULT now()
 );
 
 CREATE INDEX IF NOT EXISTS idx_escalations_incident ON oncall.escalations(incident_id);
+
+-- ── Escalation Policies ─────────────────────────────────────
+CREATE TABLE IF NOT EXISTS oncall.escalation_policies (
+    id              UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    team            VARCHAR(255) NOT NULL,
+    level           INTEGER      NOT NULL,
+    wait_minutes    INTEGER      NOT NULL DEFAULT 5,
+    notify_target   VARCHAR(255) NOT NULL,
+    created_at      TIMESTAMPTZ  NOT NULL DEFAULT now(),
+    UNIQUE (team, level)
+);
+
+CREATE INDEX IF NOT EXISTS idx_escalation_policies_team ON oncall.escalation_policies(team);
+
+-- ── Escalation Timers (active pending escalations) ──────────
+CREATE TABLE IF NOT EXISTS oncall.escalation_timers (
+    id              UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    incident_id     VARCHAR(255) NOT NULL,
+    team            VARCHAR(255) NOT NULL,
+    current_level   INTEGER      NOT NULL DEFAULT 1,
+    assigned_to     VARCHAR(255) NOT NULL,
+    escalate_after  TIMESTAMPTZ  NOT NULL,
+    is_active       BOOLEAN      NOT NULL DEFAULT TRUE,
+    created_at      TIMESTAMPTZ  NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_escalation_timers_active ON oncall.escalation_timers(is_active, escalate_after);
 
 -- ── Auto-update updated_at trigger ──────────────────────────
 CREATE OR REPLACE FUNCTION update_updated_at()
@@ -227,7 +271,7 @@ VALUES
 ON CONFLICT (email) DO NOTHING;
 
 -- On-call schedules for 3 teams (platform, backend, frontend)
-INSERT INTO oncall.schedules (team, rotation_type, start_date, engineers, escalation_minutes)
+INSERT INTO oncall.schedules (team, rotation_type, start_date, engineers, escalation_minutes, handoff_hour, timezone)
 VALUES 
     (
         'platform',
@@ -238,7 +282,9 @@ VALUES
             {"name": "Bob Developer", "email": "bob@example.com", "primary": false},
             {"name": "Charlie SRE", "email": "charlie@example.com", "primary": false}
         ]'::jsonb,
-        5
+        5,
+        9,
+        'UTC'
     ),
     (
         'backend',
@@ -248,7 +294,9 @@ VALUES
             {"name": "Diana Ops", "email": "diana@example.com", "primary": true},
             {"name": "Eve Backend", "email": "eve@example.com", "primary": false}
         ]'::jsonb,
-        10
+        10,
+        8,
+        'US/Eastern'
     ),
     (
         'frontend',
@@ -259,6 +307,36 @@ VALUES
             {"name": "Grace DevOps", "email": "grace@example.com", "primary": false},
             {"name": "Henry Platform", "email": "henry@example.com", "primary": false}
         ]'::jsonb,
-        5
+        5,
+        9,
+        'Europe/London'
     )
+ON CONFLICT DO NOTHING;
+
+-- Seed schedule_members for platform team
+INSERT INTO oncall.schedule_members (schedule_id, user_name, user_email, position)
+SELECT s.id, 'Alice Engineer', 'alice@example.com', 1
+FROM oncall.schedules s WHERE s.team = 'platform'
+ON CONFLICT DO NOTHING;
+INSERT INTO oncall.schedule_members (schedule_id, user_name, user_email, position)
+SELECT s.id, 'Bob Developer', 'bob@example.com', 2
+FROM oncall.schedules s WHERE s.team = 'platform'
+ON CONFLICT DO NOTHING;
+INSERT INTO oncall.schedule_members (schedule_id, user_name, user_email, position)
+SELECT s.id, 'Charlie SRE', 'charlie@example.com', 3
+FROM oncall.schedules s WHERE s.team = 'platform'
+ON CONFLICT DO NOTHING;
+
+-- Escalation policies for each team
+INSERT INTO oncall.escalation_policies (team, level, wait_minutes, notify_target)
+VALUES
+    -- Platform team: 5 min → secondary, 10 more min → manager
+    ('platform', 1, 5,  'secondary'),
+    ('platform', 2, 10, 'manager'),
+    -- Backend team: 10 min → secondary, 15 more min → manager
+    ('backend',  1, 10, 'secondary'),
+    ('backend',  2, 15, 'manager'),
+    -- Frontend team: 5 min → secondary, 10 more min → manager
+    ('frontend', 1, 5,  'secondary'),
+    ('frontend', 2, 10, 'manager')
 ON CONFLICT DO NOTHING;

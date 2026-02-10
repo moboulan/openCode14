@@ -41,6 +41,8 @@ class ScheduleCreateRequest(BaseModel):
     start_date: date = Field(..., description="Rotation start date")
     engineers: List[Engineer] = Field(..., min_length=1, description="Ordered list of engineers in rotation")
     escalation_minutes: int = Field(default=5, ge=1, description="Minutes before escalation")
+    handoff_hour: int = Field(default=9, ge=0, le=23, description="Hour of day for rotation handoff (0-23)")
+    timezone: str = Field(default="UTC", description="Schedule timezone (e.g. UTC, US/Eastern)")
 
 
 class EscalateRequest(BaseModel):
@@ -86,6 +88,8 @@ class ScheduleResponse(BaseModel):
     start_date: date
     engineers: List[Engineer]
     escalation_minutes: int
+    handoff_hour: int = 9
+    timezone: str = "UTC"
     created_at: datetime
 
 
@@ -113,6 +117,8 @@ class CurrentOnCallResponse(BaseModel):
     schedule_id: str
     rotation_type: str
     escalation_minutes: int
+    handoff_hour: int = 9
+    timezone: str = "UTC"
 
 
 class EscalateResponse(BaseModel):
@@ -164,6 +170,82 @@ class AutoEscalationResult(BaseModel):
     checked: int
     escalated: int
     details: List[Dict]
+
+
+# ---------------------------------------------------------------------------
+# Timer management models (for incident-management integration)
+# ---------------------------------------------------------------------------
+
+
+class TimerStartRequest(BaseModel):
+    """Start an escalation timer for a newly assigned incident."""
+
+    incident_id: str = Field(..., description="Incident ID to track")
+    team: str = Field(..., description="Team responsible for the incident")
+    assigned_to: str = Field(..., description="Currently assigned engineer (name or email)")
+
+
+class TimerCancelRequest(BaseModel):
+    """Cancel active escalation timer(s) for an incident."""
+
+    incident_id: str = Field(..., description="Incident ID whose timer(s) to cancel")
+
+
+class TimerStartResponse(BaseModel):
+    """Response after starting an escalation timer."""
+
+    timer_id: str
+    incident_id: str
+    team: str
+    assigned_to: str
+    escalate_after: datetime
+    current_level: int
+
+
+class TimerCancelResponse(BaseModel):
+    """Response after cancelling escalation timer(s)."""
+
+    incident_id: str
+    cancelled_count: int
+
+
+class TimerListResponse(BaseModel):
+    """List of active escalation timers."""
+
+    timers: List[EscalationTimerResponse]
+    total: int
+
+
+# ---------------------------------------------------------------------------
+# Schedule member models
+# ---------------------------------------------------------------------------
+
+
+class ScheduleMemberCreate(BaseModel):
+    """Add a member to a schedule rotation."""
+
+    user_name: str = Field(..., description="Engineer display name")
+    user_email: str = Field(..., description="Engineer email address")
+    position: int = Field(..., ge=1, description="Position in rotation (1-based)")
+
+
+class ScheduleMemberResponse(BaseModel):
+    """A member in a schedule rotation."""
+
+    id: str
+    schedule_id: str
+    user_name: str
+    user_email: str
+    position: int
+    is_active: bool = True
+    created_at: datetime
+
+
+class ScheduleMemberListResponse(BaseModel):
+    """List of schedule members."""
+
+    members: List[ScheduleMemberResponse]
+    total: int
 
 
 # ---------------------------------------------------------------------------

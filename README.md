@@ -47,7 +47,7 @@ make health                   # verify everything is healthy
         |                  |
 ┌──────────────────────────────────────┐
 │         PostgreSQL (:5432)           │
-│  schemas: alerts │ incidents │ oncall│
+│  schemas: alerts │ incidents │ oncall │ notifications │
 └──────────────────────────────────────┘
         │
 ┌───────┴──────────────────────────────┐
@@ -176,10 +176,13 @@ All services expose `/metrics` in Prometheus format:
 incident-platform/
 ├── alert-ingestion-service/    # FastAPI :8001
 ├── incident-management-service/# FastAPI :8002
+├── oncall-service/             # FastAPI :8003
+├── notification-service/       # FastAPI :8004
 ├── web-ui/                     # React :8080
 ├── database/                   # PostgreSQL init scripts
 │   └── init-db/
 │       └── 01-init-database.sql
+├── monitoring/                 # Prometheus & Grafana config
 ├── docker-compose.yml          # All services orchestration
 ├── Makefile                    # 7-stage CI/CD pipeline
 ├── .env.example                # Environment template
@@ -195,7 +198,7 @@ All services are configured via environment variables. See [`.env.example`](.env
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `DATABASE_URL` | `postgresql://postgres:hackathon2026@database:5432/incident_platform` | PostgreSQL connection |
+| `DATABASE_URL` | `postgresql://postgres:${POSTGRES_PASSWORD}@database:5432/incident_platform` | PostgreSQL connection |
 | `CORRELATION_WINDOW_MINUTES` | `5` | Alert deduplication window |
 | `INCIDENT_SERVICE_URL` | `http://incident-management:8002` | Incident service URL |
 | `NOTIFICATION_SERVICE_URL` | `http://notification-service:8004` | Notification service URL |

@@ -17,7 +17,6 @@ from app.models import (
     OnCallEngineer,
     OnCallMetrics,
     ScheduleCreateRequest,
-    ScheduleListResponse,
     ScheduleResponse,
 )
 

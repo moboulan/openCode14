@@ -3,6 +3,7 @@ import logging
 import uuid
 from datetime import date, datetime, timedelta, timezone
 from typing import Optional
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 import httpx
 from fastapi import APIRouter, HTTPException, Query, status
@@ -26,11 +27,20 @@ from app.models import (
     EscalationPolicyCreateRequest,
     EscalationPolicyLevel,
     EscalationPolicyResponse,
+    EscalationTimerResponse,
     OnCallEngineer,
     OnCallMetrics,
     ScheduleCreateRequest,
     ScheduleListResponse,
+    ScheduleMemberCreate,
+    ScheduleMemberListResponse,
+    ScheduleMemberResponse,
     ScheduleResponse,
+    TimerCancelRequest,
+    TimerCancelResponse,
+    TimerListResponse,
+    TimerStartRequest,
+    TimerStartResponse,
 )
 
 router = APIRouter()
@@ -48,6 +58,10 @@ def _compute_current_oncall(schedule: dict) -> tuple[Engineer | None, Engineer |
     For *weekly* rotations the on-call engineer index is determined by
     the number of full weeks since ``start_date``.  For *daily* rotations
     the index is the number of full days since ``start_date``.
+
+    **Handoff-hour aware**: The rotation switches at ``handoff_hour`` in
+    the schedule's ``timezone``.  Before the handoff hour, the previous
+    period's engineer is still on-call.
 
     Returns (primary_engineer, secondary_engineer) where secondary is the
     next engineer in the rotation or ``None`` if the team has only one
@@ -68,11 +82,29 @@ def _compute_current_oncall(schedule: dict) -> tuple[Engineer | None, Engineer |
     start = schedule["start_date"]
     if isinstance(start, str):
         start = date.fromisoformat(start)
-    elif isinstance(start, datetime):
+    elif hasattr(start, "date") and callable(start.date):
+        # datetime objects have a .date() method; plain date objects do not
         start = start.date()
 
-    today = date.today()
-    delta_days = (today - start).days
+    # Resolve timezone and handoff hour
+    tz_name = schedule.get("timezone") or "UTC"
+    handoff_hour = schedule.get("handoff_hour")
+    if handoff_hour is None:
+        handoff_hour = 9
+
+    try:
+        tz = ZoneInfo(tz_name)
+    except (ZoneInfoNotFoundError, KeyError):
+        tz = ZoneInfo("UTC")
+
+    now_tz = datetime.now(tz)
+    effective_date = now_tz.date()
+
+    # Before handoff hour → still in the previous rotation period
+    if now_tz.hour < handoff_hour:
+        effective_date -= timedelta(days=1)
+
+    delta_days = (effective_date - start).days
     if delta_days < 0:
         delta_days = 0
 
@@ -99,14 +131,23 @@ def create_schedule(body: ScheduleCreateRequest):
     schedule_id = str(uuid.uuid4())
     engineers_json = [e.model_dump() for e in body.engineers]
 
+    # Validate timezone
+    try:
+        ZoneInfo(body.timezone)
+    except (ZoneInfoNotFoundError, KeyError):
+        raise HTTPException(status_code=400, detail=f"Invalid timezone: {body.timezone}")
+
     try:
         with get_db_connection(autocommit=True) as conn:
             with conn.cursor() as cur:
                 cur.execute(
                     """
-                    INSERT INTO oncall.schedules (id, team, rotation_type, start_date, engineers, escalation_minutes)
-                    VALUES (%s, %s, %s, %s, %s::jsonb, %s)
-                    RETURNING id, team, rotation_type, start_date, engineers, escalation_minutes, created_at
+                    INSERT INTO oncall.schedules
+                        (id, team, rotation_type, start_date, engineers,
+                         escalation_minutes, handoff_hour, timezone)
+                    VALUES (%s, %s, %s, %s, %s::jsonb, %s, %s, %s)
+                    RETURNING id, team, rotation_type, start_date, engineers,
+                              escalation_minutes, handoff_hour, timezone, created_at
                     """,
                     (
                         schedule_id,
@@ -115,6 +156,8 @@ def create_schedule(body: ScheduleCreateRequest):
                         body.start_date.isoformat(),
                         json.dumps(engineers_json),
                         body.escalation_minutes,
+                        body.handoff_hour,
+                        body.timezone,
                     ),
                 )
                 row = cur.fetchone()
@@ -133,6 +176,8 @@ def create_schedule(body: ScheduleCreateRequest):
         start_date=row["start_date"],
         engineers=[Engineer(**e) for e in engineers_data],
         escalation_minutes=row["escalation_minutes"],
+        handoff_hour=row.get("handoff_hour", 9) if isinstance(row, dict) else 9,
+        timezone=row.get("timezone", "UTC") if isinstance(row, dict) else "UTC",
         created_at=row["created_at"],
     )
 
@@ -175,6 +220,8 @@ def list_schedules(
                 start_date=row["start_date"],
                 engineers=[Engineer(**e) for e in engineers_data],
                 escalation_minutes=row["escalation_minutes"],
+                handoff_hour=row.get("handoff_hour", 9) if isinstance(row, dict) else 9,
+                timezone=row.get("timezone", "UTC") if isinstance(row, dict) else "UTC",
                 created_at=row["created_at"],
             )
         )
@@ -229,6 +276,8 @@ def get_current_oncall(
         schedule_id=str(schedule["id"]),
         rotation_type=schedule["rotation_type"],
         escalation_minutes=schedule["escalation_minutes"],
+        handoff_hour=schedule.get("handoff_hour", 9) if isinstance(schedule, dict) else 9,
+        timezone=schedule.get("timezone", "UTC") if isinstance(schedule, dict) else "UTC",
     )
 
 
@@ -852,3 +901,243 @@ def get_oncall_metrics():
         logger.warning(f"Failed to query incident metrics: {e}")
 
     return OnCallMetrics(**metrics)
+
+
+# ---------------------------------------------------------------------------
+# POST /timers/start -- start escalation timer (called by incident-mgmt)
+# ---------------------------------------------------------------------------
+
+
+@router.post("/timers/start", response_model=TimerStartResponse, status_code=status.HTTP_201_CREATED)
+def start_timer(body: TimerStartRequest):
+    """Start an escalation timer for a newly assigned incident.
+
+    Called by the incident-management service when an incident is created
+    and assigned to an on-call engineer.  The timer fires at level 1.
+    """
+    # Look up escalation policy to get wait time for level 1
+    wait_minutes = settings.DEFAULT_ESCALATION_MINUTES
+    try:
+        with get_db_connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    "SELECT wait_minutes FROM oncall.escalation_policies WHERE team = %s AND level = 1",
+                    (body.team,),
+                )
+                policy = cur.fetchone()
+                if policy:
+                    wait_minutes = policy["wait_minutes"]
+    except Exception:
+        pass  # Use default
+
+    now = datetime.now(timezone.utc)
+    escalate_after = now + timedelta(minutes=wait_minutes)
+    timer_id = str(uuid.uuid4())
+
+    try:
+        with get_db_connection(autocommit=True) as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    INSERT INTO oncall.escalation_timers
+                        (id, incident_id, team, current_level, assigned_to, escalate_after, is_active)
+                    VALUES (%s, %s, %s, 1, %s, %s, TRUE)
+                    """,
+                    (timer_id, body.incident_id, body.team, body.assigned_to, escalate_after),
+                )
+        active_escalation_timers.labels(team=body.team).inc()
+        logger.info(
+            f"Timer started: incident={body.incident_id} team={body.team} "
+            f"assigned={body.assigned_to} escalate_after={escalate_after}"
+        )
+    except Exception as exc:
+        logger.error(f"Failed to start timer: {exc}")
+        raise HTTPException(status_code=500, detail="Failed to start escalation timer") from exc
+
+    return TimerStartResponse(
+        timer_id=timer_id,
+        incident_id=body.incident_id,
+        team=body.team,
+        assigned_to=body.assigned_to,
+        escalate_after=escalate_after,
+        current_level=1,
+    )
+
+
+# ---------------------------------------------------------------------------
+# POST /timers/cancel -- cancel timer (called on acknowledge)
+# ---------------------------------------------------------------------------
+
+
+@router.post("/timers/cancel", response_model=TimerCancelResponse)
+def cancel_timer(body: TimerCancelRequest):
+    """Cancel all active escalation timers for an incident.
+
+    Called by the incident-management service when an incident is
+    acknowledged or resolved, preventing unnecessary escalation.
+    """
+    try:
+        with get_db_connection(autocommit=True) as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    UPDATE oncall.escalation_timers
+                    SET is_active = FALSE
+                    WHERE incident_id = %s AND is_active = TRUE
+                    RETURNING team
+                    """,
+                    (body.incident_id,),
+                )
+                cancelled_rows = cur.fetchall()
+    except Exception as exc:
+        logger.error(f"Failed to cancel timers: {exc}")
+        raise HTTPException(status_code=500, detail="Failed to cancel escalation timers") from exc
+
+    count = len(cancelled_rows)
+    for r in cancelled_rows:
+        active_escalation_timers.labels(team=r["team"]).dec()
+
+    logger.info(f"Cancelled {count} timer(s) for incident {body.incident_id}")
+
+    return TimerCancelResponse(incident_id=body.incident_id, cancelled_count=count)
+
+
+# ---------------------------------------------------------------------------
+# GET /timers -- list active escalation timers
+# ---------------------------------------------------------------------------
+
+
+@router.get("/timers", response_model=TimerListResponse)
+def list_timers(
+    team: Optional[str] = Query(None, description="Filter by team name"),
+    incident_id: Optional[str] = Query(None, description="Filter by incident ID"),
+):
+    """List active escalation timers, optionally filtered by team or incident."""
+    try:
+        with get_db_connection() as conn:
+            with conn.cursor() as cur:
+                conditions = ["is_active = TRUE"]
+                params: list = []
+                if team:
+                    conditions.append("team = %s")
+                    params.append(team)
+                if incident_id:
+                    conditions.append("incident_id = %s")
+                    params.append(incident_id)
+
+                where = " AND ".join(conditions)
+                cur.execute(
+                    f"SELECT * FROM oncall.escalation_timers WHERE {where} ORDER BY escalate_after",
+                    params,
+                )
+                rows = cur.fetchall()
+    except Exception as exc:
+        logger.error(f"Failed to list timers: {exc}")
+        raise HTTPException(status_code=500, detail="Failed to list escalation timers") from exc
+
+    timers = [
+        EscalationTimerResponse(
+            id=str(r["id"]),
+            incident_id=r["incident_id"],
+            team=r["team"],
+            current_level=r["current_level"],
+            assigned_to=r["assigned_to"],
+            escalate_after=r["escalate_after"],
+            is_active=r["is_active"],
+        )
+        for r in rows
+    ]
+
+    return TimerListResponse(timers=timers, total=len(timers))
+
+
+# ---------------------------------------------------------------------------
+# POST /schedules/{schedule_id}/members -- add member to schedule
+# ---------------------------------------------------------------------------
+
+
+@router.post(
+    "/schedules/{schedule_id}/members",
+    response_model=ScheduleMemberResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+def add_schedule_member(schedule_id: str, body: ScheduleMemberCreate):
+    """Add a member to a schedule rotation."""
+    member_id = str(uuid.uuid4())
+
+    try:
+        with get_db_connection(autocommit=True) as conn:
+            with conn.cursor() as cur:
+                # Verify schedule exists
+                cur.execute("SELECT id FROM oncall.schedules WHERE id = %s", (schedule_id,))
+                if not cur.fetchone():
+                    raise HTTPException(status_code=404, detail=f"Schedule {schedule_id} not found")
+
+        with get_db_connection(autocommit=True) as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    INSERT INTO oncall.schedule_members
+                        (id, schedule_id, user_name, user_email, position)
+                    VALUES (%s, %s, %s, %s, %s)
+                    RETURNING id, schedule_id, user_name, user_email, position, is_active, created_at
+                    """,
+                    (member_id, schedule_id, body.user_name, body.user_email, body.position),
+                )
+                row = cur.fetchone()
+    except HTTPException:
+        raise
+    except Exception as exc:
+        logger.error(f"Failed to add schedule member: {exc}")
+        raise HTTPException(status_code=500, detail="Failed to add schedule member") from exc
+
+    return ScheduleMemberResponse(
+        id=str(row["id"]),
+        schedule_id=str(row["schedule_id"]),
+        user_name=row["user_name"],
+        user_email=row["user_email"],
+        position=row["position"],
+        is_active=row["is_active"],
+        created_at=row["created_at"],
+    )
+
+
+# ---------------------------------------------------------------------------
+# GET /schedules/{schedule_id}/members -- list schedule members
+# ---------------------------------------------------------------------------
+
+
+@router.get("/schedules/{schedule_id}/members", response_model=ScheduleMemberListResponse)
+def list_schedule_members(schedule_id: str):
+    """List all members in a schedule rotation, ordered by position."""
+    try:
+        with get_db_connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    SELECT id, schedule_id, user_name, user_email, position, is_active, created_at
+                    FROM oncall.schedule_members
+                    WHERE schedule_id = %s
+                    ORDER BY position
+                    """,
+                    (schedule_id,),
+                )
+                rows = cur.fetchall()
+    except Exception as exc:
+        logger.error(f"Failed to list schedule members: {exc}")
+        raise HTTPException(status_code=500, detail="Failed to list schedule members") from exc
+
+    members = [
+        ScheduleMemberResponse(
+            id=str(r["id"]),
+            schedule_id=str(r["schedule_id"]),
+            user_name=r["user_name"],
+            user_email=r["user_email"],
+            position=r["position"],
+            is_active=r["is_active"],
+            created_at=r["created_at"],
+        )
+        for r in rows
+    ]
+
+    return ScheduleMemberListResponse(members=members, total=len(members))

@@ -107,7 +107,7 @@ def test_get_db_connection_rollback_on_error():
         from app.database import get_db_connection
 
         with pytest.raises(ValueError, match="boom"):
-            with get_db_connection() as conn:
+            with get_db_connection():
                 raise ValueError("boom")
 
         mock_conn.rollback.assert_called_once()

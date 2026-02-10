@@ -1,0 +1,31 @@
+# TruffleHog configuration for Incident Platform
+# https://github.com/trufflesecurity/trufflehog
+
+# Paths to exclude from secret scanning
+exclude_paths:
+  - .venv/
+  - node_modules/
+  - .git/
+  - htmlcov/
+  - "*.pyc"
+  - __pycache__/
+  - "*.min.js"
+  - "*.map"
+  - grafana-dashboards/
+
+# Detectors to use (all enabled by default)
+detectors:
+  - AWS
+  - Azure
+  - GCP
+  - GitHub
+  - GitLab
+  - Slack
+  - SendGrid
+  - Mailgun
+  - Postgres
+  - PrivateKey
+  - JWT
+
+# Only fail on verified secrets
+only_verified: false

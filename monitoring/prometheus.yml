@@ -48,9 +48,9 @@ scrape_configs:
     metrics_path: '/metrics'
     scrape_interval: 10s
 
-  # Web UI
+  # Web UI (health only — no /metrics endpoint)
   - job_name: 'web-ui'
     static_configs:
       - targets: ['web-ui:8080']
-    metrics_path: '/metrics'
-    scrape_interval: 10s
+    metrics_path: '/health'
+    scrape_interval: 30s
