@@ -27,9 +27,14 @@ Detailed documentation for every component of the Incident & On-Call Management 
                          │ :9090        │     │   :3000      │
                          └──────────────┘     └──────────────┘
 
-         ┌──────────────────┐
-         │ Test Runner :8006│──▶ Alert Ingestion + AI Analysis
-         └──────────────────┘
+         ┌──────────────┐   ┌───────────────────┐
+         │ Node Exporter│──▶│    Prometheus      │
+         │ :9100        │   │                   │
+         └──────────────┘   └───────────────────┘
+         ┌──────────────┐       ▲
+         │ Blackbox Exp │───────┘
+         │ :9115        │
+         └──────────────┘
 ```
 
 ## Services
@@ -41,9 +46,13 @@ Detailed documentation for every component of the Incident & On-Call Management 
 | On-Call & Escalation | 8003 | [oncall-service.md](oncall-service.md) | Rotation schedules, current on-call, auto-escalation |
 | Notification | 8004 | [notification-service.md](notification-service.md) | Multi-channel notifications (mock, email, webhook) |
 | AI Analysis | 8005 | [ai-analysis-service.md](ai-analysis-service.md) | NLP-powered root-cause analysis (TF-IDF + knowledge base) |
-| Web UI | 8080 | [web-ui.md](web-ui.md) | React dashboard with live incident view |
-| Test Runner | 8006 | [test-runner.md](test-runner.md) | Interactive test harness for sending alerts |
-| Database | 5432 | [database.md](database.md) | PostgreSQL with schema-level service isolation |
+| Web UI | 8080 | [web-ui.md](web-ui.md) | React 18 dashboard with dark theme + AI suggestions |
+| Database | 5432 | [database.md](database.md) | PostgreSQL 16 with 5 schema-level service isolation |
+| Prometheus | 9090 | — | Metrics collection (10s scrape interval) |
+| Node Exporter | 9100 | — | Host-level metrics (CPU, memory, disk, network) |
+| Blackbox Exporter | 9115 | — | HTTP probe / endpoint availability checks |
+| Grafana | 3000 | — | 3 dashboards (incidents, SRE metrics, system health) |
+| Test Runner | script | [test-runner.md](test-runner.md) | Standalone `test-runner.py` — zero-dependency test data generator |
 
 ## Data Flow
 

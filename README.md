@@ -108,8 +108,10 @@ No extra dependencies — uses Python stdlib only.
 | **Notification** | 8004 | Multi-channel notifications (mock, email, webhook) |
 | **AI Analysis** | 8005 | NLP-powered root-cause analysis (TF-IDF + knowledge base) |
 | **Web UI** | 8080 | React dashboard with live incident view + AI suggestions |
-| **PostgreSQL** | 5432 | Persistent storage (5 schemas) |
+| **PostgreSQL** | 5432 | Persistent storage (5 schemas: alerts, incidents, oncall, notifications, analysis) |
 | **Prometheus** | 9090 | Metrics collection (10s scrape) |
+| **Node Exporter** | 9100 | Host-level metrics (CPU, memory, disk, network) |
+| **Blackbox Exporter** | 9115 | HTTP probe / endpoint availability checks |
 | **Grafana** | 3000 | 3 dashboards (incidents, SRE metrics, system health) |
 
 ---
@@ -166,7 +168,7 @@ make all → quality → security → build → scan → test → deploy → ver
 
 | Stage | What | Tools |
 | ------- | ------ | ------- |
-| 1. Quality | Linting & formatting | flake8, pylint, black, isort |
+| 1. Quality | Linting & formatting | ruff (lint + format) |
 | 2. Security | Credential scanning | gitleaks, trufflehog |
 | 3. Build | Docker images | docker compose build |
 | 4. Scan | Vulnerability scanning | Trivy |
@@ -338,8 +340,8 @@ make coverage       # tests + open HTML coverage report
 ### Code Quality
 
 ```bash
-make lint           # flake8 + pylint across all services
-make fmt            # auto-format with black + isort
+make lint           # ruff check across all services
+make fmt            # auto-format with ruff format + ruff check --fix
 make dupcheck       # check for code duplication
 ```
 
@@ -368,8 +370,6 @@ make fclean         # remove everything (venv, volumes, images)
 
 ### Code Style
 
-- **Formatter**: Black (line length 100)
-- **Import sorting**: isort (Black profile)
-- **Linting**: flake8 + pylint
-- **Config**: See `ruff.toml` and per-service `setup.cfg`
-
+- **Linter & Formatter**: [ruff](https://docs.astral.sh/ruff/) (line length 120, Python 3.11)
+- **Rules**: E, F, W, I (pyflakes, pycodestyle, isort)
+- **Config**: See `ruff.toml` (root) and per-service `setup.cfg`
